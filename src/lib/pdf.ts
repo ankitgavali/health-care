@@ -285,25 +285,7 @@ export async function generateCasePaperPDF(c: CaseRow) {
   const fileName = `Case-Paper-${c.full_name.replace(/\s+/g, "-")}.pdf`;
   const pdfBlob = doc.output("blob");
 
-  // Try Web Share API first (native save dialog on Android/iOS)
-  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
-    const file = new File([pdfBlob], fileName, { type: "application/pdf" });
-    if (navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: "Case Paper",
-          text: "Your case paper from Moolatvam Ayurved.",
-        });
-        return;
-      } catch (e) {
-        // User cancelled or share failed — fall through to anchor download
-        console.warn("Share API failed:", e);
-      }
-    }
-  }
-
-  // Fallback: anchor download (works on desktop & most Android browsers)
+  // Direct anchor download (no share dialog)
   const blobUrl = URL.createObjectURL(pdfBlob);
   const a = document.createElement("a");
   a.style.display = "none";
@@ -315,6 +297,112 @@ export async function generateCasePaperPDF(c: CaseRow) {
     document.body.removeChild(a);
     URL.revokeObjectURL(blobUrl);
   }, 1000);
+}
+
+// Separate share function using Web Share API
+export async function shareCasePaperPDF(c: CaseRow) {
+  const doc = new jsPDF("p", "mm", "a4");
+  // Reuse same build — call generateCasePaperPDF build inline
+  // We duplicate the PDF build here so share gets a fresh blob
+  const fileName = `Case-Paper-${c.full_name.replace(/\s+/g, "-")}.pdf`;
+
+  // Build same PDF
+  const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
+  doc.setFillColor(251, 189, 8);
+  doc.rect(0, 0, w, 45, "F");
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Dr. Kadambari Jagtap", 14, 15);
+  doc.setFontSize(10);
+  doc.text("MD Ayu. Sch.", 14, 21);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("|| Shree ||", w / 2, 12, { align: "center" });
+  doc.setFontSize(14);
+  doc.text("Dr. Omprasad Jagtap", w / 2, 18, { align: "center" });
+  doc.setFontSize(10);
+  doc.text("MD Ayu.", w / 2, 24, { align: "center" });
+  doc.setFontSize(9);
+  doc.text("Swasthasya Swasthya Rakshanam...", w / 2, 30, { align: "center" });
+  doc.setFontSize(12);
+  doc.text("MOOLATVAM", w - 14, 18, { align: "right" });
+  doc.text("AYURVED", w - 14, 24, { align: "right" });
+
+  let y = 60;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text("Name :", 14, y);
+  doc.setFont("helvetica", "normal");
+  doc.text(c.full_name.toUpperCase(), 35, y);
+  y += 12;
+  doc.setFont("helvetica", "bold"); doc.text("Date Of Birth:", 14, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "-", 45, y);
+  doc.setFont("helvetica", "bold"); doc.text("Age & Gender:", 80, y);
+  doc.setFont("helvetica", "normal"); doc.text(`${c.age} Y / ${c.gender || "-"}`, 112, y);
+  doc.setFont("helvetica", "bold"); doc.text("Date:", 150, y);
+  doc.setFont("helvetica", "normal"); doc.text(new Date(c.created_at).toLocaleDateString("en-IN"), 165, y);
+  y += 10;
+  doc.setFont("helvetica", "bold"); doc.text("Phone No.:", 14, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.mobile || "-", 40, y);
+  doc.setFont("helvetica", "bold"); doc.text("Education:", 150, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.education || "-", 172, y);
+  y += 10;
+  doc.setFont("helvetica", "bold"); doc.text("Address:", 14, y);
+  doc.setFont("helvetica", "normal");
+  const addrLines = doc.splitTextToSize(c.address || "-", 80);
+  doc.text(addrLines, 35, y);
+  doc.setFont("helvetica", "bold"); doc.text("Occupation:", 150, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.occupation || "-", 175, y);
+  y += Math.max(10, addrLines.length * 6);
+  doc.setFont("helvetica", "bold"); doc.text("Married/Unmarried:", 14, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.marital_status || "-", 55, y);
+  doc.setFont("helvetica", "bold"); doc.text("Parent's Occu.:", 150, y);
+  doc.setFont("helvetica", "normal"); doc.text(c.parents_occupation || "-", 180, y);
+  y += 15;
+  doc.setFont("helvetica", "bold"); doc.text("History of present illness:", 14, y);
+  doc.setFont("helvetica", "normal");
+  const histLines = doc.splitTextToSize(c.notes || "-", w - 70);
+  doc.text(histLines, 65, y);
+  y += Math.max(12, histLines.length * 6 + 4);
+
+  const footerY = h - 50;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8);
+  doc.text("Consent", w / 2, footerY, { align: "center" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+  const consentText = "I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information. I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.";
+  doc.text(doc.splitTextToSize(consentText, w - 28), 14, footerY + 4);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  doc.text(`Name: ${c.full_name}`, 14, footerY + 28);
+  doc.text("Signature: ________________", 14, footerY + 36);
+  doc.setFillColor(251, 189, 8);
+  doc.rect(0, h - 12, w, 12, "F");
+  doc.setFontSize(8); doc.setFont("helvetica", "bold");
+  doc.text("9404306548 | 8867303202", w - 14, h - 7, { align: "right" });
+  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
+  doc.text("Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416", w / 2, h - 4, { align: "center" });
+
+  const pdfBlob = doc.output("blob");
+
+  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
+    const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "Case Paper",
+          text: "Your case paper from Moolatvam Ayurved.",
+        });
+        return;
+      } catch (e) {
+        console.warn("Share API failed:", e);
+      }
+    }
+  }
+
+  // Fallback if share not supported
+  alert("Sharing is not supported on this browser. Please use the Download button instead.");
 }
 
 export function generateInvoicePDF(c: CaseRow) {

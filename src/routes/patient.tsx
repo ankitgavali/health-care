@@ -17,8 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
-import { generateCasePaperPDF, generatePDFFromElementId } from "@/lib/pdf";
-import { FileText, Download, Loader2, Plus, Stethoscope } from "lucide-react";
+import { generateCasePaperPDF, generatePDFFromElementId, shareCasePaperPDF } from "@/lib/pdf";
+import { FileText, Download, Share2, Loader2, Plus, Stethoscope } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/patient")({
@@ -569,19 +569,39 @@ function PatientPage() {
                 </Badge>
                 <span className="font-mono text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">ID: {c.id.substring(0,8).toUpperCase()}</span>
               </div>
-              <Button 
-                onClick={() => {
-                  try {
-                    generateCasePaperPDF(c);
-                  } catch (err) {
-                    console.error(err);
-                    toast.error("Failed to generate PDF.");
-                  }
-                }} 
-                className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"
-              >
-                <Download className="h-4 w-4" /> Download Case Paper
-              </Button>
+
+              <div className="flex items-center gap-2">
+                {/* Download Button — direct save, no share dialog */}
+                <Button 
+                  onClick={() => {
+                    try {
+                      generateCasePaperPDF(c);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Failed to generate PDF.");
+                    }
+                  }} 
+                  className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"
+                >
+                  <Download className="h-4 w-4" /> Download
+                </Button>
+
+                {/* Share Button — opens native share/WhatsApp dialog */}
+                <Button 
+                  onClick={() => {
+                    try {
+                      shareCasePaperPDF(c);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Share failed.");
+                    }
+                  }} 
+                  variant="outline"
+                  className="gap-2 shadow-sm border-yellow-500 text-yellow-700 hover:bg-yellow-50 rounded-xl text-xs h-9"
+                >
+                  <Share2 className="h-4 w-4" /> Share
+                </Button>
+              </div>
             </div>
             
           </div>
