@@ -115,7 +115,7 @@ function PatientPage() {
       const isGuest = user.email === "guest.patient@medicare.local";
       if (isGuest) {
         try {
-          const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+          const localIds = JSON.parse(localStorage.getItem("healthbridge_submitted_case_ids") || "[]");
           if (Array.isArray(localIds)) {
             fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
           } else {
@@ -143,7 +143,24 @@ function PatientPage() {
     }
     setBusy(true);
     try {
-      const docRef = await addDoc(collection(db, "case_papers"), {
+      const newDocRef = doc(collection(db, "case_papers"));
+      const newId = newDocRef.id;
+
+      try {
+        const localIds = JSON.parse(localStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+        if (Array.isArray(localIds)) {
+          if (!localIds.includes(newId)) {
+            localIds.push(newId);
+            localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify(localIds));
+          }
+        } else {
+          localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+        }
+      } catch (e) {
+        localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+      }
+
+      await setDoc(newDocRef, {
         patient_id: user.uid,
         full_name: form.full_name.trim(),
         address: form.address.trim(),
@@ -166,20 +183,6 @@ function PatientPage() {
       });
       
       setBusy(false);
-      const newId = docRef.id;
-      try {
-        const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
-        if (Array.isArray(localIds)) {
-          if (!localIds.includes(newId)) {
-            localIds.push(newId);
-            sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify(localIds));
-          }
-        } else {
-          sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
-        }
-      } catch (e) {
-        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
-      }
       
       toast.success("Case paper submitted");
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });

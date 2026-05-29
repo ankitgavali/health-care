@@ -1006,7 +1006,7 @@ function AdminBillingDialog({ caseRow, onSaved }: { caseRow: any; onSaved: () =>
    5. QR CODE SCAN GENERATOR SECTION
    ======================================================== */
 function QrCodeSection() {
-  const [ipOverride, setIpOverride] = useState("");
+  const [ipOverride, setIpOverride] = useState("https://health-care-chi-three.vercel.app");
   const [detectedIp, setDetectedIp] = useState("localhost");
   const [loadingIp, setLoadingIp] = useState(true);
 
