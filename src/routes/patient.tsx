@@ -50,6 +50,7 @@ function PatientPage() {
   const [cases, setCases] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
+  const [autoDownloadId, setAutoDownloadId] = useState<string | null>(null);
 
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
 
@@ -133,6 +134,26 @@ function PatientPage() {
     return () => unsubscribe();
   }, [user]);
 
+  useEffect(() => {
+    if (autoDownloadId) {
+      const el = document.getElementById(`case-paper-${autoDownloadId}`);
+      if (el) {
+        setTimeout(() => {
+          let toastId;
+          try {
+            toastId = toast.loading("Auto-downloading Case Paper...");
+            generatePDFFromElementId(`case-paper-${autoDownloadId}`, "Case-Paper");
+            toast.success("Case paper downloaded successfully!", { id: toastId });
+          } catch (err) {
+            console.error(err);
+            toast.error("Failed to auto-download PDF.", { id: toastId });
+          }
+          setAutoDownloadId(null);
+        }, 500);
+      }
+    }
+  }, [autoDownloadId, cases]);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const r = schema.safeParse(form);
@@ -185,6 +206,7 @@ function PatientPage() {
       setBusy(false);
       
       toast.success("Case paper submitted");
+      setAutoDownloadId(newId);
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setIsDialogOpen(false);
     } catch (err: any) {
