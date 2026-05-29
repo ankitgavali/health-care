@@ -50,7 +50,6 @@ function PatientPage() {
   const [cases, setCases] = useState<any[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
-  const [autoDownloadId, setAutoDownloadId] = useState<string | null>(null);
 
   const age = useMemo(() => calculateAge(form.dob), [form.dob]);
 
@@ -134,26 +133,6 @@ function PatientPage() {
     return () => unsubscribe();
   }, [user]);
 
-  useEffect(() => {
-    if (autoDownloadId) {
-      const el = document.getElementById(`case-paper-${autoDownloadId}`);
-      if (el) {
-        setTimeout(() => {
-          let toastId;
-          try {
-            toastId = toast.loading("Auto-downloading Case Paper...");
-            generatePDFFromElementId(`case-paper-${autoDownloadId}`, "Case-Paper");
-            toast.success("Case paper downloaded successfully!", { id: toastId });
-          } catch (err) {
-            console.error(err);
-            toast.error("Failed to auto-download PDF.", { id: toastId });
-          }
-          setAutoDownloadId(null);
-        }, 500);
-      }
-    }
-  }, [autoDownloadId, cases]);
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const r = schema.safeParse(form);
@@ -204,9 +183,49 @@ function PatientPage() {
       });
       
       setBusy(false);
-      
-      toast.success("Case paper submitted");
-      setAutoDownloadId(newId);
+      toast.success("Case paper submitted! Downloading...");
+
+      // Build a case object from form data for immediate PDF generation (works on mobile)
+      const submittedCase = {
+        id: newId,
+        full_name: form.full_name.trim(),
+        address: form.address.trim(),
+        mobile: form.mobile.trim(),
+        dob: form.dob,
+        age,
+        gender: form.gender,
+        marital_status: form.marital_status,
+        education: form.education,
+        occupation: form.occupation,
+        parents_occupation: form.parents_occupation,
+        notes: form.notes,
+        menstrual_history: form.menstrual_history,
+        past_history: form.past_history,
+        weight: form.weight,
+        status: "submitted",
+        created_at: new Date().toISOString(),
+        prescription: null,
+        medical_notes: null,
+        assigned_doctor: null,
+        medicines: null,
+        tests: null,
+        consultation_charge: 0,
+        medicine_charge: 0,
+        test_charge: 0,
+        other_charge: 0,
+        total_bill: 0,
+      } as any;
+
+      // Small delay so the toast is visible, then generate PDF
+      setTimeout(() => {
+        try {
+          generateCasePaperPDF(submittedCase);
+        } catch (pdfErr) {
+          console.error("PDF generation error:", pdfErr);
+          toast.error("PDF download failed. Open case paper below to download.");
+        }
+      }, 300);
+
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setIsDialogOpen(false);
     } catch (err: any) {
@@ -552,15 +571,11 @@ function PatientPage() {
               </div>
               <Button 
                 onClick={() => {
-                  let toastId;
                   try {
-                    toastId = toast.loading("Generating PDF...");
-                    // Using pure jsPDF generation which is 100% crash-free on mobile
-                    generatePDFFromElementId(`case-paper-${c.id}`, "Case-Paper");
-                    toast.success("Case paper downloaded successfully!", { id: toastId });
+                    generateCasePaperPDF(c);
                   } catch (err) {
                     console.error(err);
-                    toast.error("Failed to generate PDF.", { id: toastId });
+                    toast.error("Failed to generate PDF.");
                   }
                 }} 
                 className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"

@@ -80,7 +80,7 @@ export async function generatePDFFromElementId(elementId: string, filename: stri
   }
 }
 
-export function generateCasePaperPDF(c: CaseRow) {
+export async function generateCasePaperPDF(c: CaseRow) {
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
@@ -282,10 +282,39 @@ export function generateCasePaperPDF(c: CaseRow) {
   doc.setFontSize(7);
   doc.text("Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416", w / 2, h - 4, { align: "center" });
   
-  // Open PDF directly in a new tab
+  const fileName = `Case-Paper-${c.full_name.replace(/\s+/g, "-")}.pdf`;
   const pdfBlob = doc.output("blob");
+
+  // Try Web Share API first (native save dialog on Android/iOS)
+  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
+    const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "Case Paper",
+          text: "Your case paper from Moolatvam Ayurved.",
+        });
+        return;
+      } catch (e) {
+        // User cancelled or share failed — fall through to anchor download
+        console.warn("Share API failed:", e);
+      }
+    }
+  }
+
+  // Fallback: anchor download (works on desktop & most Android browsers)
   const blobUrl = URL.createObjectURL(pdfBlob);
-  window.open(blobUrl, "_blank");
+  const a = document.createElement("a");
+  a.style.display = "none";
+  a.href = blobUrl;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  }, 1000);
 }
 
 export function generateInvoicePDF(c: CaseRow) {
