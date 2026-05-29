@@ -1,0 +1,573 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { z } from "zod";
+import { toast } from "sonner";
+import { db, auth } from "@/firebase";
+import { collection, query, where, orderBy, onSnapshot, addDoc, getDocs, doc, setDoc } from "firebase/firestore";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { useAuth } from "@/hooks/use-auth";
+import { AppShell } from "@/components/AppShell";
+import { RequireRole } from "@/components/RequireRole";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
+import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
+import { generateCasePaperPDF } from "@/lib/pdf";
+import { FileText, Download, Loader2, Plus, Stethoscope } from "lucide-react";
+import { VoiceButton } from "@/components/VoiceButton";
+
+export const Route = createFileRoute("/patient")({
+  component: () => (
+    <AppShell title="Patient"><PatientPage /></AppShell>
+  ),
+});
+
+const schema = z.object({
+  full_name: z.string().trim().min(2).max(100),
+  address: z.string().trim().min(2).max(500),
+  mobile: z.string().trim().regex(/^[0-9+\-\s()]{7,20}$/, "Invalid mobile"),
+  dob: z.string().min(1, "DOB required"),
+  notes: z.string().max(2000).optional(),
+  marital_status: z.string().optional(),
+  education: z.string().optional(),
+  occupation: z.string().optional(),
+  parents_occupation: z.string().optional(),
+  menstrual_history: z.string().optional(),
+  past_history: z.string().optional(),
+  weight: z.string().optional(),
+  gender: z.string().optional(),
+});
+
+function PatientPage() {
+  const { user, loading, refreshRole } = useAuth();
+  const [form, setForm] = useState({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
+  const [busy, setBusy] = useState(false);
+  const [cases, setCases] = useState<any[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [authChecking, setAuthChecking] = useState(true);
+
+  const age = useMemo(() => calculateAge(form.dob), [form.dob]);
+
+  useEffect(() => {
+    const checkAndAutoLogin = async () => {
+      if (loading) return;
+      if (user) {
+        if (user.email === "guest.patient@medicare.local") {
+          const rolesQuery = query(collection(db, "user_roles"), where("user_id", "==", user.uid), where("role", "==", "patient"));
+          const rolesSnapshot = await getDocs(rolesQuery);
+          if (rolesSnapshot.empty) {
+            await setDoc(doc(db, "user_roles", user.uid), { user_id: user.uid, role: "patient" });
+          }
+        }
+        setAuthChecking(false);
+        return;
+      }
+
+      try {
+        const guestEmail = "guest.patient@medicare.local";
+        const guestPassword = "guestPassword123";
+
+        let signData;
+        try {
+          signData = await signInWithEmailAndPassword(auth, guestEmail, guestPassword);
+        } catch (signErr) {
+          // If sign in fails, sign up the guest patient
+          const upData = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
+          signData = upData;
+        }
+
+        // Now that we are signed in, ensure the role is set
+        if (signData?.user) {
+          const rolesQuery = query(collection(db, "user_roles"), where("user_id", "==", signData.user.uid), where("role", "==", "patient"));
+          const rolesSnapshot = await getDocs(rolesQuery);
+          if (rolesSnapshot.empty) {
+            await setDoc(doc(db, "user_roles", signData.user.uid), { user_id: signData.user.uid, role: "patient" });
+          }
+          
+          await setDoc(doc(db, "profiles", signData.user.uid), { full_name: "Guest Patient", email: guestEmail }, { merge: true });
+        }
+
+        await refreshRole();
+      } catch (err) {
+        console.error("Auto-login failed:", err);
+      } finally {
+        setAuthChecking(false);
+      }
+    };
+
+    checkAndAutoLogin();
+  }, [user, loading]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(
+      collection(db, "case_papers"),
+      where("patient_id", "==", user.uid),
+      orderBy("created_at", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let fetchedCases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const isGuest = user.email === "guest.patient@medicare.local";
+      if (isGuest) {
+        try {
+          const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+          if (Array.isArray(localIds)) {
+            fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
+          } else {
+            fetchedCases = [];
+          }
+        } catch (e) {
+          fetchedCases = [];
+        }
+      }
+      setCases(fetchedCases.map(parseCaseNotes));
+      if (fetchedCases.length === 0) {
+        setIsDialogOpen(true);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const r = schema.safeParse(form);
+    if (!r.success) return toast.error(r.error.issues[0].message);
+    if (!user) {
+      toast.error("Please wait, connecting to server or verification failed. Check your internet connection.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const docRef = await addDoc(collection(db, "case_papers"), {
+        patient_id: user.uid,
+        full_name: form.full_name.trim(),
+        address: form.address.trim(),
+        mobile: form.mobile.trim(),
+        dob: form.dob,
+        age,
+        notes: JSON.stringify({
+          notes: form.notes?.trim() || "",
+          marital_status: form.marital_status?.trim() || "",
+          education: form.education?.trim() || "",
+          occupation: form.occupation?.trim() || "",
+          parents_occupation: form.parents_occupation?.trim() || "",
+          menstrual_history: form.menstrual_history?.trim() || "",
+          past_history: form.past_history?.trim() || "",
+          weight: form.weight?.trim() || "",
+          gender: form.gender?.trim() || "",
+        }),
+        status: "submitted",
+        created_at: new Date().toISOString(),
+      });
+      
+      setBusy(false);
+      const newId = docRef.id;
+      try {
+        const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+        if (Array.isArray(localIds)) {
+          if (!localIds.includes(newId)) {
+            localIds.push(newId);
+            sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify(localIds));
+          }
+        } else {
+          sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+        }
+      } catch (e) {
+        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+      }
+      
+      toast.success("Case paper submitted");
+      setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
+      setIsDialogOpen(false);
+    } catch (err: any) {
+      setBusy(false);
+      return toast.error(err.message);
+    }
+  };
+
+  if (authChecking) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <Loader2 className="h-10 w-10 animate-spin text-cyan-600" />
+        <p className="text-slate-500 font-medium">Preparing Case Paper Workspace...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-12">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-7 w-7 text-primary" /> My Case Papers</h2>
+        
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+             <Button className="gap-2 shadow-md"><Plus className="h-4 w-4" /> New Case Paper</Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+             <DialogHeader>
+                <DialogTitle>New Case Paper</DialogTitle>
+                <DialogDescription>Fill in your details to register a visit</DialogDescription>
+             </DialogHeader>
+             <form onSubmit={submit} className="space-y-4 pt-4">
+                 <div>
+                   <Label>Full name</Label>
+                   <div className="relative">
+                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="pr-10" required />
+                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, full_name: f.full_name ? f.full_name + " " + val : val }))} />
+                   </div>
+                 </div>
+                 <div>
+                   <Label>Address</Label>
+                   <div className="relative">
+                     <Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="pr-10" required />
+                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, address: f.address ? f.address + " " + val : val }))} positionClassName="top-3" />
+                   </div>
+                 </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Mobile</Label>
+                      <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
+                    </div>
+                    <div>
+                      <Label>Date of Birth</Label>
+                      <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} required />
+                    </div>
+                    <div>
+                      <Label>Gender</Label>
+                      <Select value={form.gender} onValueChange={(val) => setForm({ ...form, gender: val })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                 {form.dob && (
+                   <div className="rounded-lg border bg-secondary/50 px-3 py-2 text-sm">
+                     Age: <span className="font-semibold">{age}</span> years
+                   </div>
+                 )}
+                 <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Marital Status</Label>
+                      <Select value={form.marital_status} onValueChange={(val) => setForm({ ...form, marital_status: val })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Married">Married</SelectItem>
+                          <SelectItem value="Unmarried">Unmarried</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                   <div>
+                     <Label>Education</Label>
+                     <Input value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
+                   </div>
+                 </div>
+                 <div className="grid grid-cols-2 gap-3">
+                   <div>
+                     <Label>Occupation</Label>
+                     <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} />
+                   </div>
+                   <div>
+                     <Label>Parent's Occu.</Label>
+                     <Input value={form.parents_occupation} onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} />
+                   </div>
+                 </div>
+                 <div>
+                   <Label>Chief Complaints / History of present illness</Label>
+                   <div className="relative">
+                     <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="pr-10" />
+                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, notes: f.notes ? f.notes + " " + val : val }))} positionClassName="top-3" />
+                   </div>
+                 </div>
+                  <div className={`grid ${form.gender === 'Female' ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                    {form.gender === "Female" && (
+                      <div>
+                        <Label>पाळीचा इतिहास</Label>
+                        <Input value={form.menstrual_history} onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} />
+                      </div>
+                    )}
+                   <div>
+                     <Label>मागील इतिहास</Label>
+                     <Input value={form.past_history} onChange={(e) => setForm({ ...form, past_history: e.target.value })} />
+                   </div>
+                   <div>
+                     <Label>वजन (Weight)</Label>
+                     <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" />
+                   </div>
+                 </div>
+                <Button type="submit" className="w-full h-11 bg-cyan-700 hover:bg-cyan-800 text-white shadow-md shadow-cyan-900/20" disabled={busy}>
+                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit case paper
+                </Button>
+             </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid gap-10">
+        {cases.length === 0 && (
+          <Card className="glass border-0 p-12 text-center text-muted-foreground">
+            No case papers yet. Click "New Case Paper" to get started.
+          </Card>
+        )}
+        
+        {cases.map((c) => (
+          <div key={c.id} className="relative mx-auto w-full max-w-[850px] mb-8 bg-white shadow-2xl transition-all hover:shadow-3xl flex flex-col border border-slate-200 rounded-2xl overflow-hidden">
+            
+            {/* Scrollable Wrapper for Mobile so layout never breaks */}
+            <div className="w-full overflow-x-auto bg-slate-100/50 dark:bg-slate-900/20">
+              <div className="min-w-[794px] p-4 sm:p-8 flex justify-center">
+                
+                {/* The actual printable area (A4 Physical Size) */}
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0" style={{ width: '794px', minHeight: '1123px' }}>
+              
+              {/* Faint Bottom-Left Swoosh (Simplified to avoid html2canvas crash) */}
+              <div className="absolute bottom-0 left-0 w-[70%] h-[35%] bg-yellow-600/5 rounded-tr-[200px] z-0 pointer-events-none"></div>
+
+              {/* Top Curved Yellow Header */}
+              <div className="relative w-full bg-[#fbbd08] px-8 pt-8 pb-14 z-10 rounded-b-[60px]">
+                <div className="flex justify-between items-start">
+                  
+                  {/* Left: Doctor 1 */}
+                  <div className="text-left w-1/3 pt-2 pl-2">
+                    <div className="font-bold text-black text-lg sm:text-xl whitespace-nowrap">Dr. Kadambari Jagtap</div>
+                    <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu. Sch.</div>
+                  </div>
+
+                  {/* Center: Doctor 2 & Quote */}
+                  <div className="text-center w-1/3 flex flex-col items-center">
+                    <div className="text-sm font-bold text-black">॥ श्रीः ॥</div>
+                    <div className="font-bold text-black text-lg sm:text-xl mt-1 whitespace-nowrap">Dr. Omprasad Jagtap</div>
+                    <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu.</div>
+                    <div className="text-[9px] sm:text-[11px] text-black font-bold mt-2 tracking-wide whitespace-nowrap">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
+                  </div>
+
+                  {/* Right: Logo */}
+                  <div className="w-1/3 flex justify-end pr-2">
+                    <div className="relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24">
+                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
+                        <circle cx="50" cy="50" r="48" fill="#fbbd08" />
+                        <circle cx="50" cy="50" r="42" fill="black" />
+                        <path d="M50 25 C45 35 45 60 50 78 C55 60 55 35 50 25 Z" fill="#fbbd08" />
+                        <path d="M50 48 C40 54 34 62 30 68 C40 64 47 58 50 48 Z" fill="#fbbd08" />
+                        <path d="M50 48 C60 54 66 62 70 68 C60 64 53 58 50 48 Z" fill="#fbbd08" />
+                        <text x="50" y="20" className="fill-black font-bold text-[8px]" letterSpacing="1" textAnchor="middle">
+                          MOOLATVAM AYURVED
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Content */}
+              <div className="flex-1 px-10 py-8 z-10 flex flex-col text-[12px] sm:text-[14px]">
+                
+                {/* Row 1: Name */}
+                <div className="flex mb-6 items-end">
+                  <div className="font-bold whitespace-nowrap mr-2">Name :</div>
+                  <div className="font-semibold uppercase">{c.full_name}</div>
+                </div>
+
+                {/* Grid for main details */}
+                <div className="flex flex-col gap-y-8 mb-8 w-full">
+                  
+                  {/* Row 1: DOB, Age, Date */}
+                  <div className="grid grid-cols-3 gap-6 w-full items-end">
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Date Of Birth:</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
+                    </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Age & Gender :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.age} Y {c.gender ? `/ ${c.gender}` : ''}</span>
+                    </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Phone, Education */}
+                  <div className="grid grid-cols-3 gap-6 w-full items-end">
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Phone No. :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.mobile}</span>
+                    </div>
+                    <div className="flex items-end">
+                      {/* Empty middle column to keep right column aligned perfectly */}
+                    </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Education :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.education}</span>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Address, Marital Status & Occupation */}
+                  <div className="grid grid-cols-3 gap-6 w-full items-start">
+                    <div className="col-span-2 flex flex-col gap-y-8">
+                      <div className="flex items-start">
+                        <span className="font-bold mr-2 whitespace-nowrap mt-1">Address :</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 leading-relaxed min-h-[40px] pt-1">{c.address}</span>
+                      </div>
+                      <div className="flex items-end w-[60%]">
+                        <span className="font-bold mr-2 whitespace-nowrap">Married/Unmarried:</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-y-8">
+                      <div className="flex items-end">
+                        <span className="font-bold mr-2 whitespace-nowrap">Occupation :</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation}</span>
+                      </div>
+                      <div className="flex items-end">
+                        <span className="font-bold mr-2 whitespace-nowrap">Parent's Occu. :</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* History Section */}
+                <div className="flex flex-col gap-y-8 mt-4 w-full">
+                  <div className="flex items-start">
+                    <span className="font-bold mr-2 whitespace-nowrap mt-1">History of present illness :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 leading-relaxed min-h-[40px] pt-1">{c.notes}</span>
+                  </div>
+                  
+                  <div className={`grid ${c.gender === 'Female' ? 'grid-cols-3' : 'grid-cols-2'} gap-6 w-full items-end`}>
+                    {c.gender === "Female" && (
+                      <div className="flex items-end">
+                        <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास :</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.menstrual_history}</span>
+                      </div>
+                    )}
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.past_history}</span>
+                    </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.weight}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Doctor's Notes & Prescription */}
+                {(c.prescription || c.medical_notes) && (
+                  <div className="mt-12 border-t border-dashed border-slate-300 pt-6">
+                    <h4 className="font-bold text-lg mb-4 text-[#b45309]">Doctor's Observations & Prescription</h4>
+                    {c.medical_notes && (
+                       <div className="mb-4">
+                         <div className="font-bold mb-1">Diagnosis:</div>
+                         <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
+                       </div>
+                    )}
+                    {c.prescription && (
+                       <div>
+                         <div className="font-serif font-bold text-2xl mb-1 text-[#b45309]">Rx</div>
+                         <div className="whitespace-pre-wrap font-medium">{c.prescription}</div>
+                       </div>
+                    )}
+                  </div>
+                )}
+                
+              </div>
+
+              {/* Consent & Bottom Signatures */}
+              <div className="px-10 pb-6 mt-auto z-10">
+                <div className="text-center font-bold text-[11px] sm:text-[12px] text-black">Concent</div>
+                <div className="text-[9px] sm:text-[10px] text-black leading-tight text-justify mt-1 mb-6">
+                  I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information. I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
+                </div>
+                
+                <div className="flex justify-between items-end mb-4">
+                  <div className="w-1/2 flex flex-col gap-3">
+                    <div className="flex items-end">
+                      <span className="font-bold text-[12px] sm:text-[13px] text-black mr-2">Name :</span>
+                      <span className="font-semibold uppercase text-[12px] sm:text-[13px]">{c.full_name}</span>
+                    </div>
+                    <div className="flex items-end">
+                      <span className="font-bold text-[12px] sm:text-[13px] text-black mr-2">Signature :</span>
+                    </div>
+                  </div>
+                  
+                  {/* Doctor Signature if billed/reviewed */}
+                  {c.assigned_doctor && c.status !== "submitted" && (
+                    <div className="w-1/3 text-center">
+                      <div className="pb-4 text-sm font-serif italic font-semibold">{doctorName[c.assigned_doctor as "doctor1" | "doctor2"]}</div>
+                      <div className="text-[10px] font-bold mt-1 uppercase text-black border-t border-black pt-1">Consulting Signature</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Yellow Footer */}
+              <div className="relative w-full bg-[#fbbd08] px-10 py-3 z-10 rounded-tl-[80px]">
+                <div className="flex justify-end items-center mb-1 gap-2 text-black font-bold text-[10px] sm:text-[12px]">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+                  9404306548 | 8867303202
+                </div>
+                <div className="text-center text-[9px] sm:text-[11px] text-black font-semibold">
+                  Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
+                </div>
+              </div>
+
+            </div>
+              </div>
+            </div>
+            
+            {/* Action Bar (outside printable area) */}
+            <div className="border-t border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center rounded-b-2xl">
+
+              <div className="flex items-center gap-2">
+                <Badge className={statusColor[c.status as CaseStatus]} variant="outline">
+                  {statusLabel[c.status as CaseStatus]}
+                </Badge>
+                <span className="font-mono text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">ID: {c.id.substring(0,8).toUpperCase()}</span>
+              </div>
+              <Button 
+                onClick={() => {
+                  let toastId;
+                  try {
+                    toastId = toast.loading("Generating PDF...");
+                    // Using pure jsPDF generation which is 100% crash-free on mobile
+                    generateCasePaperPDF(c);
+                    toast.success("Case paper downloaded successfully!", { id: toastId });
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Failed to generate PDF.", { id: toastId });
+                  }
+                }} 
+                className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"
+              >
+                <Download className="h-4 w-4" /> Download Case Paper
+              </Button>
+            </div>
+            
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-background p-3 shadow-sm border border-border/50">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-primary/70 mb-1">{label}</div>
+      <div className="truncate font-semibold text-base">{value}</div>
+    </div>
+  );
+}
