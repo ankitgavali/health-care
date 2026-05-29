@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
-import { generateCasePaperPDF } from "@/lib/pdf";
+import { generateCasePaperPDF, generatePDFFromElementId } from "@/lib/pdf";
 import { FileText, Download, Loader2, Plus, Stethoscope } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
@@ -377,90 +377,78 @@ function PatientPage() {
                 {/* Row 1: Name */}
                 <div className="flex mb-6 items-end">
                   <div className="font-bold whitespace-nowrap mr-2">Name :</div>
-                  <div className="font-semibold uppercase">{c.full_name}</div>
+                  <div className="font-semibold uppercase flex-1 border-b border-black/20 pb-0.5">{c.full_name}</div>
                 </div>
 
                 {/* Grid for main details */}
-                <div className="flex flex-col gap-y-8 mb-8 w-full">
+                <div className="grid grid-cols-3 gap-x-8 gap-y-6 mb-8 w-full">
                   
-                  {/* Row 1: DOB, Age, Date */}
-                  <div className="grid grid-cols-3 gap-6 w-full items-end">
+                  {/* Left Column */}
+                  <div className="flex flex-col gap-y-6">
                     <div className="flex items-end">
                       <span className="font-bold mr-2 whitespace-nowrap">Date Of Birth:</span>
                       <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
                     </div>
                     <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Phone No. :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.mobile}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <span className="font-bold mr-2 whitespace-nowrap mt-1">Address :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[40px] pt-1 leading-relaxed">{c.address}</span>
+                    </div>
+                  </div>
+
+                  {/* Middle Column */}
+                  <div className="flex flex-col gap-y-6">
+                    <div className="flex items-end">
                       <span className="font-bold mr-2 whitespace-nowrap">Age & Gender :</span>
                       <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.age} Y {c.gender ? `/ ${c.gender}` : ''}</span>
                     </div>
                     <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
+                      <span className="font-bold mr-2 whitespace-nowrap">Married/Unmarried :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status}</span>
                     </div>
                   </div>
 
-                  {/* Row 2: Phone, Education */}
-                  <div className="grid grid-cols-3 gap-6 w-full items-end">
+                  {/* Right Column */}
+                  <div className="flex flex-col gap-y-6">
                     <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">Phone No. :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.mobile}</span>
-                    </div>
-                    <div className="flex items-end">
-                      {/* Empty middle column to keep right column aligned perfectly */}
+                      <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
                     </div>
                     <div className="flex items-end">
                       <span className="font-bold mr-2 whitespace-nowrap">Education :</span>
                       <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.education}</span>
                     </div>
-                  </div>
-
-                  {/* Row 3: Address, Marital Status & Occupation */}
-                  <div className="grid grid-cols-3 gap-6 w-full items-start">
-                    <div className="col-span-2 flex flex-col gap-y-8">
-                      <div className="flex items-start">
-                        <span className="font-bold mr-2 whitespace-nowrap mt-1">Address :</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 leading-relaxed min-h-[40px] pt-1">{c.address}</span>
-                      </div>
-                      <div className="flex items-end w-[60%]">
-                        <span className="font-bold mr-2 whitespace-nowrap">Married/Unmarried:</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status}</span>
-                      </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Occupation :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation}</span>
                     </div>
-                    <div className="flex flex-col gap-y-8">
-                      <div className="flex items-end">
-                        <span className="font-bold mr-2 whitespace-nowrap">Occupation :</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation}</span>
-                      </div>
-                      <div className="flex items-end">
-                        <span className="font-bold mr-2 whitespace-nowrap">Parent's Occu. :</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
-                      </div>
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">Parent's Occu. :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* History Section */}
-                <div className="flex flex-col gap-y-8 mt-4 w-full">
-                  <div className="flex items-start">
-                    <span className="font-bold mr-2 whitespace-nowrap mt-1">History of present illness :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 leading-relaxed min-h-[40px] pt-1">{c.notes}</span>
+                <div className="flex items-end gap-x-4 w-full mt-2 flex-wrap gap-y-6">
+                  <div className="flex items-end flex-1 min-w-[200px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">History of present illness :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.notes}</span>
                   </div>
-                  
-                  <div className={`grid ${c.gender === 'Female' ? 'grid-cols-3' : 'grid-cols-2'} gap-6 w-full items-end`}>
-                    {c.gender === "Female" && (
-                      <div className="flex items-end">
-                        <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास :</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.menstrual_history}</span>
-                      </div>
-                    )}
-                    <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.past_history}</span>
-                    </div>
-                    <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.weight}</span>
-                    </div>
+                  <div className="flex items-end w-[200px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.gender === "Female" ? (c.menstrual_history || "") : ""}</span>
+                  </div>
+                  <div className="flex items-end w-[180px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.past_history}</span>
+                  </div>
+                  <div className="flex items-end w-[120px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.weight}</span>
                   </div>
                 </div>
 
@@ -543,7 +531,7 @@ function PatientPage() {
                   try {
                     toastId = toast.loading("Generating PDF...");
                     // Using pure jsPDF generation which is 100% crash-free on mobile
-                    generateCasePaperPDF(c);
+                    generatePDFFromElementId(`case-paper-${c.id}`, "Case-Paper");
                     toast.success("Case paper downloaded successfully!", { id: toastId });
                   } catch (err) {
                     console.error(err);
