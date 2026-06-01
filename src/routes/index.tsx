@@ -58,23 +58,29 @@ function Landing() {
       <main className="flex-1 flex flex-col relative z-[1]">
 
         {/* ═══════════════ HERO SECTION ═══════════════ */}
-        <section className="w-full relative overflow-hidden min-h-[520px] md:min-h-[600px] flex items-center">
-          {/* Sliding Background Images */}
-          {heroImages.map((src, idx) => (
-            <img
-              key={src}
-              src={src}
-              alt={`Medical care ${idx + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover object-center transition-all duration-1000 ease-in-out ${
-                idx === heroIndex ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"
-              }`}
-            />
-          ))}
-          {/* Left gradient overlay so text is readable */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#EDE8DF]/95 via-[#EDE8DF]/80 to-transparent dark:from-[#1a1f2e]/95 dark:via-[#1a1f2e]/70 dark:to-transparent" />
+        <section className="w-full relative overflow-hidden flex flex-col md:block md:min-h-[600px] bg-[#EDE8DF] dark:bg-[#1a1f2e]">
+          
+          {/* Mobile Image Container / Desktop Background */}
+          <div className="relative w-full h-[280px] sm:h-[400px] md:absolute md:inset-0 md:h-full shrink-0">
+            {/* Sliding Background Images */}
+            {heroImages.map((src, idx) => (
+              <img
+                key={src}
+                src={src}
+                alt={`Medical care ${idx + 1}`}
+                className={`absolute inset-0 w-full h-full object-contain md:object-cover object-center md:object-center transition-all duration-1000 ease-in-out ${
+                  idx === heroIndex ? "opacity-100 scale-100" : "opacity-0 scale-105 pointer-events-none"
+                }`}
+              />
+            ))}
+            {/* Left gradient overlay for Desktop text readability */}
+            <div className="hidden md:block absolute inset-0 bg-gradient-to-r from-[#EDE8DF]/95 via-[#EDE8DF]/80 to-transparent dark:from-[#1a1f2e]/95 dark:via-[#1a1f2e]/70 dark:to-transparent" />
+            {/* Bottom gradient fade for Mobile to blend into text section */}
+            <div className="block md:hidden absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#EDE8DF] dark:to-[#1a1f2e]" />
+          </div>
 
-          {/* Text content — left side only */}
-          <div className="relative z-10 w-full mx-auto max-w-7xl px-6 lg:px-10 py-20 md:py-28">
+          {/* Text content */}
+          <div className="relative z-10 w-full mx-auto max-w-7xl px-6 lg:px-10 py-12 md:py-28 md:min-h-[600px] flex items-center">
             <div key={heroIndex} className="max-w-xl space-y-6">
               <p className="text-sm font-medium tracking-widest uppercase text-[#1C3A8A] dark:text-blue-300 animate-fade-in-up">
                 {settings.hospitalName}
