@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { db } from "@/firebase";
-import { collection, query as fsQuery, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, query as fsQuery, where, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/components/RequireRole";
@@ -74,9 +74,14 @@ function DoctorPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "==", docKey), orderBy("created_at", "desc"));
+    // Note: No orderBy here to avoid requiring a composite Firestore index.
+    // Sorting is handled client-side in filteredAndSorted below.
+    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "==", docKey));
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
       setCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
+    }, (err: any) => {
+      console.error("Doctor cases fetch error:", err);
+      toast.error("Failed to load cases: " + err.message);
     });
     return () => unsubscribe();
   }, [docKey]);

@@ -183,51 +183,15 @@ function PatientPage() {
       });
       
       setBusy(false);
-      toast.success("Case paper submitted! Downloading...");
-
-      // Build a case object from form data for immediate PDF generation (works on mobile)
-      const submittedCase = {
-        id: newId,
-        full_name: form.full_name.trim(),
-        address: form.address.trim(),
-        mobile: form.mobile.trim(),
-        dob: form.dob,
-        age,
-        gender: form.gender,
-        marital_status: form.marital_status,
-        education: form.education,
-        occupation: form.occupation,
-        parents_occupation: form.parents_occupation,
-        notes: form.notes,
-        menstrual_history: form.menstrual_history,
-        past_history: form.past_history,
-        weight: form.weight,
-        status: "submitted",
-        created_at: new Date().toISOString(),
-        prescription: null,
-        medical_notes: null,
-        assigned_doctor: null,
-        medicines: null,
-        tests: null,
-        consultation_charge: 0,
-        medicine_charge: 0,
-        test_charge: 0,
-        other_charge: 0,
-        total_bill: 0,
-      } as any;
-
-      // Small delay so the toast is visible, then generate PDF
-      setTimeout(() => {
-        try {
-          generateCasePaperPDF(submittedCase);
-        } catch (pdfErr) {
-          console.error("PDF generation error:", pdfErr);
-          toast.error("PDF download failed. Open case paper below to download.");
-        }
-      }, 300);
+      toast.success("Case paper submitted successfully!");
 
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setIsDialogOpen(false);
+      
+      // Scroll to top to ensure the new case paper is visible
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }, 100);
     } catch (err: any) {
       setBusy(false);
       return toast.error(err.message);
@@ -370,11 +334,37 @@ function PatientPage() {
           <div key={c.id} className="relative mx-auto w-full max-w-[850px] mb-8 bg-white shadow-2xl transition-all hover:shadow-3xl flex flex-col border border-slate-200 rounded-2xl overflow-hidden">
             
             {/* Scrollable Wrapper for Mobile so layout never breaks */}
-            <div className="w-full overflow-x-auto bg-slate-100/50 dark:bg-slate-900/20">
-              <div className="min-w-[794px] p-4 sm:p-8 flex justify-center">
+            <div className="w-full bg-slate-100/50 dark:bg-slate-900/20 overflow-hidden flex justify-center">
+              <style dangerouslySetInnerHTML={{__html: `
+                .case-paper-container-${c.id} {
+                  width: 794px;
+                  min-height: 1123px;
+                  transform-origin: top center;
+                }
+                @media (max-width: 450px) {
+                  .case-paper-container-${c.id} { zoom: 0.45; }
+                  /* Firefox fallback */
+                  @-moz-document url-prefix() {
+                    .case-paper-container-${c.id} { transform: scale(0.45); margin-bottom: -617px; }
+                  }
+                }
+                @media (min-width: 451px) and (max-width: 640px) {
+                  .case-paper-container-${c.id} { zoom: 0.6; }
+                  @-moz-document url-prefix() {
+                    .case-paper-container-${c.id} { transform: scale(0.6); margin-bottom: -449px; }
+                  }
+                }
+                @media (min-width: 641px) and (max-width: 850px) {
+                  .case-paper-container-${c.id} { zoom: 0.8; }
+                  @-moz-document url-prefix() {
+                    .case-paper-container-${c.id} { transform: scale(0.8); margin-bottom: -224px; }
+                  }
+                }
+              `}} />
+              <div className="p-2 sm:p-4 flex justify-center w-full max-w-full overflow-x-auto">
                 
                 {/* The actual printable area (A4 Physical Size) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0" style={{ width: '794px', minHeight: '1123px' }}>
+                <div id={`case-paper-${c.id}`} className={`case-paper-container-${c.id} bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0`}>
               
               {/* Faint Bottom-Left Swoosh (Simplified to avoid html2canvas crash) */}
               <div className="absolute bottom-0 left-0 w-[70%] h-[35%] bg-yellow-600/5 rounded-tr-[200px] z-0 pointer-events-none"></div>

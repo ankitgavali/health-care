@@ -408,17 +408,42 @@ export async function shareCasePaperPDF(c: CaseRow) {
 export function generateInvoicePDF(c: CaseRow) {
   const doc = new jsPDF();
   const w = doc.internal.pageSize.getWidth();
-  // Header
-  doc.setFillColor(30, 110, 165);
-  doc.rect(0, 0, w, 28, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.text(HOSPITAL_NAME, 14, 14);
+  
+  // --- Header (Yellow Background) ---
+  doc.setFillColor(251, 189, 8); // #fbbd08
+  doc.rect(0, 0, w, 45, "F");
+  
+  doc.setTextColor(0, 0, 0);
+  
+  // Left Doctor
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Dr. Kadambari Jagtap", 14, 15);
   doc.setFontSize(10);
-  doc.text("Patient Invoice & Case Summary", 14, 22);
+  doc.text("MD Ayu. Sch.", 14, 21);
+  
+  // Center Doctor
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text("|| Shree ||", w / 2, 12, { align: "center" });
+  doc.setFontSize(14);
+  doc.text("Dr. Omprasad Jagtap", w / 2, 18, { align: "center" });
+  doc.setFontSize(10);
+  doc.text("MD Ayu.", w / 2, 24, { align: "center" });
+  doc.setFontSize(9);
+  doc.text("Swasthasya Swasthya Rakshanam...", w / 2, 30, { align: "center" });
+  
+  // Right Logo (Text representation)
+  doc.setFontSize(12);
+  doc.text("MOOLATVAM", w - 14, 18, { align: "right" });
+  doc.text("AYURVED", w - 14, 24, { align: "right" });
+  
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("Patient Invoice", w / 2, 53, { align: "center" });
   doc.setTextColor(40, 40, 40);
 
-  let y = 40;
+  let y = 65;
   doc.setFontSize(12);
   doc.text(`Invoice #: ${c.id.slice(0, 8).toUpperCase()}`, 14, y);
   doc.text(`Date: ${new Date().toLocaleDateString()}`, w - 60, y);

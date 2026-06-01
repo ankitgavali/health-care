@@ -5,7 +5,7 @@ import { getHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/se
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { z } from "zod";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+
 import { useAuth, AppRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
