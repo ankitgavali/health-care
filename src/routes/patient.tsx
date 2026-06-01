@@ -154,17 +154,9 @@ function PatientPage() {
       const newId = newDocRef.id;
 
       try {
-        const localIds = JSON.parse(localStorage.getItem("healthbridge_submitted_case_ids") || "[]");
-        if (Array.isArray(localIds)) {
-          if (!localIds.includes(newId)) {
-            localIds.push(newId);
-            localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify(localIds));
-          }
-        } else {
-          localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
-        }
-      } catch (e) {
         localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+      } catch (e) {
+        console.error("Failed to save case id to local storage", e);
       }
 
       await setDoc(newDocRef, {
