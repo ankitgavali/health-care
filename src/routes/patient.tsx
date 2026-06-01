@@ -107,11 +107,18 @@ function PatientPage() {
     if (!user) return;
     const q = query(
       collection(db, "case_papers"),
-      where("patient_id", "==", user.uid),
-      orderBy("created_at", "desc")
+      where("patient_id", "==", user.uid)
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let fetchedCases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Sort locally to avoid Firestore composite index requirement
+      fetchedCases.sort((a: any, b: any) => {
+        const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return timeB - timeA;
+      });
+
       const isGuest = user.email === "guest.patient@medicare.local";
       if (isGuest) {
         try {
@@ -183,15 +190,51 @@ function PatientPage() {
       });
       
       setBusy(false);
-      toast.success("Case paper submitted successfully!");
+      toast.success("Case paper submitted! Downloading...");
+
+      // Build a case object from form data for immediate PDF generation (works on mobile)
+      const submittedCase = {
+        id: newId,
+        full_name: form.full_name.trim(),
+        address: form.address.trim(),
+        mobile: form.mobile.trim(),
+        dob: form.dob,
+        age,
+        gender: form.gender,
+        marital_status: form.marital_status,
+        education: form.education,
+        occupation: form.occupation,
+        parents_occupation: form.parents_occupation,
+        notes: form.notes,
+        menstrual_history: form.menstrual_history,
+        past_history: form.past_history,
+        weight: form.weight,
+        status: "submitted",
+        created_at: new Date().toISOString(),
+        prescription: null,
+        medical_notes: null,
+        assigned_doctor: null,
+        medicines: null,
+        tests: null,
+        consultation_charge: 0,
+        medicine_charge: 0,
+        test_charge: 0,
+        other_charge: 0,
+        total_bill: 0,
+      } as any;
+
+      // Small delay so the toast is visible, then generate PDF
+      setTimeout(() => {
+        try {
+          generateCasePaperPDF(submittedCase);
+        } catch (pdfErr) {
+          console.error("PDF generation error:", pdfErr);
+          toast.error("PDF download failed. Open case paper below to download.");
+        }
+      }, 300);
 
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setIsDialogOpen(false);
-      
-      // Scroll to top to ensure the new case paper is visible
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }, 100);
     } catch (err: any) {
       setBusy(false);
       return toast.error(err.message);
@@ -333,54 +376,28 @@ function PatientPage() {
         {cases.map((c) => (
           <div key={c.id} className="relative mx-auto w-full max-w-[850px] mb-8 bg-white shadow-2xl transition-all hover:shadow-3xl flex flex-col border border-slate-200 rounded-2xl overflow-hidden">
             
-            {/* Scrollable Wrapper for Mobile so layout never breaks */}
-            <div className="w-full bg-slate-100/50 dark:bg-slate-900/20 overflow-hidden flex justify-center">
-              <style dangerouslySetInnerHTML={{__html: `
-                .case-paper-container-${c.id} {
-                  width: 794px;
-                  min-height: 1123px;
-                  transform-origin: top center;
-                }
-                @media (max-width: 450px) {
-                  .case-paper-container-${c.id} { zoom: 0.45; }
-                  /* Firefox fallback */
-                  @-moz-document url-prefix() {
-                    .case-paper-container-${c.id} { transform: scale(0.45); margin-bottom: -617px; }
-                  }
-                }
-                @media (min-width: 451px) and (max-width: 640px) {
-                  .case-paper-container-${c.id} { zoom: 0.6; }
-                  @-moz-document url-prefix() {
-                    .case-paper-container-${c.id} { transform: scale(0.6); margin-bottom: -449px; }
-                  }
-                }
-                @media (min-width: 641px) and (max-width: 850px) {
-                  .case-paper-container-${c.id} { zoom: 0.8; }
-                  @-moz-document url-prefix() {
-                    .case-paper-container-${c.id} { transform: scale(0.8); margin-bottom: -224px; }
-                  }
-                }
-              `}} />
-              <div className="p-2 sm:p-4 flex justify-center w-full max-w-full overflow-x-auto">
+            {/* Responsive Wrapper for Mobile */}
+            <div className="w-full bg-slate-100/50 dark:bg-slate-900/20">
+              <div className="w-full p-4 sm:p-8 flex justify-center">
                 
-                {/* The actual printable area (A4 Physical Size) */}
-                <div id={`case-paper-${c.id}`} className={`case-paper-container-${c.id} bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0`}>
+                {/* The actual view (Responsive on mobile, A4-like max width on desktop) */}
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] sm:min-h-[1123px]">
               
               {/* Faint Bottom-Left Swoosh (Simplified to avoid html2canvas crash) */}
               <div className="absolute bottom-0 left-0 w-[70%] h-[35%] bg-yellow-600/5 rounded-tr-[200px] z-0 pointer-events-none"></div>
 
               {/* Top Curved Yellow Header */}
-              <div className="relative w-full bg-[#fbbd08] px-8 pt-8 pb-14 z-10 rounded-b-[60px]">
-                <div className="flex justify-between items-start">
+              <div className="relative w-full bg-[#fbbd08] px-4 sm:px-8 pt-6 sm:pt-8 pb-10 sm:pb-14 z-10 rounded-b-[40px] sm:rounded-b-[60px]">
+                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6 sm:gap-0">
                   
                   {/* Left: Doctor 1 */}
-                  <div className="text-left w-1/3 pt-2 pl-2">
+                  <div className="text-center sm:text-left w-full sm:w-1/3 sm:pt-2 sm:pl-2">
                     <div className="font-bold text-black text-lg sm:text-xl whitespace-nowrap">Dr. Kadambari Jagtap</div>
                     <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu. Sch.</div>
                   </div>
 
                   {/* Center: Doctor 2 & Quote */}
-                  <div className="text-center w-1/3 flex flex-col items-center">
+                  <div className="text-center w-full sm:w-1/3 flex flex-col items-center order-first sm:order-none">
                     <div className="text-sm font-bold text-black">॥ श्रीः ॥</div>
                     <div className="font-bold text-black text-lg sm:text-xl mt-1 whitespace-nowrap">Dr. Omprasad Jagtap</div>
                     <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu.</div>
@@ -388,7 +405,7 @@ function PatientPage() {
                   </div>
 
                   {/* Right: Logo */}
-                  <div className="w-1/3 flex justify-end pr-2">
+                  <div className="w-full sm:w-1/3 flex justify-center sm:justify-end sm:pr-2">
                     <div className="relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24">
                       <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
                         <circle cx="50" cy="50" r="48" fill="#fbbd08" />
@@ -406,16 +423,16 @@ function PatientPage() {
               </div>
 
               {/* Form Content */}
-              <div className="flex-1 px-10 py-8 z-10 flex flex-col text-[12px] sm:text-[14px]">
+              <div className="flex-1 px-4 sm:px-10 py-6 sm:py-8 z-10 flex flex-col text-[12px] sm:text-[14px]">
                 
                 {/* Row 1: Name */}
-                <div className="flex mb-6 items-end">
+                <div className="flex flex-col sm:flex-row sm:mb-6 mb-4 items-start sm:items-end gap-1 sm:gap-0">
                   <div className="font-bold whitespace-nowrap mr-2">Name :</div>
-                  <div className="font-semibold uppercase flex-1 border-b border-black/20 pb-0.5">{c.full_name}</div>
+                  <div className="font-semibold uppercase flex-1 w-full sm:w-auto border-b border-black/20 pb-0.5">{c.full_name}</div>
                 </div>
 
                 {/* Grid for main details */}
-                <div className="grid grid-cols-3 gap-x-8 gap-y-6 mb-8 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4 sm:gap-y-6 mb-6 sm:mb-8 w-full">
                   
                   {/* Left Column */}
                   <div className="flex flex-col gap-y-6">
@@ -434,7 +451,7 @@ function PatientPage() {
                   </div>
 
                   {/* Middle Column */}
-                  <div className="flex flex-col gap-y-6">
+                  <div className="flex flex-col gap-y-4 sm:gap-y-6">
                     <div className="flex items-end">
                       <span className="font-bold mr-2 whitespace-nowrap">Age & Gender :</span>
                       <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.age} Y {c.gender ? `/ ${c.gender}` : ''}</span>
@@ -446,7 +463,7 @@ function PatientPage() {
                   </div>
 
                   {/* Right Column */}
-                  <div className="flex flex-col gap-y-6">
+                  <div className="flex flex-col gap-y-4 sm:gap-y-6">
                     <div className="flex items-end">
                       <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
                       <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
@@ -467,20 +484,20 @@ function PatientPage() {
                 </div>
 
                 {/* History Section */}
-                <div className="flex items-end gap-x-4 w-full mt-2 flex-wrap gap-y-6">
-                  <div className="flex items-end flex-1 min-w-[200px]">
+                <div className="flex flex-col sm:flex-row sm:items-end gap-x-4 w-full mt-2 sm:flex-wrap gap-y-4 sm:gap-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-end flex-1 min-w-[200px]">
                     <span className="font-bold mr-2 whitespace-nowrap">History of present illness :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.notes}</span>
                   </div>
-                  <div className="flex items-end w-[200px]">
-                    <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास</span>
+                  <div className="flex flex-col sm:flex-row sm:items-end w-full sm:w-[200px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.gender === "Female" ? (c.menstrual_history || "") : ""}</span>
                   </div>
-                  <div className="flex items-end w-[180px]">
-                    <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास</span>
+                  <div className="flex flex-col sm:flex-row sm:items-end w-full sm:w-[180px]">
+                    <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.past_history}</span>
                   </div>
-                  <div className="flex items-end w-[120px]">
+                  <div className="flex flex-col sm:flex-row sm:items-end w-full sm:w-[120px]">
                     <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.weight}</span>
                   </div>
@@ -508,14 +525,14 @@ function PatientPage() {
               </div>
 
               {/* Consent & Bottom Signatures */}
-              <div className="px-10 pb-6 mt-auto z-10">
-                <div className="text-center font-bold text-[11px] sm:text-[12px] text-black">Concent</div>
+              <div className="px-4 sm:px-10 pb-6 mt-auto z-10">
+                <div className="text-center font-bold text-[11px] sm:text-[12px] text-black">Consent</div>
                 <div className="text-[9px] sm:text-[10px] text-black leading-tight text-justify mt-1 mb-6">
                   I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information. I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
                 </div>
                 
-                <div className="flex justify-between items-end mb-4">
-                  <div className="w-1/2 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-6 sm:gap-0">
+                  <div className="w-full sm:w-1/2 flex flex-col gap-3">
                     <div className="flex items-end">
                       <span className="font-bold text-[12px] sm:text-[13px] text-black mr-2">Name :</span>
                       <span className="font-semibold uppercase text-[12px] sm:text-[13px]">{c.full_name}</span>
@@ -527,21 +544,21 @@ function PatientPage() {
                   
                   {/* Doctor Signature if billed/reviewed */}
                   {c.assigned_doctor && c.status !== "submitted" && (
-                    <div className="w-1/3 text-center">
+                    <div className="w-full sm:w-1/3 text-center sm:text-right mt-4 sm:mt-0">
                       <div className="pb-4 text-sm font-serif italic font-semibold">{doctorName[c.assigned_doctor as "doctor1" | "doctor2"]}</div>
-                      <div className="text-[10px] font-bold mt-1 uppercase text-black border-t border-black pt-1">Consulting Signature</div>
+                      <div className="text-[10px] font-bold mt-1 uppercase text-black sm:border-t border-black pt-1 inline-block sm:block border-t">Consulting Signature</div>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Bottom Yellow Footer */}
-              <div className="relative w-full bg-[#fbbd08] px-10 py-3 z-10 rounded-tl-[80px]">
-                <div className="flex justify-end items-center mb-1 gap-2 text-black font-bold text-[10px] sm:text-[12px]">
+              <div className="relative w-full bg-[#fbbd08] px-4 sm:px-10 py-3 z-10 rounded-tl-[40px] sm:rounded-tl-[80px]">
+                <div className="flex justify-center sm:justify-end items-center mb-1 gap-2 text-black font-bold text-[10px] sm:text-[12px]">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                   9404306548 | 8867303202
                 </div>
-                <div className="text-center text-[9px] sm:text-[11px] text-black font-semibold">
+                <div className="text-center text-[9px] sm:text-[11px] text-black font-semibold mt-1">
                   Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
                 </div>
               </div>
