@@ -122,7 +122,10 @@ function PatientPage() {
       const isGuest = user.email === "guest.patient@medicare.local";
       if (isGuest) {
         try {
-          const localIds = JSON.parse(localStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+          // Clean up old localStorage so it doesn't cause issues for returning users
+          localStorage.removeItem("healthbridge_submitted_case_ids");
+          
+          const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
           if (Array.isArray(localIds)) {
             fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
           } else {
@@ -154,9 +157,9 @@ function PatientPage() {
       const newId = newDocRef.id;
 
       try {
-        localStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
       } catch (e) {
-        console.error("Failed to save case id to local storage", e);
+        console.error("Failed to save case id to session storage", e);
       }
 
       await setDoc(newDocRef, {
