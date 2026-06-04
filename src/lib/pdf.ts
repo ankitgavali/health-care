@@ -406,114 +406,286 @@ export async function shareCasePaperPDF(c: CaseRow) {
 }
 
 export function generateInvoicePDF(c: CaseRow) {
-  const doc = new jsPDF();
+  // Create PDF with A4 dimensions (210mm x 297mm)
+  const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
+  const h = doc.internal.pageSize.getHeight();
   
-  // --- Header (Yellow Background) ---
+  // --- Header (Clinic Letterhead - Yellow Background) ---
   doc.setFillColor(251, 189, 8); // #fbbd08
   doc.rect(0, 0, w, 45, "F");
-  
   doc.setTextColor(0, 0, 0);
   
-  // Left Doctor
+  // Left Doctor Details
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
-  doc.text("Dr. Kadambari Jagtap", 14, 15);
+  doc.text("Dr. Kadambari Jagtap", 15, 15);
   doc.setFontSize(10);
-  doc.text("MD Ayu. Sch.", 14, 21);
+  doc.setFont("helvetica", "normal");
+  doc.text("MD Ayu. Sch.", 15, 21);
   
-  // Center Doctor
+  // Center Doctor Details
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.text("|| Shree ||", w / 2, 12, { align: "center" });
   doc.setFontSize(14);
   doc.text("Dr. Omprasad Jagtap", w / 2, 18, { align: "center" });
   doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
   doc.text("MD Ayu.", w / 2, 24, { align: "center" });
+  doc.setFont("helvetica", "italic");
   doc.setFontSize(9);
   doc.text("Swasthasya Swasthya Rakshanam...", w / 2, 30, { align: "center" });
   
-  // Right Logo (Text representation)
+  // Right Logo / Branding
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.text("MOOLATVAM", w - 14, 18, { align: "right" });
-  doc.text("AYURVED", w - 14, 24, { align: "right" });
+  doc.text("MOOLATVAM", w - 15, 18, { align: "right" });
+  doc.text("AYURVED", w - 15, 24, { align: "right" });
+  
+  // --- Invoice Title ---
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(30, 41, 59); // slate-800
+  doc.text("INVOICE / RECEIPT", 15, 56);
+  
+  // Title Divider Line
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.setLineWidth(0.4);
+  doc.line(15, 60, w - 15, 60);
+  
+  // --- Metadata Section (Two-column layout) ---
+  // Left Column Headers
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8.5);
+  doc.setTextColor(148, 163, 184); // slate-400
+  doc.text("BILLED TO", 15, 67);
+  
+  // Right Column Headers
+  doc.text("INVOICE DETAILS", 120, 67);
+  
+  // Left Column Patient Details
+  let leftY = 73;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(30, 41, 59); // slate-800
+  doc.text(c.full_name.toUpperCase(), 15, leftY);
+  leftY += 6;
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text(`Mobile: ${c.mobile || "—"}`, 15, leftY);
+  leftY += 5.5;
+  
+  const dobStr = c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "—";
+  doc.text(`DOB: ${dobStr}  |  Age: ${c.age || 0} Y  |  Gender: ${c.gender || "—"}`, 15, leftY);
+  leftY += 5.5;
+  
+  const addrLines = doc.splitTextToSize(`Address: ${c.address || "—"}`, w / 2 - 25);
+  doc.text(addrLines, 15, leftY);
+  leftY += addrLines.length * 4.5 + 2;
+  
+  // Right Column Invoice Details
+  let rightY = 73;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105); // slate-600
+  
+  doc.text("Invoice No:", 120, rightY);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 41, 59);
+  doc.text(`#${c.id.slice(0, 8).toUpperCase()}`, 145, rightY);
+  rightY += 5.5;
+  
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Invoice Date:", 120, rightY);
+  doc.text(new Date(c.created_at || Date.now()).toLocaleDateString("en-IN"), 145, rightY);
+  rightY += 5.5;
+  
+  doc.text("Consultant:", 120, rightY);
+  const docNameVal = c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—";
+  doc.text(docNameVal, 145, rightY);
+  rightY += 6;
+  
+  // Styled PAID badge
+  doc.text("Payment Status:", 120, rightY + 3.5);
+  doc.setFillColor(209, 250, 229); // emerald-100
+  doc.roundedRect(145, rightY, 18, 5, 1, 1, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(6, 95, 70); // emerald-800
+  doc.text("PAID", 154, rightY + 3.7, { align: "center" });
+  
+  let currentY = Math.max(leftY, rightY + 12);
+  
+  // Divider below details
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.line(15, currentY, w - 15, currentY);
+  currentY += 8;
+  
+  // --- Prescription / Clinical Notes Summary Card ---
+  const summaryFields: { label: string; value: string }[] = [];
+  if (c.prescription) summaryFields.push({ label: "Rx / Prescription", value: c.prescription });
+  if (c.medicines) summaryFields.push({ label: "Medicines", value: c.medicines });
+  if (c.tests) summaryFields.push({ label: "Investigations / Tests", value: c.tests });
+  if (c.medical_notes) summaryFields.push({ label: "Diagnosis / Notes", value: c.medical_notes });
+  
+  if (summaryFields.length > 0) {
+    let cardHeight = 10; // vertical padding
+    cardHeight += 6; // title spacing
+    
+    const processedFields = summaryFields.map(f => {
+      const valLines = doc.splitTextToSize(f.value, w - 65); // Wrap to align next to label
+      return { label: f.label, value: f.value, lines: valLines };
+    });
+    
+    processedFields.forEach(f => {
+      cardHeight += Math.max(4.5, f.lines.length * 4.5) + 2;
+    });
+    
+    // Draw Card Background
+    doc.setFillColor(248, 250, 252); // slate-50
+    doc.rect(15, currentY, w - 30, cardHeight, "F");
+    
+    // Draw Amber Left Border
+    doc.setFillColor(217, 119, 6); // amber-600
+    doc.rect(15, currentY, 1.5, cardHeight, "F");
+    
+    let cardTextY = currentY + 6;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.text("Clinical & Prescription Summary", 20, cardTextY);
+    cardTextY += 6;
+    
+    processedFields.forEach(f => {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(51, 65, 85); // slate-700
+      doc.text(`${f.label}:`, 20, cardTextY);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105); // slate-600
+      doc.text(f.lines, 50, cardTextY);
+      
+      cardTextY += Math.max(4.5, f.lines.length * 4.5) + 2;
+    });
+    
+    currentY += cardHeight + 8;
+  }
+  
+  // --- Billing Breakdown Table ---
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(30, 41, 59); // slate-800
+  doc.text("BILLING BREAKDOWN", 15, currentY);
+  currentY += 6;
+  
+  // Table Header Background
+  doc.setFillColor(51, 65, 85); // slate-700
+  doc.rect(15, currentY, w - 30, 8, "F");
+  
+  // Table Header Text
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.text("SR.", 18, currentY + 5.5);
+  doc.text("SERVICE / DESCRIPTION", 30, currentY + 5.5);
+  doc.text("AMOUNT (INR)", w - 18, currentY + 5.5, { align: "right" });
+  currentY += 8;
+  
+  // Table Row Items
+  const rows: [string, number][] = [
+    ["Consultation Services", Number(c.consultation_charge ?? 0)],
+    ["Pharmacy / Medicines", Number(c.medicine_charge ?? 0)],
+    ["Investigations / Tests", Number(c.test_charge ?? 0)],
+    ["Other General Charges", Number(c.other_charge ?? 0)],
+  ];
+  
+  rows.forEach(([k, v], idx) => {
+    // Alternating Row Backgrounds
+    if (idx % 2 === 0) {
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.rect(15, currentY, w - 30, 8, "F");
+    }
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(51, 65, 85); // slate-700
+    
+    doc.text(String(idx + 1), 18, currentY + 5.5);
+    doc.text(k, 30, currentY + 5.5);
+    
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text(`Rs. ${v.toFixed(2)}`, w - 18, currentY + 5.5, { align: "right" });
+    
+    // Row Divider Line
+    doc.setDrawColor(241, 245, 249); // slate-100
+    doc.line(15, currentY + 8, w - 15, currentY + 8);
+    currentY += 8;
+  });
+  
+  // --- Grand Total Callout Box ---
+  const totalBoxWidth = 70;
+  const totalBoxHeight = 12;
+  const totalBoxX = w - 15 - totalBoxWidth;
+  
+  doc.setFillColor(248, 250, 252); // slate-50
+  doc.setDrawColor(226, 232, 240); // slate-200
+  doc.rect(totalBoxX, currentY + 4, totalBoxWidth, totalBoxHeight, "FD");
+  
+  // Yellow Left Accent Strip on Total Box
+  doc.setFillColor(251, 189, 8); // brand yellow
+  doc.rect(totalBoxX, currentY + 4, 1.8, totalBoxHeight, "F");
   
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Patient Invoice", w / 2, 53, { align: "center" });
-  doc.setTextColor(40, 40, 40);
-
-  let y = 65;
-  doc.setFontSize(12);
-  doc.text(`Invoice #: ${c.id.slice(0, 8).toUpperCase()}`, 14, y);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`, w - 60, y);
-  y += 10;
-  doc.setDrawColor(200);
-  doc.line(14, y, w - 14, y);
-  y += 8;
-
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text("GRAND TOTAL", totalBoxX + 6, currentY + 11.5);
+  
+  doc.setFontSize(13);
+  doc.setTextColor(30, 41, 59); // slate-800
+  doc.text(`Rs. ${Number(c.total_bill ?? 0).toFixed(2)}`, w - 18, currentY + 12, { align: "right" });
+  
+  currentY += 25;
+  
+  // --- Signatures Block ---
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.setLineWidth(0.3);
+  doc.line(w - 65, currentY, w - 15, currentY);
+  currentY += 4.5;
+  
   doc.setFont("helvetica", "bold");
-  doc.text("Patient Details", 14, y);
-  doc.setFont("helvetica", "normal");
-  y += 7;
-  doc.setFontSize(11);
-  doc.text(`Name: ${c.full_name}`, 14, y); y += 6;
-  doc.text(`Mobile: ${c.mobile}`, 14, y); y += 6;
-  doc.text(`DOB: ${c.dob}    Age: ${c.age}`, 14, y); y += 6;
-  const addrLines = doc.splitTextToSize(`Address: ${c.address}`, w - 28);
-  doc.text(addrLines, 14, y); y += addrLines.length * 6 + 2;
-
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105); // slate-600
+  doc.text("Authorized Signatory", w - 15, currentY, { align: "right" });
+  
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text("Moolatvam Ayurved", w - 15, currentY + 4, { align: "right" });
+  
+  // --- Footer Block (Fixed Position at Bottom) ---
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9.5);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text("Thank you for choosing Moolatvam Ayurved. Get well soon!", w / 2, h - 18, { align: "center" });
+  
+  // Yellow Bottom Banner
+  doc.setFillColor(251, 189, 8); // brand yellow
+  doc.rect(0, h - 12, w, 12, "F");
+  
   doc.setFont("helvetica", "bold");
-  doc.text("Consulting Doctor", 14, y);
+  doc.setFontSize(7.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Contact: +91 9404306548 | +91 8867303202", w - 15, h - 7, { align: "right" });
+  
   doc.setFont("helvetica", "normal");
-  y += 6;
-  doc.text(c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1"|"doctor2"] : "—", 14, y);
-  y += 10;
-
-  if (c.prescription || c.medicines || c.tests || c.medical_notes) {
-    doc.setFont("helvetica", "bold");
-    doc.text("Prescription Summary", 14, y); y += 7;
-    doc.setFont("helvetica", "normal");
-    const fields: [string, string | null][] = [
-      ["Prescription", c.prescription],
-      ["Medicines", c.medicines],
-      ["Tests", c.tests],
-      ["Medical Notes", c.medical_notes],
-    ];
-    for (const [k, v] of fields) {
-      if (!v) continue;
-      const lines = doc.splitTextToSize(`${k}: ${v}`, w - 28);
-      doc.text(lines, 14, y);
-      y += lines.length * 6 + 1;
-    }
-    y += 4;
-  }
-
-  doc.setDrawColor(200); doc.line(14, y, w - 14, y); y += 8;
-  doc.setFont("helvetica", "bold");
-  doc.text("Bill Breakdown", 14, y); y += 8;
-  doc.setFont("helvetica", "normal");
-  const rows: [string, number][] = [
-    ["Consultation", Number(c.consultation_charge ?? 0)],
-    ["Medicines", Number(c.medicine_charge ?? 0)],
-    ["Tests", Number(c.test_charge ?? 0)],
-    ["Other Charges", Number(c.other_charge ?? 0)],
-  ];
-  for (const [k, v] of rows) {
-    doc.text(k, 18, y);
-    doc.text(`Rs. ${v.toFixed(2)}`, w - 18, y, { align: "right" });
-    y += 7;
-  }
-  doc.setDrawColor(120); doc.line(14, y, w - 14, y); y += 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
-  doc.text("Total Amount", 18, y);
-  doc.text(`Rs. ${Number(c.total_bill ?? 0).toFixed(2)}`, w - 18, y, { align: "right" });
-
-  y += 18;
-  doc.setFont("helvetica", "italic"); doc.setFontSize(9);
-  doc.setTextColor(120);
-  doc.text("Thank you for choosing " + HOSPITAL_NAME + ". Get well soon!", 14, y);
-
+  doc.text("Address: Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli - 416416", 15, h - 7);
+  
   // Open PDF directly in a new tab
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);

@@ -60,7 +60,10 @@ function NursePage() {
       fetched.forEach((newCase: any) => {
         const oldCase = casesRef.current.find(c => c.id === newCase.id);
         if (oldCase && oldCase.status === "sent_to_doctor" && newCase.status === "under_review") {
-          toast.success(`Doctor has accepted the case for ${newCase.full_name}`);
+          const docName = doctorName[newCase.assigned_doctor as keyof typeof doctorName] || "Doctor";
+          toast.success(`Dr. ${docName} has started the consultation for Patient ${newCase.full_name}. Please guide the patient to the doctor's consultation room.`, {
+            duration: 8000,
+          });
         }
       });
       
