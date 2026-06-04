@@ -533,13 +533,28 @@ export function generateInvoicePDF(c: CaseRow) {
   if (c.medical_notes) summaryFields.push({ label: "Diagnosis / Notes", value: c.medical_notes });
   
   if (summaryFields.length > 0) {
-    let cardHeight = 10; // vertical padding
-    cardHeight += 6; // title spacing
+    // Set font to measure label widths
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    
+    let maxLabelWidth = 0;
+    summaryFields.forEach(f => {
+      const wLabel = doc.getTextWidth(`${f.label}:`);
+      if (wLabel > maxLabelWidth) {
+        maxLabelWidth = wLabel;
+      }
+    });
+    
+    // The values start 20mm + maxLabelWidth + 3mm spacing
+    const valueX = 20 + maxLabelWidth + 3;
     
     const processedFields = summaryFields.map(f => {
-      const valLines = doc.splitTextToSize(f.value, w - 65); // Wrap to align next to label
+      const valLines = doc.splitTextToSize(f.value, w - valueX - 10);
       return { label: f.label, value: f.value, lines: valLines };
     });
+    
+    let cardHeight = 10; // vertical padding
+    cardHeight += 6; // title spacing
     
     processedFields.forEach(f => {
       cardHeight += Math.max(4.5, f.lines.length * 4.5) + 2;
@@ -568,7 +583,7 @@ export function generateInvoicePDF(c: CaseRow) {
       
       doc.setFont("helvetica", "normal");
       doc.setTextColor(71, 85, 105); // slate-600
-      doc.text(f.lines, 50, cardTextY);
+      doc.text(f.lines, valueX, cardTextY);
       
       cardTextY += Math.max(4.5, f.lines.length * 4.5) + 2;
     });
