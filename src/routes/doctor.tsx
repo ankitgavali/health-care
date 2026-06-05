@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes } from "@/lib/case-utils";
 import { 
@@ -706,6 +707,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
     medical_notes: caseRow.medical_notes ?? "",
     medicines: caseRow.medicines ?? "",
     tests: caseRow.tests ?? "",
+    diet_lifestyle: caseRow.diet_lifestyle ?? "",
+    whatsapp_reminders: !!caseRow.whatsapp_reminders,
+    whatsapp_reminder_schedule: caseRow.whatsapp_reminder_schedule ?? "Morning (8:00 AM), Night (8:00 PM)",
     consultation_charge: Number(caseRow.consultation_charge ?? 0),
     medicine_charge: Number(caseRow.medicine_charge ?? 0),
     test_charge: Number(caseRow.test_charge ?? 0),
@@ -720,6 +724,9 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         medical_notes: caseRow.medical_notes ?? "",
         medicines: caseRow.medicines ?? "",
         tests: caseRow.tests ?? "",
+        diet_lifestyle: caseRow.diet_lifestyle ?? "",
+        whatsapp_reminders: !!caseRow.whatsapp_reminders,
+        whatsapp_reminder_schedule: caseRow.whatsapp_reminder_schedule ?? "Morning (8:00 AM), Night (8:00 PM)",
         consultation_charge: Number(caseRow.consultation_charge ?? 0),
         medicine_charge: Number(caseRow.medicine_charge ?? 0),
         test_charge: Number(caseRow.test_charge ?? 0),
@@ -921,7 +928,6 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medicines: d.medicines ? d.medicines + "\n" + val : val }))} positionClassName="top-3.5" />
                   </div>
                 </div>
-
                 {/* 4. Tests Ordered */}
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="tests" className="text-xs font-bold text-foreground flex items-center justify-between">
@@ -939,6 +945,123 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     />
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, tests: d.tests ? d.tests + "\n" + val : val }))} positionClassName="top-3.5" />
                   </div>
+                </div>
+
+                {/* 5. Diet & Lifestyle Recommendations */}
+                <div className="flex flex-col gap-1.5 col-span-2 border-t dark:border-white/5 pt-4">
+                  <Label htmlFor="diet_lifestyle" className="text-xs font-bold text-foreground flex items-center justify-between">
+                    <span>पथ्य आणि अपथ्य मार्गदर्शक (Diet & Lifestyle Planner)</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">Ayurvedic dietary recommendations</span>
+                  </Label>
+                  <div className="relative">
+                    <Textarea 
+                      id="diet_lifestyle"
+                      rows={3}
+                      value={data.diet_lifestyle}
+                      onChange={(e) => setData({ ...data, diet_lifestyle: e.target.value })}
+                      placeholder="पथ्य (काय खावे/करावे) आणि अपथ्य (काय टाळावे) लिहा..."
+                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none animate-in"
+                    />
+                    <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, diet_lifestyle: d.diet_lifestyle ? d.diet_lifestyle + "\n" + val : val }))} positionClassName="top-3.5" />
+                  </div>
+                  {/* Presets Buttons */}
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground mr-1 flex items-center">Presets:</span>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2 rounded-lg border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/5 dark:text-emerald-400"
+                      onClick={() => {
+                        const preset = `• पथ्य (करावे): गरम, ताजे, हलके अन्न घ्यावे. तुपाचा वापर करावा. भरपूर कोमट पाणी प्यावे.\n• अपथ्य (टाळावे): शिळे अन्न, थंड पेये, कोरडे पदार्थ (उदा. शेव, फरसाण), अति उपवास टाळावा.`;
+                        setData(d => ({ ...d, diet_lifestyle: d.diet_lifestyle ? d.diet_lifestyle + "\n" + preset : preset }));
+                      }}
+                    >
+                      वात नाशक (Vata Preset)
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2 rounded-lg border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/5 dark:text-emerald-400"
+                      onClick={() => {
+                        const preset = `• पथ्य (करावे): गोड, कडू, तुरट चवीचे अन्न घ्यावे. ताक, आवळा, दूध यांचे सेवन करावे. थंड व कोरडी हवा घ्यावे.\n• अपथ्य (टाळावे): अति तिखट, आंबट, खारट, मसालेदार अन्न, चहा-कॉफी, तळलेले पदार्थ टाळावेत.`;
+                        setData(d => ({ ...d, diet_lifestyle: d.diet_lifestyle ? d.diet_lifestyle + "\n" + preset : preset }));
+                      }}
+                    >
+                      पित्त नाशक (Pitta Preset)
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2 rounded-lg border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/5 dark:text-emerald-400"
+                      onClick={() => {
+                        const preset = `• पथ्य (करावे): हलके, कोमट, तिखट व कडू चवीचे अन्न घ्यावे. आल्याचा चहा, मध उपयुक्त. नियमित व्यायाम करावा.\n• अपथ्य (टाळावे): गोड, थंड, तेलकट, जड अन्न, दही, दिवसा झोपणे टाळावे.`;
+                        setData(d => ({ ...d, diet_lifestyle: d.diet_lifestyle ? d.diet_lifestyle + "\n" + preset : preset }));
+                      }}
+                    >
+                      कफ नाशक (Kapha Preset)
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-6 text-[10px] px-2 rounded-lg border-emerald-500/20 text-emerald-700 hover:bg-emerald-500/5 dark:text-emerald-400"
+                      onClick={() => {
+                        const preset = `• पथ्य (करावे): कोमट पाणी प्यावे. ताजे घरी बनवलेले अन्न वेळेवर घ्यावे. रात्रीचे जेवण संध्याकाळी ७ पूर्वी करावे.\n• अपथ्य (टाळावे): जंक फूड, बेकरी प्रॉडक्ट्स, रात्रीचे जागरण आणि अवेळी जेवणे टाळावे.`;
+                        setData(d => ({ ...d, diet_lifestyle: d.diet_lifestyle ? d.diet_lifestyle + "\n" + preset : preset }));
+                      }}
+                    >
+                      सामान्य पथ्य (General Preset)
+                    </Button>
+                  </div>
+                </div>
+
+                {/* 6. WhatsApp Medication Reminders */}
+                <div className="flex flex-col gap-3 col-span-2 border-t dark:border-white/5 pt-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="whatsapp_reminders" className="text-xs font-bold text-foreground">
+                        व्हॉट्सॲप स्मरणपत्रे (WhatsApp Medication Reminders)
+                      </Label>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        रुग्णाला औषध घेण्याच्या वेळेस व्हॉट्सॲपद्वारे स्मरणपत्र (Auto Notification) पाठवा.
+                      </p>
+                    </div>
+                    <Switch 
+                      id="whatsapp_reminders" 
+                      checked={data.whatsapp_reminders}
+                      onCheckedChange={(val) => setData({ ...data, whatsapp_reminders: val })}
+                    />
+                  </div>
+
+                  {data.whatsapp_reminders && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 bg-emerald-500/5 border border-emerald-500/10 rounded-2xl animate-in fade-in duration-300">
+                      <div className="flex flex-col gap-1.5">
+                        <Label className="text-[10px] font-bold text-foreground">स्मरणपत्र वेळापत्रक (Reminder Schedule)</Label>
+                        <select 
+                          className="w-full h-9 rounded-xl bg-background border border-slate-200 dark:border-white/5 text-xs px-2.5"
+                          value={data.whatsapp_reminder_schedule}
+                          onChange={(e) => setData({ ...data, whatsapp_reminder_schedule: e.target.value })}
+                        >
+                          <option value="Morning (8:00 AM), Night (8:00 PM)">सकाळी आणि रात्री (Morning & Night)</option>
+                          <option value="Morning (8:00 AM), Afternoon (1:00 PM), Night (8:00 PM)">सकाळी, दुपारी आणि रात्री (Three times)</option>
+                          <option value="Morning (8:00 AM)">फक्त सकाळी (Morning Only)</option>
+                          <option value="Night (8:00 PM)">फक्त रात्री (Night Only)</option>
+                        </select>
+                      </div>
+
+                      <div className="rounded-xl border bg-background/50 dark:bg-background/20 p-2.5 text-[10px] leading-relaxed flex flex-col justify-between">
+                        <div>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400 block mb-0.5">WhatsApp SMS Preview:</span>
+                          <p className="text-muted-foreground italic line-clamp-3">
+                            "🌿 *Moolatvam Ayurved* 🌿\nनमस्कार {caseRow.full_name}, आपल्या औषधांची वेळ झाली आहे: {data.medicines ? data.medicines.slice(0, 40) + '...' : 'Prescription Rx'}. निरोगी राहा!"
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

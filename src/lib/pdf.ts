@@ -80,7 +80,7 @@ export async function generatePDFFromElementId(elementId: string, filename: stri
   }
 }
 
-export async function generateCasePaperPDF(c: CaseRow) {
+export function buildCasePaperPDF(c: CaseRow): jsPDF {
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
@@ -210,17 +210,21 @@ export async function generateCasePaperPDF(c: CaseRow) {
   y += 15;
   
   // Observations
-  if (c.prescription || c.medical_notes) {
+  if (c.prescription || c.medical_notes || c.diet_lifestyle) {
     doc.setDrawColor(200);
     doc.line(14, y, w - 14, y);
     y += 8;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(180, 83, 9); // #b45309
-    doc.text("Doctor's Observations & Prescription", 14, y);
+    doc.text("Doctor's Observations & Recommendations", 14, y);
     doc.setTextColor(0, 0, 0);
     y += 8;
     
     if (c.medical_notes) {
+      if (y > h - 55) {
+        doc.addPage();
+        y = 20;
+      }
       doc.setFont("helvetica", "bold");
       doc.text("Diagnosis:", 14, y);
       doc.setFont("helvetica", "normal");
@@ -231,6 +235,10 @@ export async function generateCasePaperPDF(c: CaseRow) {
     }
     
     if (c.prescription) {
+      if (y > h - 55) {
+        doc.addPage();
+        y = 20;
+      }
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
       doc.setTextColor(180, 83, 9);
@@ -242,6 +250,23 @@ export async function generateCasePaperPDF(c: CaseRow) {
       const rxLines = doc.splitTextToSize(c.prescription, w - 28);
       doc.text(rxLines, 14, y);
       y += rxLines.length * 6 + 4;
+    }
+
+    if (c.diet_lifestyle) {
+      if (y > h - 65) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(15, 90, 58); // #0f5a3a (Ayurveda green)
+      doc.text("Diet & Lifestyle Guidelines (Pathya-Apathya):", 14, y);
+      doc.setTextColor(0, 0, 0);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const dietLines = doc.splitTextToSize(c.diet_lifestyle, w - 28);
+      doc.text(dietLines, 14, y);
+      y += dietLines.length * 5 + 4;
     }
   }
   
@@ -281,7 +306,12 @@ export async function generateCasePaperPDF(c: CaseRow) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.text("Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416", w / 2, h - 4, { align: "center" });
-  
+
+  return doc;
+}
+
+export async function generateCasePaperPDF(c: CaseRow) {
+  const doc = buildCasePaperPDF(c);
   const fileName = `Case-Paper-${c.full_name.replace(/\s+/g, "-")}.pdf`;
   const pdfBlob = doc.output("blob");
 
@@ -301,88 +331,8 @@ export async function generateCasePaperPDF(c: CaseRow) {
 
 // Separate share function using Web Share API
 export async function shareCasePaperPDF(c: CaseRow) {
-  const doc = new jsPDF("p", "mm", "a4");
-  // Reuse same build — call generateCasePaperPDF build inline
-  // We duplicate the PDF build here so share gets a fresh blob
+  const doc = buildCasePaperPDF(c);
   const fileName = `Case-Paper-${c.full_name.replace(/\s+/g, "-")}.pdf`;
-
-  // Build same PDF
-  const w = doc.internal.pageSize.getWidth();
-  const h = doc.internal.pageSize.getHeight();
-  doc.setFillColor(251, 189, 8);
-  doc.rect(0, 0, w, 45, "F");
-  doc.setTextColor(0, 0, 0);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Dr. Kadambari Jagtap", 14, 15);
-  doc.setFontSize(10);
-  doc.text("MD Ayu. Sch.", 14, 21);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("|| Shree ||", w / 2, 12, { align: "center" });
-  doc.setFontSize(14);
-  doc.text("Dr. Omprasad Jagtap", w / 2, 18, { align: "center" });
-  doc.setFontSize(10);
-  doc.text("MD Ayu.", w / 2, 24, { align: "center" });
-  doc.setFontSize(9);
-  doc.text("Swasthasya Swasthya Rakshanam...", w / 2, 30, { align: "center" });
-  doc.setFontSize(12);
-  doc.text("MOOLATVAM", w - 14, 18, { align: "right" });
-  doc.text("AYURVED", w - 14, 24, { align: "right" });
-
-  let y = 60;
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "bold");
-  doc.text("Name :", 14, y);
-  doc.setFont("helvetica", "normal");
-  doc.text(c.full_name.toUpperCase(), 35, y);
-  y += 12;
-  doc.setFont("helvetica", "bold"); doc.text("Date Of Birth:", 14, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "-", 45, y);
-  doc.setFont("helvetica", "bold"); doc.text("Age & Gender:", 80, y);
-  doc.setFont("helvetica", "normal"); doc.text(`${c.age} Y / ${c.gender || "-"}`, 112, y);
-  doc.setFont("helvetica", "bold"); doc.text("Date:", 150, y);
-  doc.setFont("helvetica", "normal"); doc.text(new Date(c.created_at).toLocaleDateString("en-IN"), 165, y);
-  y += 10;
-  doc.setFont("helvetica", "bold"); doc.text("Phone No.:", 14, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.mobile || "-", 40, y);
-  doc.setFont("helvetica", "bold"); doc.text("Education:", 150, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.education || "-", 172, y);
-  y += 10;
-  doc.setFont("helvetica", "bold"); doc.text("Address:", 14, y);
-  doc.setFont("helvetica", "normal");
-  const addrLines = doc.splitTextToSize(c.address || "-", 80);
-  doc.text(addrLines, 35, y);
-  doc.setFont("helvetica", "bold"); doc.text("Occupation:", 150, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.occupation || "-", 175, y);
-  y += Math.max(10, addrLines.length * 6);
-  doc.setFont("helvetica", "bold"); doc.text("Married/Unmarried:", 14, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.marital_status || "-", 55, y);
-  doc.setFont("helvetica", "bold"); doc.text("Parent's Occu.:", 150, y);
-  doc.setFont("helvetica", "normal"); doc.text(c.parents_occupation || "-", 180, y);
-  y += 15;
-  doc.setFont("helvetica", "bold"); doc.text("History of present illness:", 14, y);
-  doc.setFont("helvetica", "normal");
-  const histLines = doc.splitTextToSize(c.notes || "-", w - 70);
-  doc.text(histLines, 65, y);
-  y += Math.max(12, histLines.length * 6 + 4);
-
-  const footerY = h - 50;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(8);
-  doc.text("Consent", w / 2, footerY, { align: "center" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-  const consentText = "I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information. I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.";
-  doc.text(doc.splitTextToSize(consentText, w - 28), 14, footerY + 4);
-  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-  doc.text(`Name: ${c.full_name}`, 14, footerY + 28);
-  doc.text("Signature: ________________", 14, footerY + 36);
-  doc.setFillColor(251, 189, 8);
-  doc.rect(0, h - 12, w, 12, "F");
-  doc.setFontSize(8); doc.setFont("helvetica", "bold");
-  doc.text("9404306548 | 8867303202", w - 14, h - 7, { align: "right" });
-  doc.setFont("helvetica", "normal"); doc.setFontSize(7);
-  doc.text("Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416", w / 2, h - 4, { align: "center" });
-
   const pdfBlob = doc.output("blob");
 
   if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
