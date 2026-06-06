@@ -28,9 +28,6 @@ export type CaseRow = {
   test_charge: number | null;
   other_charge: number | null;
   total_bill: number | null;
-  diet_lifestyle?: string | null;
-  whatsapp_reminders?: boolean | null;
-  whatsapp_reminder_schedule?: string | null;
   created_at: string;
   updated_at: string;
 };

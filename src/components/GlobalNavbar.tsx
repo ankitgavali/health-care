@@ -34,6 +34,7 @@ export function GlobalNavbar({ isFixed = false }: { isFixed?: boolean }) {
 
   const handleLogout = async () => {
     await signOut();
+    sessionStorage.removeItem("healthbridge_submitted_case_ids");
     toast.success("Logged out successfully");
     router.navigate({ to: "/" });
   };

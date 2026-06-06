@@ -49,6 +49,12 @@ function Landing() {
 
   useEffect(() => {
     setSettings(getHomepageSettings());
+    // Clear submitted case ids when returning to the landing page to protect privacy on shared devices
+    try {
+      sessionStorage.removeItem("healthbridge_submitted_case_ids");
+    } catch (e) {
+      console.error(e);
+    }
   }, []);
 
   return (

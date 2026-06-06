@@ -119,21 +119,17 @@ function PatientPage() {
         return timeB - timeA;
       });
 
-      const isGuest = user.email === "guest.patient@medicare.local";
-      if (isGuest) {
-        try {
-          // Clean up old localStorage so it doesn't cause issues for returning users
-          localStorage.removeItem("healthbridge_submitted_case_ids");
-          
-          const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
-          if (Array.isArray(localIds)) {
-            fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
-          } else {
-            fetchedCases = [];
-          }
-        } catch (e) {
+      // Always filter to only show case papers submitted in the current session for privacy
+      try {
+        localStorage.removeItem("healthbridge_submitted_case_ids");
+        const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+        if (Array.isArray(localIds)) {
+          fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
+        } else {
           fetchedCases = [];
         }
+      } catch (e) {
+        fetchedCases = [];
       }
       setCases(fetchedCases.map(parseCaseNotes));
       if (fetchedCases.length === 0) {
@@ -157,9 +153,12 @@ function PatientPage() {
       const newId = newDocRef.id;
 
       try {
-        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
+        const existingIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
+        const updatedIds = Array.isArray(existingIds) ? [...existingIds, newId] : [newId];
+        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify(updatedIds));
       } catch (e) {
         console.error("Failed to save case id to session storage", e);
+        sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
       }
 
       await setDoc(newDocRef, {
@@ -383,24 +382,24 @@ function PatientPage() {
 
               {/* Top Curved Yellow Header */}
               <div className="relative w-full bg-[#fbbd08] px-4 sm:px-8 pt-6 sm:pt-8 pb-10 sm:pb-14 z-10 rounded-b-[40px] sm:rounded-b-[60px]">
-                <div className="flex flex-col sm:flex-row justify-between items-center sm:items-start gap-6 sm:gap-0">
+                <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.3fr_0.9fr] items-center sm:items-start gap-4 sm:gap-6 w-full">
                   
                   {/* Left: Doctor 1 */}
-                  <div className="text-center sm:text-left w-full sm:w-1/3 sm:pt-2 sm:pl-2">
-                    <div className="font-bold text-black text-lg sm:text-xl whitespace-nowrap">Dr. Kadambari Jagtap</div>
+                  <div className="text-center sm:text-left w-full sm:pt-2 sm:pl-2">
+                    <div className="font-bold text-black text-base sm:text-lg whitespace-nowrap">Dr. Kadambari Jagtap</div>
                     <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu. Sch.</div>
                   </div>
 
                   {/* Center: Doctor 2 & Quote */}
-                  <div className="text-center w-full sm:w-1/3 flex flex-col items-center order-first sm:order-none">
+                  <div className="text-center w-full flex flex-col items-center order-first sm:order-none">
                     <div className="text-sm font-bold text-black">॥ श्रीः ॥</div>
-                    <div className="font-bold text-black text-lg sm:text-xl mt-1 whitespace-nowrap">Dr. Omprasad Jagtap</div>
+                    <div className="font-bold text-black text-base sm:text-lg mt-1 whitespace-nowrap">Dr. Omprasad Jagtap</div>
                     <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu.</div>
                     <div className="text-[9px] sm:text-[11px] text-black font-bold mt-2 tracking-wide whitespace-nowrap">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
                   </div>
 
                   {/* Right: Logo */}
-                  <div className="w-full sm:w-1/3 flex justify-center sm:justify-end sm:pr-2">
+                  <div className="w-full flex justify-center sm:justify-end sm:pr-2">
                     <div className="relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24">
                       <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
                         <circle cx="50" cy="50" r="48" fill="#fbbd08" />
@@ -408,7 +407,7 @@ function PatientPage() {
                         <path d="M50 25 C45 35 45 60 50 78 C55 60 55 35 50 25 Z" fill="#fbbd08" />
                         <path d="M50 48 C40 54 34 62 30 68 C40 64 47 58 50 48 Z" fill="#fbbd08" />
                         <path d="M50 48 C60 54 66 62 70 68 C60 64 53 58 50 48 Z" fill="#fbbd08" />
-                        <text x="50" y="20" className="fill-black font-bold text-[8px]" letterSpacing="1" textAnchor="middle">
+                        <text x="50" y="20" className="fill-[#fbbd08] font-bold text-[7.5px]" letterSpacing="0.8" textAnchor="middle">
                           MOOLATVAM AYURVED
                         </text>
                       </svg>
@@ -427,74 +426,76 @@ function PatientPage() {
                 </div>
 
                 {/* Grid for main details */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-5 sm:gap-y-6 mb-8 w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4 sm:gap-y-6 mb-6 sm:mb-8 w-full">
                   
                   {/* Row 1 */}
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Date Of Birth:</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Date Of Birth:</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
                   </div>
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Age & Gender:</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Age & Gender :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.age} Y {c.gender ? `/ ${c.gender}` : ''}</span>
                   </div>
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Date:</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
                   </div>
 
                   {/* Row 2 */}
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Phone No.:</span>
+                  <div className="flex items-end sm:col-span-2">
+                    <span className="font-bold mr-2 whitespace-nowrap">Phone No. :</span>
                     <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.mobile}</span>
                   </div>
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Married Status:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status || "—"}</span>
-                  </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Education:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.education || "—"}</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Education :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.education}</span>
                   </div>
 
                   {/* Row 3 */}
                   <div className="flex items-start sm:col-span-2">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap mt-1">Address:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[36px] pt-1 leading-normal">{c.address}</span>
+                    <span className="font-bold mr-2 whitespace-nowrap mt-1">Address :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[40px] pt-1 leading-relaxed">{c.address}</span>
                   </div>
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Occupation:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation || "—"}</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Occupation :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation}</span>
                   </div>
 
                   {/* Row 4 */}
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Parent's Occu.:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation || "—"}</span>
+                  <div className="flex items-end sm:col-span-2">
+                    <span className="font-bold mr-2 whitespace-nowrap">Married/Unmarried :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status}</span>
                   </div>
                   <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Weight:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.weight || "—"}</span>
-                  </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 text-slate-800 whitespace-nowrap">Past History:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.past_history || "—"}</span>
+                    <span className="font-bold mr-2 whitespace-nowrap">Parent's Occu. :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
                   </div>
                 </div>
 
-                {/* Clinical History Section (Vertical Stack with spacing) */}
-                <div className="space-y-5 mt-6 border-t border-slate-200/50 pt-6">
-                  <div className="flex flex-col gap-2">
-                    <span className="font-bold text-slate-800">History of present illness :</span>
-                    <div className="font-semibold border-b border-black/20 pb-2 leading-relaxed min-h-[28px]">{c.notes || "—"}</div>
+                {/* History Section */}
+                <div className="flex flex-col gap-y-4 w-full mt-2 sm:mb-6 mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-end w-full">
+                    <span className="font-bold mr-2 whitespace-nowrap">History of present illness :</span>
+                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px] leading-relaxed">{c.notes}</span>
                   </div>
-
-                  {c.gender === "Female" && (
-                    <div className="flex flex-col gap-2">
-                      <span className="font-bold text-slate-800">पाळीचा इतिहास (Menstrual History) :</span>
-                      <div className="font-semibold border-b border-black/20 pb-2 leading-relaxed min-h-[28px]">{c.menstrual_history || "—"}</div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4 w-full mt-2">
+                    {c.gender === "Female" && (
+                      <div className="flex items-end">
+                        <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास :</span>
+                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.menstrual_history || ""}</span>
+                      </div>
+                    )}
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.past_history}</span>
                     </div>
-                  )}
+                    <div className="flex items-end">
+                      <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
+                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.weight}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Doctor's Notes & Prescription */}
@@ -515,17 +516,10 @@ function PatientPage() {
                     )}
                   </div>
                 )}
-
-                {c.diet_lifestyle && (
-                   <div className="mt-8 border-t border-dashed border-slate-300 pt-6">
-                     <h4 className="font-bold text-lg mb-4 text-[#0F5A3A]">पथ्य आणि अपथ्य (Diet & Lifestyle Recommendations)</h4>
-                     <div className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-700 bg-emerald-500/5 p-4 rounded-xl border border-emerald-500/10 leading-relaxed font-semibold italic">
-                       {c.diet_lifestyle}
-                     </div>
-                   </div>
-                )}
                 
               </div>
+
+              {/* Consent & Bottom Signatures */}
               <div className="px-4 sm:px-10 pb-6 mt-auto z-10">
                 <div className="text-center font-bold text-[11px] sm:text-[12px] text-black">Consent</div>
                 <div className="text-[9px] sm:text-[10px] text-black leading-tight text-justify mt-1 mb-6">
@@ -571,17 +565,11 @@ function PatientPage() {
             {/* Action Bar (outside printable area) */}
             <div className="border-t border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center rounded-b-2xl">
 
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
                 <Badge className={statusColor[c.status as CaseStatus]} variant="outline">
                   {statusLabel[c.status as CaseStatus]}
                 </Badge>
                 <span className="font-mono text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">ID: {c.id.substring(0,8).toUpperCase()}</span>
-                {c.whatsapp_reminders && (
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 gap-1 animate-pulse" variant="outline">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 inline-block" />
-                    reminders active
-                  </Badge>
-                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -616,25 +604,18 @@ function PatientPage() {
                   <Share2 className="h-4 w-4" /> Share
                 </Button>
 
-                {/* Test WhatsApp Reminder Button */}
-                {c.whatsapp_reminders && (
+                {/* Done Button — returns to homepage and clears session */}
+                <Link to="/">
                   <Button 
-                    onClick={() => {
-                      const text = `🌿 *Moolatvam Ayurved* 🌿\n\nनमस्कार *${c.full_name}*,\n\nतुमच्या आयुर्वेदिक औषधांची आणि आहाराची वेळ झाली आहे. \n\n📋 *औषधोपचार (Rx):*\n${c.prescription || 'दिलेली औषधे वेळेवर घ्या.'}\n\n🍏 *पथ्य आणि अपथ्य (Diet Guide):*\n${c.diet_lifestyle || 'गरम, ताजे आणि साधे अन्न घ्यावे.'}\n\n⏰ *वेळ (Schedule):* ${c.whatsapp_reminder_schedule || 'सकाळी आणि रात्री'}\n\nआपली काळजी घ्या, निरोगी राहा!`;
-                      const url = `https://wa.me/${c.mobile.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(text)}`;
-                      window.open(url, "_blank");
-                      toast.success("WhatsApp Reminder Link Opened!");
-                    }}
-                    className="gap-2 shadow-md bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs h-9"
+                    variant="ghost"
+                    className="rounded-xl text-xs h-9 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-transparent hover:border-slate-300 dark:hover:border-slate-700"
                   >
-                    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.473 1.452 5.38 1.453 5.485 0 9.948-4.461 9.952-9.948.002-2.659-1.03-5.159-2.905-7.038C17.2 1.74 14.706.709 12.043.709 6.559.709 2.096 5.17 2.093 10.66c-.001 1.93.499 3.816 1.447 5.429L2.52 21.68l5.885-1.543c1.558.85 3.306 1.298 5.085 1.298h.004zM16.9 14.364c-.266-.134-1.579-.78-1.823-.867-.243-.089-.422-.132-.599.135-.177.266-.685.867-.84.1.044-.155.156-.308.267-.542.112-.233.056-.439-.028-.573-.083-.134-.686-1.654-.939-2.267-.247-.594-.499-.512-.686-.522-.178-.009-.382-.01-.587-.01-.205 0-.539.077-.822.386-.283.308-1.08.1.554-1.08 1.08s-.822-1.08-1.08-1.08c-.26-.113-.78-.266-1.043-.266-.263 0-.58.098-.867.386-.29.308-.885.867-.885 2.115 0 1.248.908 2.454 1.03 2.622.124.168 1.787 2.729 4.33 3.827.605.26 1.077.416 1.444.533.608.193 1.162.166 1.6.1.49-.073 1.579-.645 1.8-.1.236-.226.59-.867.59-.867s-.083-.153-.133-.239z"/>
-                    </svg>
-                    Test Reminder
+                    Done
                   </Button>
-                )}
+                </Link>
               </div>
             </div>
+            
           </div>
         ))}
       </div>
