@@ -92,6 +92,17 @@ const AVAILABLE_ICONS = [
   "User"
 ];
 
+const AVAILABLE_IMAGES = [
+  { label: "Writing Case Papers (Doctor/Nurse)", value: "/hero_bg_write.png" },
+  { label: "Consultation (Doctor & Patient)", value: "/hero_bg_consult.png" },
+  { label: "Patient Care (Treatment)", value: "/hero_bg_care.png" },
+  { label: "Hospital Interior (Modern Reception)", value: "/hospital_bg.png" },
+  { label: "Medical Diagnostics / Devices", value: "/hospital_bg_2.png" },
+  { label: "Doctor Team Highlight", value: "/hero_bg_doctor.png" },
+  { label: "Premium Medical Graphic / Heart", value: "/premium_bg.png" },
+  { label: "Clinical Stats Background", value: "/stats_bg.png" }
+];
+
 export const Route = createFileRoute("/admin")({
   component: () => (
     <RequireRole allow={["admin"]}>
@@ -540,7 +551,8 @@ function ServicesSection() {
       id: "s_" + Date.now(),
       iconName: "Stethoscope",
       label: "New Service",
-      desc: "Describe this clinical service here."
+      desc: "Describe this clinical service here.",
+      image: "/hospital_bg.png"
     };
     setSettings({ ...settings, services: [...settings.services, newService] });
     toast.success("New service added");
@@ -621,6 +633,24 @@ function ServicesSection() {
                         onChange={(e) => handleUpdateService(service.id, "label", e.target.value)}
                         className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Image Illustration</Label>
+                      <Select
+                        value={service.image || ""}
+                        onValueChange={(v) => handleUpdateService(service.id, "image", v)}
+                      >
+                        <SelectTrigger className="w-full text-xs h-9 border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 mt-0.5 rounded-lg">
+                          <SelectValue placeholder="Select Illustration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {AVAILABLE_IMAGES.map((img) => (
+                            <SelectItem key={img.value} value={img.value}>
+                              <span className="text-xs">{img.label}</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 </div>

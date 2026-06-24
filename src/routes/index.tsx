@@ -21,6 +21,25 @@ import { Stethoscope, HeartPulse, ShieldCheck, Activity, FileText, Loader2, User
 import * as Lucide from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
+const getServiceImage = (serviceId: string, iconName?: string) => {
+  switch (serviceId) {
+    case "s1":
+      return "/hero_bg_write.png";
+    case "s2":
+      return "/hospital_bg_2.png";
+    case "s3":
+      return "/hero_bg_care.png";
+    case "s4":
+      return "/premium_bg.png";
+    default:
+      if (iconName === "FileText" || iconName === "ClipboardList") return "/hero_bg_write.png";
+      if (iconName === "ShieldCheck" || iconName === "Users") return "/hospital_bg_2.png";
+      if (iconName === "Activity" || iconName === "Stethoscope") return "/hero_bg_care.png";
+      if (iconName === "HeartPulse" || iconName === "Coins") return "/premium_bg.png";
+      return "/hospital_bg.png";
+  }
+};
+
 export const Route = createFileRoute("/")({ component: Landing });
 
 const emailSchema = z.string().trim().email().max(255);
@@ -105,63 +124,94 @@ function Landing() {
         </section>
 
         {/* ═══════════════ SERVICES / WHY CHOOSE ═══════════════ */}
-        <section id="services" className="w-full py-20 md:py-28 scroll-mt-20 relative overflow-hidden">
-          {/* Background Image */}
-          <img
-            src="/services_bg.png"
-            alt="Services Background"
-            className="absolute inset-0 w-full h-full object-cover object-center"
-          />
-          {/* Overlay to ensure text readability while allowing the image to show through */}
-          <div className="absolute inset-0 bg-white/70 dark:bg-[#0b1120]/80 backdrop-blur-[1px]" />
-          
+        <section id="services" className="w-full py-20 md:py-28 scroll-mt-20 relative overflow-hidden bg-slate-50 dark:bg-[#090d16]">
+          {/* Subtle design elements to match medical theme */}
+          <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-400/5 dark:bg-emerald-500/5 rounded-full blur-[100px] -translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-teal-400/5 dark:bg-teal-500/5 rounded-full blur-[100px] translate-x-1/3 translate-y-1/3 pointer-events-none" />
+
           <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-10">
-            <div className="text-center mb-20 space-y-6 flex flex-col items-center">
+            <div className="text-center mb-16 space-y-4">
               {/* Animated badge */}
-              <span className="animate-badge-glow inline-flex items-center gap-2 px-5 py-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-[#0F5A3A] dark:text-emerald-400 text-sm font-bold tracking-widest uppercase shadow-sm border border-emerald-100 dark:border-emerald-800/50 animate-in fade-in slide-in-from-top-4 duration-700 fill-mode-both">
-                <Activity className="w-4 h-4 animate-heartbeat" /> Our Services
+              <span className="animate-badge-glow inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-800/50 text-[#0F5A3A] dark:text-emerald-400 text-xs font-bold tracking-widest uppercase shadow-xs">
+                <Activity className="w-3.5 h-3.5 animate-pulse text-emerald-600 dark:text-emerald-400" /> Why Choose Us
               </span>
               {/* Shimmer gradient animated title */}
-              <h2 className="relative text-4xl md:text-6xl font-extrabold tracking-tight pb-2 animate-in fade-in slide-in-from-top-6 duration-1000 delay-150 fill-mode-both">
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#0a3d26] via-[#0F5A3A] via-40% to-teal-500 dark:from-white dark:via-emerald-300 dark:to-teal-400 animate-shimmer-text"
-                  style={{backgroundImage: 'linear-gradient(90deg, #0a3d26 0%, #0F5A3A 25%, #34d399 50%, #0d9488 75%, #0F5A3A 100%)', backgroundSize: '200% auto'}}>
-                  Why Choose {settings.hospitalName}?
-                </span>
+              <h2 className="text-3.5xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+                Why Choose {settings.hospitalName}?
               </h2>
-              {/* Subtitle with fade-up */}
-              <p className="max-w-2xl mx-auto text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed font-medium animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 fill-mode-both">
+              {/* Subtitle */}
+              <p className="max-w-2xl mx-auto text-sm md:text-base text-slate-500 dark:text-slate-400 font-medium">
                 We combine advanced medical technology with compassionate care to deliver the best healthcare experience.
               </p>
             </div>
 
-            <div className="px-4 md:px-12 w-full max-w-6xl mx-auto">
+            <div className="w-full max-w-5xl mx-auto relative px-4 md:px-12 lg:px-0">
               <Carousel
                 opts={{ align: "start", loop: true }}
                 plugins={[
                   Autoplay({
-                    delay: 3000,
+                    delay: 4000,
                   }),
                 ]}
-                className="w-full animate-in fade-in slide-in-from-bottom-10 duration-1000"
+                className="w-full relative"
               >
                 <CarouselContent className="-ml-4">
-                  {(settings.services || []).map((service) => {
-                    const IconComponent = (Lucide as any)[service.iconName] || Lucide.HelpCircle;
-                    return (
-                      <CarouselItem key={service.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
-                        <div className="h-full group p-6 lg:p-8 rounded-3xl glass border border-white/40 dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/10 hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-500 flex flex-col bg-white/40 dark:bg-black/20">
-                          <div className="h-16 w-16 bg-gradient-to-br from-emerald-100 to-teal-50 dark:from-emerald-900/50 dark:to-teal-900/30 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 shadow-sm border border-white/50 dark:border-white/10">
-                            <IconComponent className="h-8 w-8 text-emerald-600 dark:text-emerald-400 drop-shadow-sm" />
+                  {(settings.services || []).map((service) => (
+                    <CarouselItem key={service.id} className="pl-4 basis-full">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch w-full">
+                        
+                        {/* Left Side: Large Image with Play Button Overlay */}
+                        <div className="relative group overflow-hidden rounded-3xl aspect-[16/11] lg:aspect-[4/3] shadow-md border border-slate-200/50 dark:border-slate-800/50 w-full h-full min-h-[280px] lg:min-h-[400px]">
+                          <img
+                            src={service.image || getServiceImage(service.id, service.iconName)}
+                            alt={service.label}
+                            className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-103"
+                          />
+                          {/* Dark overlay */}
+                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/20 transition-colors duration-300" />
+                          
+                          {/* Video/Audio Interactive Overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border-[3px] border-[#a3e635] flex items-center justify-center bg-black/45 backdrop-blur-xs transition-transform duration-300 hover:scale-110 shadow-lg cursor-pointer">
+                              <svg viewBox="0 0 24 24" fill="currentColor" className="w-7 h-7 md:w-9 md:h-9 text-white translate-x-0.5">
+                                <path d="M8 5v14l11-7z" />
+                              </svg>
+                            </div>
                           </div>
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors">{service.label}</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{service.desc}</p>
                         </div>
-                      </CarouselItem>
-                    );
-                  })}
+
+                        {/* Right Side: Sleek White Card */}
+                        <div className="bg-white dark:bg-slate-900 p-8 md:p-12 rounded-3xl border border-slate-100 dark:border-slate-800/80 shadow-lg flex flex-col justify-between h-full min-h-[350px] lg:min-h-[400px] w-full">
+                          <div className="space-y-4">
+                            <span className="text-xs font-extrabold tracking-widest text-slate-400 dark:text-slate-500 uppercase block">
+                              SUCCESS STORY
+                            </span>
+                            <h3 className="text-2.5xl md:text-3.5xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">
+                              {service.label}
+                            </h3>
+                            <p className="text-sm md:text-base text-slate-500 dark:text-slate-350 leading-relaxed font-medium">
+                              {service.desc}
+                            </p>
+                          </div>
+                          
+                          <div className="pt-8">
+                            <Link to="/patient">
+                              <Button className="rounded-full bg-black hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-black font-extrabold text-sm px-7 py-5 h-11 flex items-center gap-2 transition-all duration-300 shadow-md hover:shadow-lg w-fit">
+                                <span>Learn More</span>
+                                <svg className="w-4 h-4 translate-y-px" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+
+                      </div>
+                    </CarouselItem>
+                  ))}
                 </CarouselContent>
-                <CarouselPrevious className="hidden md:flex -left-14 h-12 w-12 bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20" />
-                <CarouselNext className="hidden md:flex -right-14 h-12 w-12 bg-white/50 dark:bg-black/50 backdrop-blur-md border-white/20 dark:border-white/10 hover:bg-white/80 dark:hover:bg-white/20" />
+                <CarouselPrevious className="absolute -left-4 md:-left-8 lg:-left-16 top-1/2 -translate-y-1/2 h-12 w-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:scale-105 text-slate-800 dark:text-white rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-30" />
+                <CarouselNext className="absolute -right-4 md:-right-8 lg:-right-16 top-1/2 -translate-y-1/2 h-12 w-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:scale-105 text-slate-800 dark:text-white rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 z-30" />
               </Carousel>
             </div>
           </div>

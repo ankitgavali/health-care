@@ -3,6 +3,7 @@ export interface ServiceItem {
   iconName: string;
   label: string;
   desc: string;
+  image?: string;
 }
 
 export interface StatItem {
@@ -47,10 +48,10 @@ export const defaultSettings: HomepageSettings = {
   contactEmergency: "108",
   contactAddress: "123 Health Avenue, Wellness City, MH 400001",
   services: [
-    { id: "s1", iconName: "FileText", label: "Digital Case Papers", desc: "Submit and track case papers digitally with real-time updates across the care team." },
-    { id: "s2", iconName: "ShieldCheck", label: "Role-Based Access", desc: "Secure, role-based access ensures the right people see the right information." },
-    { id: "s3", iconName: "Activity", label: "End-to-End Workflow", desc: "Seamless handoffs from patient intake to doctor consultation to billing." },
-    { id: "s4", iconName: "HeartPulse", label: "Instant Billing", desc: "Automated invoice generation with prescription details and PDF exports." },
+    { id: "s1", iconName: "FileText", label: "Digital Case Papers", desc: "Submit and track case papers digitally with real-time updates across the care team.", image: "/hero_bg_write.png" },
+    { id: "s2", iconName: "ShieldCheck", label: "Role-Based Access", desc: "Secure, role-based access ensures the right people see the right information.", image: "/hospital_bg_2.png" },
+    { id: "s3", iconName: "Activity", label: "End-to-End Workflow", desc: "Seamless handoffs from patient intake to doctor consultation to billing.", image: "/hero_bg_care.png" },
+    { id: "s4", iconName: "HeartPulse", label: "Instant Billing", desc: "Automated invoice generation with prescription details and PDF exports.", image: "/premium_bg.png" },
   ],
   stats: [
     { id: "st1", value: "10K+", label: "Patients Served" },

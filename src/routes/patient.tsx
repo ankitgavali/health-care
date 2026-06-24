@@ -375,136 +375,142 @@ function PatientPage() {
               <div className="w-full p-4 sm:p-8 flex justify-center">
                 
                 {/* The actual view (Responsive on mobile, A4-like max width on desktop) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] sm:min-h-[1123px]">
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] min-h-[1123px]">
               
-              {/* Faint Bottom-Left Swoosh (Simplified to avoid html2canvas crash) */}
-              <div className="absolute bottom-0 left-0 w-[70%] h-[35%] bg-yellow-600/5 rounded-tr-[200px] z-0 pointer-events-none"></div>
+              {/* Top Header Background SVG */}
+              <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
+                <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
+                  <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
+                </svg>
+              </div>
 
-              {/* Top Curved Yellow Header */}
-              <div className="relative w-full bg-[#fbbd08] px-4 sm:px-8 pt-6 sm:pt-8 pb-10 sm:pb-14 z-10 rounded-b-[40px] sm:rounded-b-[60px]">
-                <div className="grid grid-cols-1 sm:grid-cols-[1.2fr_1.3fr_0.9fr] items-center sm:items-start gap-4 sm:gap-6 w-full">
-                  
-                  {/* Left: Doctor 1 */}
-                  <div className="text-center sm:text-left w-full sm:pt-2 sm:pl-2">
-                    <div className="font-bold text-black text-base sm:text-lg whitespace-nowrap">Dr. Kadambari Jagtap</div>
-                    <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu. Sch.</div>
-                  </div>
+              {/* Top Header Content */}
+              <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
+                
+                {/* Left: Doctor 1 */}
+                <div className="flex-1 mt-1">
+                  <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
+                  <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
+                </div>
 
-                  {/* Center: Doctor 2 & Quote */}
-                  <div className="text-center w-full flex flex-col items-center order-first sm:order-none">
-                    <div className="text-sm font-bold text-black">॥ श्रीः ॥</div>
-                    <div className="font-bold text-black text-base sm:text-lg mt-1 whitespace-nowrap">Dr. Omprasad Jagtap</div>
-                    <div className="text-[10px] sm:text-xs text-black font-semibold mt-1">MD Ayu.</div>
-                    <div className="text-[9px] sm:text-[11px] text-black font-bold mt-2 tracking-wide whitespace-nowrap">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
-                  </div>
+                {/* Center: Doctor 2 & Quote */}
+                <div className="flex-1 flex flex-col items-center -mt-2">
+                  <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
+                  <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
+                  <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
+                  <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
+                </div>
 
-                  {/* Right: Logo */}
-                  <div className="w-full flex justify-center sm:justify-end sm:pr-2">
-                    <div className="relative flex items-center justify-center w-20 h-20 sm:w-24 sm:h-24">
-                      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-                        <circle cx="50" cy="50" r="48" fill="#fbbd08" />
-                        <circle cx="50" cy="50" r="42" fill="black" />
-                        <path d="M50 25 C45 35 45 60 50 78 C55 60 55 35 50 25 Z" fill="#fbbd08" />
-                        <path d="M50 48 C40 54 34 62 30 68 C40 64 47 58 50 48 Z" fill="#fbbd08" />
-                        <path d="M50 48 C60 54 66 62 70 68 C60 64 53 58 50 48 Z" fill="#fbbd08" />
-                        <text x="50" y="20" className="fill-[#fbbd08] font-bold text-[7.5px]" letterSpacing="0.8" textAnchor="middle">
-                          MOOLATVAM AYURVED
-                        </text>
-                      </svg>
-                    </div>
+                {/* Right: Logo */}
+                <div className="flex-1 flex justify-end">
+                  <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
+                    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
+                      <circle cx="50" cy="50" r="48" fill="#fbbd08" />
+                      <circle cx="50" cy="50" r="43" fill="none" stroke="black" strokeWidth="1" />
+                      <circle cx="50" cy="50" r="41" fill="black" />
+                      <path d="M50 25 C45 35 45 60 50 78 C55 60 55 35 50 25 Z" fill="#fbbd08" />
+                      <path d="M50 48 C40 54 34 62 30 68 C40 64 47 58 50 48 Z" fill="#fbbd08" />
+                      <path d="M50 48 C60 54 66 62 70 68 C60 64 53 58 50 48 Z" fill="#fbbd08" />
+                      <path id="curve-top" d="M 14 53 A 36 36 0 1 1 86 53" fill="none" />
+                      <text className="fill-[#fbbd08] font-bold text-[10px]" letterSpacing="1.5">
+                        <textPath href="#curve-top" startOffset="50%" textAnchor="middle">MOOLATVAM AYURVED</textPath>
+                      </text>
+                      <path id="curve-bottom" d="M 14 62 A 36 36 0 0 0 86 62" fill="none" />
+                      <text className="fill-[#fbbd08] font-bold text-[4.5px]" letterSpacing="0.5">
+                         <textPath href="#curve-bottom" startOffset="50%" textAnchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+                      </text>
+                    </svg>
                   </div>
                 </div>
               </div>
 
               {/* Form Content */}
-              <div className="flex-1 px-4 sm:px-10 py-6 sm:py-8 z-10 flex flex-col text-[12px] sm:text-[14px]">
+              <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
                 
-                {/* Row 1: Name */}
-                <div className="flex flex-col sm:flex-row sm:mb-6 mb-4 items-start sm:items-end gap-1 sm:gap-0">
-                  <div className="font-bold whitespace-nowrap mr-2">Name :</div>
-                  <div className="font-semibold uppercase flex-1 w-full sm:w-auto border-b border-black/20 pb-0.5">{c.full_name}</div>
+                {/* Name */}
+                <div className="flex mb-6">
+                  <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
+                  <span className="flex-1 font-semibold">{c.full_name}</span>
                 </div>
 
-                {/* Grid for main details */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4 sm:gap-y-6 mb-6 sm:mb-8 w-full">
+                {/* Grid layout exactly matching image */}
+                <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
                   
                   {/* Row 1 */}
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Date Of Birth:</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Date Of Birth:</span>
+                    <span className="flex-1 font-semibold">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
                   </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Age & Gender :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.age} Y {c.gender ? `/ ${c.gender}` : ''}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Age & Gender :</span>
+                    <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ''}</span>
                   </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Date :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Date :</span>
+                    <span className="flex-1 font-semibold">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
                   </div>
 
                   {/* Row 2 */}
-                  <div className="flex items-end sm:col-span-2">
-                    <span className="font-bold mr-2 whitespace-nowrap">Phone No. :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.mobile}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Phone No. :</span>
+                    <span className="flex-1 font-semibold">{c.mobile}</span>
                   </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Education :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.education}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Married/Unmarried :</span>
+                    <span className="flex-1 font-semibold">{c.marital_status}</span>
                   </div>
-
-                  {/* Row 3 */}
-                  <div className="flex items-start sm:col-span-2">
-                    <span className="font-bold mr-2 whitespace-nowrap mt-1">Address :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[40px] pt-1 leading-relaxed">{c.address}</span>
-                  </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Occupation :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.occupation}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Education :</span>
+                    <span className="flex-1 font-semibold">{c.education}</span>
                   </div>
 
-                  {/* Row 4 */}
-                  <div className="flex items-end sm:col-span-2">
-                    <span className="font-bold mr-2 whitespace-nowrap">Married/Unmarried :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.marital_status}</span>
+                  {/* Row 3 & 4 (Address spanning 2 rows on left) */}
+                  <div className="col-span-2 row-span-2 flex items-start">
+                    <span className="font-bold mr-2 mt-0.5">Address :</span>
+                    <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
                   </div>
-                  <div className="flex items-end">
-                    <span className="font-bold mr-2 whitespace-nowrap">Parent's Occu. :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
-                  </div>
-                </div>
-
-                {/* History Section */}
-                <div className="flex flex-col gap-y-4 w-full mt-2 sm:mb-6 mb-4">
-                  <div className="flex flex-col sm:flex-row sm:items-end w-full">
-                    <span className="font-bold mr-2 whitespace-nowrap">History of present illness :</span>
-                    <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px] leading-relaxed">{c.notes}</span>
+                  <div className="flex">
+                    <span className="font-bold mr-2">Occupation :</span>
+                    <span className="flex-1 font-semibold">{c.occupation}</span>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4 w-full mt-2">
-                    {c.gender === "Female" && (
-                      <div className="flex items-end">
-                        <span className="font-bold mr-2 whitespace-nowrap">पाळीचा इतिहास :</span>
-                        <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.menstrual_history || ""}</span>
-                      </div>
-                    )}
-                    <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">मागील इतिहास :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.past_history}</span>
-                    </div>
-                    <div className="flex items-end">
-                      <span className="font-bold mr-2 whitespace-nowrap">वजन :</span>
-                      <span className="font-semibold flex-1 border-b border-black/20 pb-0.5 min-h-[22px]">{c.weight}</span>
-                    </div>
+                  {/* Row 4 right side */}
+                  <div className="flex">
+                    <span className="font-bold mr-2">Parent's Occu. :</span>
+                    <span className="flex-1 font-semibold">{c.parents_occupation}</span>
                   </div>
                 </div>
 
-                {/* Doctor's Notes & Prescription */}
+                {/* History Section - 4 labels spread horizontally */}
+                <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
+                  <div className="flex">
+                    <span className="font-bold mr-2">History of present illness :</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-bold mr-2">पाळीचा इतिहास</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-bold mr-2">मागील इतिहास</span>
+                  </div>
+                  <div className="flex">
+                    <span className="font-bold mr-2">वजन :</span>
+                  </div>
+                </div>
+
+                {/* Actual data for History */}
+                <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
+                  <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{c.notes}</div>
+                  <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
+                  <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
+                  <div className="font-semibold min-h-[40px]">{c.weight}</div>
+                </div>
+
+                {/* Doctor's Notes & Prescription (If available) */}
                 {(c.prescription || c.medical_notes) && (
-                  <div className="mt-12 border-t border-dashed border-slate-300 pt-6">
-                    <h4 className="font-bold text-lg mb-4 text-[#b45309]">Doctor's Observations & Prescription</h4>
+                  <div className="mt-8 pt-4 border-t border-slate-200">
                     {c.medical_notes && (
                        <div className="mb-4">
-                         <div className="font-bold mb-1">Diagnosis:</div>
+                         <div className="font-bold mb-1 underline">Diagnosis:</div>
                          <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
                        </div>
                     )}
@@ -519,41 +525,41 @@ function PatientPage() {
                 
               </div>
 
+              {/* Faint Swoosh Background */}
+              <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
+
+              {/* Solid Yellow Footer */}
+              <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
+                <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
+                  <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
+                </svg>
+              </div>
+
               {/* Consent & Bottom Signatures */}
-              <div className="px-4 sm:px-10 pb-6 mt-auto z-10">
-                <div className="text-center font-bold text-[11px] sm:text-[12px] text-black">Consent</div>
-                <div className="text-[9px] sm:text-[10px] text-black leading-tight text-justify mt-1 mb-6">
-                  I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information. I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
+              <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
+                <div className="text-center font-bold text-[12px] text-black">Concent</div>
+                <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
+                  I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
                 </div>
                 
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-4 gap-6 sm:gap-0">
-                  <div className="w-full sm:w-1/2 flex flex-col gap-3">
-                    <div className="flex items-end">
-                      <span className="font-bold text-[12px] sm:text-[13px] text-black mr-2">Name :</span>
-                      <span className="font-semibold uppercase text-[12px] sm:text-[13px]">{c.full_name}</span>
-                    </div>
-                    <div className="flex items-end">
-                      <span className="font-bold text-[12px] sm:text-[13px] text-black mr-2">Signature :</span>
-                    </div>
+                <div className="flex flex-col mb-2 gap-3">
+                  <div className="flex items-end">
+                    <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
+                    <span className="font-semibold uppercase text-[13px]">{c.full_name}</span>
                   </div>
-                  
-                  {/* Doctor Signature if billed/reviewed */}
-                  {c.assigned_doctor && c.status !== "submitted" && (
-                    <div className="w-full sm:w-1/3 text-center sm:text-right mt-4 sm:mt-0">
-                      <div className="pb-4 text-sm font-serif italic font-semibold">{doctorName[c.assigned_doctor as "doctor1" | "doctor2"]}</div>
-                      <div className="text-[10px] font-bold mt-1 uppercase text-black sm:border-t border-black pt-1 inline-block sm:block border-t">Consulting Signature</div>
-                    </div>
-                  )}
+                  <div className="flex items-end">
+                    <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Bottom Yellow Footer */}
-              <div className="relative w-full bg-[#fbbd08] px-4 sm:px-10 py-3 z-10 rounded-tl-[40px] sm:rounded-tl-[80px]">
-                <div className="flex justify-center sm:justify-end items-center mb-1 gap-2 text-black font-bold text-[10px] sm:text-[12px]">
+              {/* Bottom Yellow Footer Content overlay */}
+              <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
+                <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                   9404306548 | 8867303202
                 </div>
-                <div className="text-center text-[9px] sm:text-[11px] text-black font-semibold mt-1">
+                <div className="text-[11px] text-black font-semibold">
                   Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
                 </div>
               </div>
