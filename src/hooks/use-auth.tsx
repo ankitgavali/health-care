@@ -8,6 +8,7 @@ export type AppRole = "patient" | "nurse" | "doctor1" | "doctor2" | "admin";
 type AuthCtx = {
   user: User | null;
   role: AppRole | null;
+  profileName: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshRole: () => Promise<void>;
@@ -18,6 +19,7 @@ const Ctx = createContext<AuthCtx | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchRole = async (currentUser: User | null) => {
@@ -34,6 +36,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const roleDocRef = doc(db, "user_roles", currentUser.uid);
     const roleDoc = await getDoc(roleDocRef);
+    const profileDocRef = doc(db, "profiles", currentUser.uid);
+    const profileDoc = await getDoc(profileDocRef);
+
+    if (profileDoc.exists() && profileDoc.data().full_name) {
+      setProfileName(profileDoc.data().full_name);
+    } else {
+      setProfileName(null);
+    }
 
     if (roleDoc.exists()) {
       setRole(roleDoc.data().role as AppRole);
@@ -61,14 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         setRole(roleKey);
+        setProfileName(name);
       } catch (err) {
         console.error("Failed to auto-insert role in Firestore", err);
         setRole(null);
+        setProfileName(null);
       }
       return;
     }
 
     setRole(null);
+    setProfileName(null);
   };
 
   useEffect(() => {
@@ -90,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         role,
+        profileName,
         loading,
         signOut: async () => { 
           await firebaseSignOut(auth); 

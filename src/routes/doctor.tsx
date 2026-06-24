@@ -63,9 +63,13 @@ const doctorMeta = {
 };
 
 function DoctorPage() {
-  const { role } = useAuth();
+  const { role, profileName } = useAuth();
   const docKey = role as "doctor1" | "doctor2";
-  const meta = doctorMeta[docKey] || doctorMeta.doctor1;
+  const currentDoctorName = profileName || doctorName[docKey];
+  const meta = {
+    ...(doctorMeta[docKey] || doctorMeta.doctor1),
+    initials: currentDoctorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
+  };
 
   const [cases, setCases] = useState<any[]>([]);
   const [query, setQuery] = useState("");
@@ -217,7 +221,7 @@ function DoctorPage() {
               {meta.initials}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-xs truncate leading-snug text-foreground">{doctorName[docKey]}</h2>
+              <h2 className="font-bold text-xs truncate leading-snug text-foreground">{currentDoctorName}</h2>
               <p className="text-[10px] text-muted-foreground truncate font-medium">{meta.specialty}</p>
             </div>
           </div>
@@ -309,7 +313,7 @@ function DoctorPage() {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Logged in as</div>
-                <div className="font-semibold text-sm leading-none">{doctorName[docKey]}</div>
+                <div className="font-semibold text-sm leading-none">{currentDoctorName}</div>
               </div>
             </div>
             <Button 
@@ -326,7 +330,7 @@ function DoctorPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                Hello, <span className={meta.colorClass}>{doctorName[docKey].split(" ")[1]}</span>!
+                Hello, <span className={meta.colorClass}>{currentDoctorName.split(" ")[0] === "Dr." ? currentDoctorName.split(" ")[1] : currentDoctorName.split(" ")[0]}</span>!
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {counts.pending > 0 

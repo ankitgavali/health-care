@@ -40,7 +40,9 @@ const caseSchema = z.object({
 });
 
 function NursePage() {
-  const { user } = useAuth();
+  const { user, profileName } = useAuth();
+  const currentNurseName = profileName || "Clinic Nurse";
+  const initials = currentNurseName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
   const [cases, setCases] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed">("all");
@@ -237,10 +239,10 @@ function NursePage() {
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-3 bg-muted/40 dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-3 rounded-2xl">
             <div className={`w-10 h-10 rounded-xl grid place-items-center font-bold text-sm border shrink-0 bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 border-rose-500/20`}>
-              NR
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-xs truncate leading-snug text-foreground">Clinic Nurse</h2>
+              <h2 className="font-bold text-xs truncate leading-snug text-foreground">{currentNurseName}</h2>
               <p className="text-[10px] text-muted-foreground truncate font-medium">Head Nurse Station</p>
             </div>
           </div>
@@ -369,11 +371,11 @@ function NursePage() {
           <div className="md:hidden flex items-center justify-between p-3 glass rounded-2xl mb-4 border dark:border-white/5">
             <div className="flex items-center gap-2">
               <div className={`w-8 h-8 rounded-xl grid place-items-center font-bold text-xs bg-rose-500/10 text-rose-600`}>
-                NR
+                {initials}
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Logged in as</div>
-                <div className="font-semibold text-sm leading-none">Clinic Nurse</div>
+                <div className="font-semibold text-sm leading-none">{currentNurseName}</div>
               </div>
             </div>
             <Button 

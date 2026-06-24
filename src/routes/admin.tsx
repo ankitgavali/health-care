@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { db } from "@/firebase";
-import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc } from "firebase/firestore";
+import { db, firebaseConfig } from "@/firebase";
+import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { initializeApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/components/RequireRole";
 import { Button } from "@/components/ui/button";
@@ -146,6 +148,7 @@ function AdminPage() {
     { value: "contact", label: "Contact Details", icon: Mail },
     { value: "invoice", label: "Invoices & Billing", icon: Receipt },
     { value: "qrcode", label: "QR Check-In", icon: QrCode },
+    { value: "staff", label: "Manage Staff", icon: Users },
   ];
 
   return (
@@ -339,6 +342,9 @@ function AdminPage() {
             </TabsContent>
             <TabsContent value="qrcode" className="outline-none mt-0">
               <QrCodeSection />
+            </TabsContent>
+            <TabsContent value="staff" className="outline-none mt-0">
+              <StaffSection />
             </TabsContent>
           </Tabs>
         </main>
@@ -1173,7 +1179,6 @@ function QrCodeSection() {
         </Button>
       </div>
 
-      {/* CSS to force the print layout only for the QR portion */}
       <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body * {
@@ -1202,6 +1207,143 @@ function QrCodeSection() {
           }
         }
       `}}></style>
+    </Card>
+  );
+}
+
+/* ========================================================
+   10. STAFF MANAGEMENT SECTION
+   ======================================================== */
+function StaffSection() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [role, setRole] = useState("doctor1");
+  const [busy, setBusy] = useState(false);
+
+  const handleCreateStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      return toast.error("Please fill all fields");
+    }
+    if (password.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+
+    setBusy(true);
+    try {
+      // Use a secondary Firebase app instance to avoid logging out the current admin user
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // Create the user in Auth
+      const userCred = await createUserWithEmailAndPassword(secondaryAuth, email.trim().toLowerCase(), password);
+
+      // Save role mapping
+      await setDoc(doc(db, "user_roles", userCred.user.uid), {
+        role: role
+      });
+
+      // Save user profile info
+      await setDoc(doc(db, "profiles", userCred.user.uid), {
+        full_name: name.trim(),
+        email: email.trim().toLowerCase(),
+        created_at: new Date().toISOString()
+      });
+
+      // Sign out the secondary instance to clean up
+      await secondaryAuth.signOut();
+
+      toast.success("Staff account created successfully!");
+      setName("");
+      setEmail("");
+      setPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create staff account");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6 max-w-2xl mx-auto">
+      <CardHeader className="px-0 pt-0">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-10 w-10 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center">
+            <Users className="h-5 w-5 text-[#0D7A70] dark:text-teal-400" />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-bold text-slate-800 dark:text-white">Add New Staff</CardTitle>
+            <CardDescription className="text-xs">Create accounts for doctors and nurses to grant them access.</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-0 mt-4">
+        <form onSubmit={handleCreateStaff} className="space-y-5">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Full Name</Label>
+            <Input 
+              placeholder="e.g. Dr. John Doe or Nurse Jane" 
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email Address</Label>
+            <Input 
+              type="email"
+              placeholder="doctor@hospital.com" 
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
+              required
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Password</Label>
+            <Input 
+              type="password"
+              placeholder="Min 6 characters" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
+              required
+              minLength={6}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</Label>
+            <Select value={role} onValueChange={setRole}>
+              <SelectTrigger className="w-full h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="doctor1">Doctor</SelectItem>
+                <SelectItem value="nurse">Nurse</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="pt-2">
+            <Button 
+              type="submit" 
+              className="w-full bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl h-11 shadow-sm"
+              disabled={busy}
+            >
+              {busy ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Account...</>
+              ) : (
+                <><Plus className="mr-2 h-4 w-4" /> Create Staff Account</>
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
     </Card>
   );
 }
