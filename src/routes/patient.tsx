@@ -404,6 +404,7 @@ function PatientPage() {
                   {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit case paper
                 </Button>
              </form>
+             </div>
           </DialogContent>
         </Dialog>
       </div>
