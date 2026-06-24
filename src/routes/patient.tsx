@@ -211,48 +211,7 @@ function PatientPage() {
       });
       
       setBusy(false);
-      toast.success("Case paper submitted! Downloading...");
-
-      // Build a case object from form data for immediate PDF generation (works on mobile)
-      const submittedCase = {
-        id: newId,
-        full_name: form.full_name.trim(),
-        address: form.address.trim(),
-        mobile: form.mobile.trim(),
-        dob: form.dob,
-        age,
-        gender: form.gender,
-        marital_status: form.marital_status,
-        education: form.education,
-        occupation: form.occupation,
-        parents_occupation: form.parents_occupation,
-        notes: form.notes,
-        menstrual_history: form.menstrual_history,
-        past_history: form.past_history,
-        weight: form.weight,
-        status: "submitted",
-        created_at: new Date().toISOString(),
-        prescription: null,
-        medical_notes: null,
-        assigned_doctor: null,
-        medicines: null,
-        tests: null,
-        consultation_charge: 0,
-        medicine_charge: 0,
-        test_charge: 0,
-        other_charge: 0,
-        total_bill: 0,
-      } as any;
-
-      // Small delay so the toast is visible, then generate PDF
-      setTimeout(() => {
-        try {
-          generateCasePaperPDF(submittedCase);
-        } catch (pdfErr) {
-          console.error("PDF generation error:", pdfErr);
-          toast.error("PDF download failed. Open case paper below to download.");
-        }
-      }, 300);
+      toast.success("Case paper submitted successfully!");
 
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
       setIsDialogOpen(false);
@@ -613,14 +572,17 @@ function PatientPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Download Button — direct save, no share dialog */}
+                {/* Download Button — exact visual clone */}
                 <Button 
                   onClick={() => {
+                    setBusy(true);
                     try {
-                      generateCasePaperPDF(c);
+                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Failed to generate PDF.");
+                    } finally {
+                      setBusy(false);
                     }
                   }} 
                   className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"
@@ -628,14 +590,17 @@ function PatientPage() {
                   <Download className="h-4 w-4" /> Download
                 </Button>
 
-                {/* Share Button — opens native share/WhatsApp dialog */}
+                {/* Share Button — opens native share/WhatsApp dialog with exact clone */}
                 <Button 
                   onClick={() => {
+                    setBusy(true);
                     try {
-                      shareCasePaperPDF(c);
+                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Share failed.");
+                    } finally {
+                      setBusy(false);
                     }
                   }} 
                   variant="outline"
