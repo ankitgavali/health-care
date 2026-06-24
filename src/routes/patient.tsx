@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -380,9 +380,15 @@ function PatientPage() {
               {/* Top Header Background SVG */}
               <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
                 <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
-                  <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
+                  {/* Orange wave */}
+                  <path d="M0,0 L1000,0 L1000,175 Q600,215 0,135 Z" fill="#f97316" />
+                  {/* Yellow wave */}
+                  <path d="M0,0 L1000,0 L1000,160 Q600,200 0,120 Z" fill="#fbbd08" />
                 </svg>
               </div>
+
+              {/* Faint Rectangle on Top Right */}
+              <div className="absolute top-5 right-8 w-36 h-9 bg-[#fde047]/60 rounded z-10 pointer-events-none"></div>
 
               {/* Top Header Content */}
               <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
@@ -411,13 +417,13 @@ function PatientPage() {
                       <path d="M50 25 C45 35 45 60 50 78 C55 60 55 35 50 25 Z" fill="#fbbd08" />
                       <path d="M50 48 C40 54 34 62 30 68 C40 64 47 58 50 48 Z" fill="#fbbd08" />
                       <path d="M50 48 C60 54 66 62 70 68 C60 64 53 58 50 48 Z" fill="#fbbd08" />
-                      <path id="curve-top" d="M 14 53 A 36 36 0 1 1 86 53" fill="none" />
+                      <path id={`curve-top-${c.id}`} d="M 14 53 A 36 36 0 1 1 86 53" fill="none" />
                       <text className="fill-[#fbbd08] font-bold text-[10px]" letterSpacing="1.5">
-                        <textPath href="#curve-top" startOffset="50%" textAnchor="middle">MOOLATVAM AYURVED</textPath>
+                        <textPath href={`#curve-top-${c.id}`} startOffset="50%" textAnchor="middle">MOOLATVAM AYURVED</textPath>
                       </text>
-                      <path id="curve-bottom" d="M 14 62 A 36 36 0 0 0 86 62" fill="none" />
+                      <path id={`curve-bottom-${c.id}`} d="M 14 62 A 36 36 0 0 0 86 62" fill="none" />
                       <text className="fill-[#fbbd08] font-bold text-[4.5px]" letterSpacing="0.5">
-                         <textPath href="#curve-bottom" startOffset="50%" textAnchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+                         <textPath href={`#curve-bottom-${c.id}`} startOffset="50%" textAnchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
                       </text>
                     </svg>
                   </div>
@@ -429,80 +435,80 @@ function PatientPage() {
                 
                 {/* Name */}
                 <div className="flex mb-6">
-                  <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
-                  <span className="flex-1 font-semibold">{c.full_name}</span>
+                  <span className="font-bold mr-2 whitespace-nowrap text-[15px]">Name :</span>
+                  <span className="flex-1 font-semibold border-b border-black/20 text-[15px] pb-1 uppercase">{c.full_name}</span>
                 </div>
 
                 {/* Grid layout exactly matching image */}
-                <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
+                <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-7 w-full">
                   
                   {/* Row 1 */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Date Of Birth:</span>
-                    <span className="flex-1 font-semibold">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Date Of Birth:</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Age & Gender :</span>
-                    <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ''}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Age & Gender :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.age} {c.gender ? `/ ${c.gender}` : ''}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Date :</span>
-                    <span className="flex-1 font-semibold">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Date :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
                   </div>
 
                   {/* Row 2 */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Phone No. :</span>
-                    <span className="flex-1 font-semibold">{c.mobile}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Phone No. :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.mobile}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Married/Unmarried :</span>
-                    <span className="flex-1 font-semibold">{c.marital_status}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Married/Unmarried :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.marital_status}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Education :</span>
-                    <span className="flex-1 font-semibold">{c.education}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Education :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.education}</span>
                   </div>
 
                   {/* Row 3 & 4 (Address spanning 2 rows on left) */}
                   <div className="col-span-2 row-span-2 flex items-start">
-                    <span className="font-bold mr-2 mt-0.5">Address :</span>
-                    <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
+                    <span className="font-bold mr-2 mt-1 text-[15px]">Address :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 min-h-[50px] pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
                   </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Occupation :</span>
-                    <span className="flex-1 font-semibold">{c.occupation}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Occupation :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.occupation}</span>
                   </div>
                   
                   {/* Row 4 right side */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Parent's Occu. :</span>
-                    <span className="flex-1 font-semibold">{c.parents_occupation}</span>
+                  <div className="flex items-end">
+                    <span className="font-bold mr-2 text-[15px]">Parent's Occu. :</span>
+                    <span className="flex-1 font-semibold border-b border-black/20 pb-0.5">{c.parents_occupation}</span>
                   </div>
                 </div>
 
                 {/* History Section - 4 labels spread horizontally */}
                 <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
                   <div className="flex">
-                    <span className="font-bold mr-2">History of present illness :</span>
+                    <span className="font-bold mr-2 text-[15px]">History of present illness :</span>
                   </div>
                   <div className="flex">
-                    <span className="font-bold mr-2">पाळीचा इतिहास</span>
+                    <span className="font-bold mr-2 text-[15px]">पाळीचा इतिहास</span>
                   </div>
                   <div className="flex">
-                    <span className="font-bold mr-2">मागील इतिहास</span>
+                    <span className="font-bold mr-2 text-[15px]">मागील इतिहास</span>
                   </div>
                   <div className="flex">
-                    <span className="font-bold mr-2">वजन :</span>
+                    <span className="font-bold mr-2 text-[15px]">वजन :</span>
                   </div>
                 </div>
 
                 {/* Actual data for History */}
                 <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
-                  <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{c.notes}</div>
-                  <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
-                  <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
-                  <div className="font-semibold min-h-[40px]">{c.weight}</div>
+                  <div className="font-semibold min-h-[50px] pr-2 whitespace-pre-wrap border-b border-black/20">{c.notes}</div>
+                  <div className="font-semibold min-h-[50px] pr-2 border-b border-black/20">{c.menstrual_history}</div>
+                  <div className="font-semibold min-h-[50px] pr-2 border-b border-black/20">{c.past_history}</div>
+                  <div className="font-semibold min-h-[50px] border-b border-black/20">{c.weight}</div>
                 </div>
 
                 {/* Doctor's Notes & Prescription (If available) */}
@@ -510,7 +516,7 @@ function PatientPage() {
                   <div className="mt-8 pt-4 border-t border-slate-200">
                     {c.medical_notes && (
                        <div className="mb-4">
-                         <div className="font-bold mb-1 underline">Diagnosis:</div>
+                         <div className="font-bold mb-1 underline text-[15px]">Diagnosis:</div>
                          <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
                        </div>
                     )}
@@ -525,13 +531,13 @@ function PatientPage() {
                 
               </div>
 
-              {/* Faint Swoosh Background */}
-              <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
-
-              {/* Solid Yellow Footer */}
-              <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
-                <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
-                  <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
+              {/* Solid Yellow & Orange Footer */}
+              <div className="absolute bottom-0 left-0 w-full h-[120px] z-0 pointer-events-none overflow-hidden">
+                <svg preserveAspectRatio="none" viewBox="0 0 1000 150" className="w-full h-full">
+                  {/* Orange wave */}
+                  <path d="M0,150 L0,50 Q400,110 1000,50 L1000,150 Z" fill="#f97316" />
+                  {/* Yellow wave */}
+                  <path d="M0,150 L0,70 Q400,130 1000,70 L1000,150 Z" fill="#fbbd08" />
                 </svg>
               </div>
 
