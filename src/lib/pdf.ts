@@ -406,297 +406,230 @@ export function generateInvoicePDF(c: CaseRow) {
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   
-  // --- Header (Clinic Letterhead - Yellow Background) ---
-  doc.setFillColor(251, 189, 8); // #fbbd08
-  doc.rect(0, 0, w, 45, "F");
-  doc.setTextColor(0, 0, 0);
+  // --- Background (Clean White - No Letterhead Color Strip) ---
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, w, h, "F");
   
-  // Left Doctor Details
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.text("Dr. Kadambari Jagtap", 15, 15);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("MD Ayu. Sch.", 15, 21);
-  
-  // Center Doctor Details
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("|| Shree ||", w / 2, 12, { align: "center" });
-  doc.setFontSize(14);
-  doc.text("Dr. Omprasad Jagtap", w / 2, 18, { align: "center" });
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "normal");
-  doc.text("MD Ayu.", w / 2, 24, { align: "center" });
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.text("Swasthasya Swasthya Rakshanam...", w / 2, 30, { align: "center" });
-  
-  // Right Logo / Branding
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("MOOLATVAM", w - 15, 18, { align: "right" });
-  doc.text("AYURVED", w - 15, 24, { align: "right" });
-  
-  // --- Invoice Title ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.text("INVOICE / RECEIPT", 15, 56);
-  
-  // Title Divider Line
-  doc.setDrawColor(226, 232, 240); // slate-200
+  // --- Top-Left: Circular Logo Emblem ---
+  const logoX = 27;
+  const logoY = 27;
+  // Forest Green border circles
+  doc.setDrawColor(76, 122, 52); // Forest Green (#4C7A34)
+  doc.setLineWidth(1.2);
+  doc.circle(logoX, logoY, 12, "D");
   doc.setLineWidth(0.4);
-  doc.line(15, 60, w - 15, 60);
+  doc.circle(logoX, logoY, 10.5, "D");
   
-  // --- Metadata Section (Two-column layout) ---
-  // Left Column Headers
+  // Inner circle text branding
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(6.2);
+  doc.setTextColor(76, 122, 52);
+  doc.text("MOOLATVAM", logoX, logoY - 1, { align: "center" });
+  doc.text("AYURVED", logoX, logoY + 2.5, { align: "center" });
+  
+  // Outer circular leaf lines representation
+  doc.setLineWidth(0.8);
+  doc.line(logoX - 5, logoY + 12, logoX - 9, logoY + 15);
+  doc.line(logoX - 9, logoY + 15, logoX - 4, logoY + 15);
+  
+  doc.line(logoX + 5, logoY + 12, logoX + 9, logoY + 15);
+  doc.line(logoX + 9, logoY + 15, logoX + 4, logoY + 15);
+  
+  // Sanskrit / English slogan underneath logo
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(6);
+  doc.setTextColor(100, 116, 139); // slate-500
+  doc.text("Swasthasya Swasthya Rakshanam...", logoX, logoY + 19, { align: "center" });
+  
+  // --- Top-Right: Invoice Title & Header ---
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(26);
+  doc.setTextColor(76, 122, 52); // Forest Green
+  doc.text("INVOICE", w - 15, 24, { align: "right" });
+  
+  // Date & Invoice Number Box Table
+  doc.setDrawColor(76, 122, 52);
+  doc.setLineWidth(0.3);
+  doc.rect(w - 65, 30, 50, 12, "D");
+  doc.line(w - 65, 36, w - 15, 36);
+  
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Date : ${new Date(c.created_at || Date.now()).toLocaleDateString("en-IN")}`, w - 62, 34.2);
+  doc.text(`Invoice No : ${c.id.slice(0, 8).toUpperCase()}`, w - 62, 40.2);
+  
+  // --- BILL TO / FROM Section ---
+  const sectionY = 53;
+  // Billed To Header Bar
+  doc.setFillColor(76, 122, 52);
+  doc.rect(15, sectionY, 60, 5.5, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(148, 163, 184); // slate-400
-  doc.text("BILLED TO", 15, 67);
+  doc.setTextColor(255, 255, 255);
+  doc.text("BILL TO", 18, sectionY + 4);
   
-  // Right Column Headers
-  doc.text("INVOICE DETAILS", 120, 67);
+  // From Header Bar
+  doc.setFillColor(76, 122, 52);
+  doc.rect(w - 75, sectionY, 60, 5.5, "F");
+  doc.text("FROM", w - 72, sectionY + 4);
   
-  // Left Column Patient Details
-  let leftY = 73;
+  // Patient details (Left column)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.text(c.full_name.toUpperCase(), 15, leftY);
-  leftY += 6;
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text(c.full_name.toUpperCase(), 15, sectionY + 11);
   
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85); // slate-700
+  const patientAddrLines = doc.splitTextToSize(c.address || "—", 55);
+  doc.text(patientAddrLines, 15, sectionY + 15.5);
+  
+  const phoneY = sectionY + 15.5 + patientAddrLines.length * 4.2 + 1;
+  doc.text(c.mobile || "—", 15, phoneY);
+  
+  // Clinic Details (Right column)
+  doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text(`Mobile: ${c.mobile || "—"}`, 15, leftY);
-  leftY += 5.5;
-  
-  const dobStr = c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : "—";
-  doc.text(`DOB: ${dobStr}  |  Age: ${c.age || 0} Y  |  Gender: ${c.gender || "—"}`, 15, leftY);
-  leftY += 5.5;
-  
-  const addrLines = doc.splitTextToSize(`Address: ${c.address || "—"}`, w / 2 - 25);
-  doc.text(addrLines, 15, leftY);
-  leftY += addrLines.length * 4.5 + 2;
-  
-  // Right Column Invoice Details
-  let rightY = 73;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105); // slate-600
-  
-  doc.text("Invoice No:", 120, rightY);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(30, 41, 59);
-  doc.text(`#${c.id.slice(0, 8).toUpperCase()}`, 145, rightY);
-  rightY += 5.5;
+  doc.setTextColor(0, 0, 0);
+  doc.text("MOOLATVAM AYURVED HOSPITAL", w - 75, sectionY + 11);
   
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Invoice Date:", 120, rightY);
-  doc.text(new Date(c.created_at || Date.now()).toLocaleDateString("en-IN"), 145, rightY);
-  rightY += 5.5;
-  
-  doc.text("Consultant:", 120, rightY);
-  const docNameVal = c.assigned_doctor_name || (c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—");
-  doc.text(docNameVal, 145, rightY);
-  rightY += 6;
-  
-  // Styled PAID badge
-  doc.text("Payment Status:", 120, rightY + 3.5);
-  doc.setFillColor(209, 250, 229); // emerald-100
-  doc.roundedRect(145, rightY, 18, 5, 1, 1, "F");
-  doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
-  doc.setTextColor(6, 95, 70); // emerald-800
-  doc.text("PAID", 154, rightY + 3.7, { align: "center" });
+  doc.setTextColor(51, 65, 85); // slate-700
+  doc.text("SHIV CITY CENTER,", w - 75, sectionY + 15.5);
+  doc.text("VIJAYNAGAR CIRCLE, SANGLI.", w - 75, sectionY + 20);
+  doc.text("PH. 9834623909", w - 75, sectionY + 24.5);
   
-  let currentY = Math.max(leftY, rightY + 12);
-  
-  // Divider below details
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.line(15, currentY, w - 15, currentY);
-  currentY += 8;
-  
-  // --- Prescription / Clinical Notes Summary Card ---
-  const summaryFields: { label: string; value: string }[] = [];
-  if (c.prescription) summaryFields.push({ label: "Rx / Prescription", value: c.prescription });
-  if (c.medicines) summaryFields.push({ label: "Medicines", value: c.medicines });
-  if (c.tests) summaryFields.push({ label: "Investigations / Tests", value: c.tests });
-  if (c.medical_notes) summaryFields.push({ label: "Diagnosis / Notes", value: c.medical_notes });
-  
-  if (summaryFields.length > 0) {
-    // Set font to measure label widths
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    
-    let maxLabelWidth = 0;
-    summaryFields.forEach(f => {
-      const wLabel = doc.getTextWidth(`${f.label}:`);
-      if (wLabel > maxLabelWidth) {
-        maxLabelWidth = wLabel;
-      }
-    });
-    
-    // The values start 20mm + maxLabelWidth + 3mm spacing
-    const valueX = 20 + maxLabelWidth + 3;
-    
-    const processedFields = summaryFields.map(f => {
-      const valLines = doc.splitTextToSize(f.value, w - valueX - 10);
-      return { label: f.label, value: f.value, lines: valLines };
-    });
-    
-    let cardHeight = 10; // vertical padding
-    cardHeight += 6; // title spacing
-    
-    processedFields.forEach(f => {
-      cardHeight += Math.max(4.5, f.lines.length * 4.5) + 2;
-    });
-    
-    // Draw Card Background
-    doc.setFillColor(248, 250, 252); // slate-50
-    doc.rect(15, currentY, w - 30, cardHeight, "F");
-    
-    // Draw Amber Left Border
-    doc.setFillColor(217, 119, 6); // amber-600
-    doc.rect(15, currentY, 1.5, cardHeight, "F");
-    
-    let cardTextY = currentY + 6;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(30, 41, 59); // slate-800
-    doc.text("Clinical & Prescription Summary", 20, cardTextY);
-    cardTextY += 6;
-    
-    processedFields.forEach(f => {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(9);
-      doc.setTextColor(51, 65, 85); // slate-700
-      doc.text(`${f.label}:`, 20, cardTextY);
-      
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(71, 85, 105); // slate-600
-      doc.text(f.lines, valueX, cardTextY);
-      
-      cardTextY += Math.max(4.5, f.lines.length * 4.5) + 2;
-    });
-    
-    currentY += cardHeight + 8;
+  // --- Table Data Setup ---
+  const activeRows: { name: string; amount: number }[] = [];
+  if (Number(c.consultation_charge ?? 0) > 0) {
+    activeRows.push({ name: "Consultation Services", amount: Number(c.consultation_charge) });
+  }
+  if (Number(c.medicine_charge ?? 0) > 0) {
+    activeRows.push({ name: "Pharmacy / Medicines", amount: Number(c.medicine_charge) });
+  }
+  if (Number(c.test_charge ?? 0) > 0) {
+    activeRows.push({ name: "Investigations / Tests", amount: Number(c.test_charge) });
+  }
+  if (Number(c.other_charge ?? 0) > 0) {
+    activeRows.push({ name: "Other General Charges", amount: Number(c.other_charge) });
   }
   
-  // --- Billing Breakdown Table ---
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.text("BILLING BREAKDOWN", 15, currentY);
-  currentY += 6;
+  // Fallback row if no charges entered
+  if (activeRows.length === 0) {
+    activeRows.push({ name: "Consultation Services", amount: 0 });
+  }
   
-  // Table Header Background
-  doc.setFillColor(51, 65, 85); // slate-700
-  doc.rect(15, currentY, w - 30, 8, "F");
+  const total = activeRows.reduce((sum, r) => sum + r.amount, 0);
+  
+  // --- Watermark (Drawn in background before table text) ---
+  const watermarkX = w / 2;
+  const watermarkY = 135;
+  doc.setDrawColor(240, 246, 238); // extremely light green
+  doc.setLineWidth(1.5);
+  doc.circle(watermarkX, watermarkY, 32, "D");
+  doc.circle(watermarkX, watermarkY, 28, "D");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(240, 246, 238);
+  doc.text("MOOLATVAM AYURVED", watermarkX, watermarkY + 2.5, { align: "center", angle: 25 });
+  
+  // --- Billing Invoice Table (x = 15, y = 88) ---
+  const tableY = 88;
+  const colSLWidth = 15;
+  const colDescWidth = 110;
+  const colQtyWidth = 20;
+  const colAmtWidth = 35;
+  const tableWidth = colSLWidth + colDescWidth + colQtyWidth + colAmtWidth; // 180mm
+  
+  // Table Header Background (Sage Green #B9C7B6)
+  doc.setFillColor(185, 199, 182);
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.3);
+  doc.rect(15, tableY, tableWidth, 7.5, "FD");
   
   // Table Header Text
   doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.setTextColor(0, 0, 0);
+  doc.text("SL", 15 + colSLWidth / 2, tableY + 5.2, { align: "center" });
+  doc.text("Description", 15 + colSLWidth + 3, tableY + 5.2);
+  doc.text("Qty.", 15 + colSLWidth + colDescWidth + colQtyWidth / 2, tableY + 5.2, { align: "center" });
+  doc.text("Amount", 15 + tableWidth - 3, tableY + 5.2, { align: "right" });
+  
+  // Table Rows Loop
+  let currentY = tableY + 7.5;
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(255, 255, 255);
-  doc.text("SR.", 18, currentY + 5.5);
-  doc.text("SERVICE / DESCRIPTION", 30, currentY + 5.5);
-  doc.text("AMOUNT (INR)", w - 18, currentY + 5.5, { align: "right" });
-  currentY += 8;
   
-  // Table Row Items
-  const rows: [string, number][] = [
-    ["Consultation Services", Number(c.consultation_charge ?? 0)],
-    ["Pharmacy / Medicines", Number(c.medicine_charge ?? 0)],
-    ["Investigations / Tests", Number(c.test_charge ?? 0)],
-    ["Other General Charges", Number(c.other_charge ?? 0)],
-  ];
-  
-  rows.forEach(([k, v], idx) => {
-    // Alternating Row Backgrounds
-    if (idx % 2 === 0) {
-      doc.setFillColor(248, 250, 252); // slate-50
-      doc.rect(15, currentY, w - 30, 8, "F");
-    }
+  activeRows.forEach((row, idx) => {
+    // Draw row separator line
+    doc.line(15, currentY + 8, 15 + tableWidth, currentY + 8);
     
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9.5);
-    doc.setTextColor(51, 65, 85); // slate-700
+    // SL
+    doc.text(String(idx + 1) + ".", 15 + colSLWidth / 2, currentY + 5.5, { align: "center" });
     
-    doc.text(String(idx + 1), 18, currentY + 5.5);
-    doc.text(k, 30, currentY + 5.5);
+    // Description
+    doc.text(row.name, 15 + colSLWidth + 3, currentY + 5.5);
     
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Rs. ${v.toFixed(2)}`, w - 18, currentY + 5.5, { align: "right" });
+    // Qty
+    doc.text("1", 15 + colSLWidth + colDescWidth + colQtyWidth / 2, currentY + 5.5, { align: "center" });
     
-    // Row Divider Line
-    doc.setDrawColor(241, 245, 249); // slate-100
-    doc.line(15, currentY + 8, w - 15, currentY + 8);
+    // Amount
+    doc.text(`${row.amount.toFixed(2)} Rs.`, 15 + tableWidth - 3, currentY + 5.5, { align: "right" });
+    
     currentY += 8;
   });
   
-  // --- Grand Total Callout Box ---
-  const totalBoxWidth = 70;
-  const totalBoxHeight = 12;
-  const totalBoxX = w - 15 - totalBoxWidth;
+  // Draw vertical borders down the table height
+  const tableBottomY = currentY;
+  doc.line(15, tableY, 15, tableBottomY); // Left border
+  doc.line(15 + colSLWidth, tableY, 15 + colSLWidth, tableBottomY); // SL border
+  doc.line(15 + colSLWidth + colDescWidth, tableY, 15 + colSLWidth + colDescWidth, tableBottomY); // Description border
+  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY); // Qty border
+  doc.line(15 + tableWidth, tableY, 15 + tableWidth, tableBottomY); // Right border
   
-  doc.setFillColor(248, 250, 252); // slate-50
-  doc.setDrawColor(226, 232, 240); // slate-200
-  doc.rect(totalBoxX, currentY + 4, totalBoxWidth, totalBoxHeight, "FD");
+  // --- Total Row ---
+  doc.setFillColor(185, 199, 182); // Sage green background
+  doc.rect(15, tableBottomY, tableWidth, 7.5, "FD");
   
-  // Yellow Left Accent Strip on Total Box
-  doc.setFillColor(251, 189, 8); // brand yellow
-  doc.rect(totalBoxX, currentY + 4, 1.8, totalBoxHeight, "F");
+  // Vertical column borders for Total Row
+  doc.line(15 + colSLWidth, tableBottomY, 15 + colSLWidth, tableBottomY + 7.5);
+  doc.line(15 + colSLWidth + colDescWidth, tableBottomY, 15 + colSLWidth + colDescWidth, tableBottomY + 7.5);
+  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY + 7.5);
+  
+  // Total Text
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
+  doc.text("Total", 18, tableBottomY + 5.2);
+  
+  // Grand Total amount text
+  doc.text(`${total.toFixed(2)} Rs.`, 15 + tableWidth - 3, tableBottomY + 5.2, { align: "right" });
+  
+  // --- Authorized Signatory Signblock ---
+  let footerY = tableBottomY + 30;
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+  doc.line(w - 65, footerY, w - 15, footerY);
   
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8.5);
-  doc.setTextColor(100, 116, 139); // slate-500
-  doc.text("GRAND TOTAL", totalBoxX + 6, currentY + 11.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text("Authorized Signatory", w - 15, footerY + 4.5, { align: "right" });
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Moolatvam Ayurved", w - 15, footerY + 8.5, { align: "right" });
   
-  doc.setFontSize(13);
-  doc.setTextColor(30, 41, 59); // slate-800
-  doc.text(`Rs. ${Number(c.total_bill ?? 0).toFixed(2)}`, w - 18, currentY + 12, { align: "right" });
-  
-  currentY += 25;
-  
-  // --- Signatures Block ---
-  doc.setDrawColor(203, 213, 225); // slate-300
-  doc.setLineWidth(0.3);
-  doc.line(w - 65, currentY, w - 15, currentY);
-  currentY += 4.5;
-  
-  doc.setFont("helvetica", "bold");
+  // --- Footer message ---
+  doc.setFont("helvetica", "italic");
   doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105); // slate-600
-  doc.text("Authorized Signatory", w - 15, currentY, { align: "right" });
-  
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139); // slate-500
-  doc.text("Moolatvam Ayurved", w - 15, currentY + 4, { align: "right" });
-  
-  // --- Footer Block (Fixed Position at Bottom) ---
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9.5);
-  doc.setTextColor(100, 116, 139); // slate-500
+  doc.setTextColor(100, 116, 139);
   doc.text("Thank you for choosing Moolatvam Ayurved. Get well soon!", w / 2, h - 18, { align: "center" });
   
-  // Yellow Bottom Banner
-  doc.setFillColor(251, 189, 8); // brand yellow
-  doc.rect(0, h - 12, w, 12, "F");
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Contact: +91 9404306548 | +91 8867303202", w - 15, h - 7, { align: "right" });
-  
-  doc.setFont("helvetica", "normal");
-  doc.text("Address: Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli - 416416", 15, h - 7);
-  
-  // Open PDF directly in a new tab
+  // Open PDF in new tab
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
   window.open(blobUrl, "_blank");
