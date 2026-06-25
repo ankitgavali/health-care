@@ -49,10 +49,7 @@ function NursePage() {
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [doctorPick, setDoctorPick] = useState<Record<string, string>>({});
-  const [doctorsList, setDoctorsList] = useState<{id: string, name: string}[]>([
-    { id: "doctor1", name: doctorName.doctor1 },
-    { id: "doctor2", name: doctorName.doctor2 },
-  ]);
+  const [doctorsList, setDoctorsList] = useState<{id: string, name: string}[]>([]);
   
   const casesRef = useRef<any[]>([]);
   useEffect(() => { casesRef.current = cases; }, [cases]);
@@ -93,10 +90,7 @@ function NursePage() {
           }
         });
         
-        const merged = [
-          { id: "doctor1", name: doctorName.doctor1 },
-          { id: "doctor2", name: doctorName.doctor2 },
-        ];
+        const merged: {id: string, name: string}[] = [];
         
         dynamicDocs.forEach(d => {
           const existing = merged.find(m => m.id === d.id);
