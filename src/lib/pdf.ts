@@ -413,33 +413,78 @@ export function generateInvoicePDF(c: CaseRow) {
   // --- Top-Left: Circular Logo Emblem ---
   const logoX = 27;
   const logoY = 27;
-  // Forest Green border circles
+  
+  // Outer green rings
   doc.setDrawColor(76, 122, 52); // Forest Green (#4C7A34)
-  doc.setLineWidth(1.2);
+  doc.setLineWidth(0.6);
   doc.circle(logoX, logoY, 12, "D");
-  doc.setLineWidth(0.4);
-  doc.circle(logoX, logoY, 10.5, "D");
+  doc.setLineWidth(0.2);
+  doc.circle(logoX, logoY, 11.4, "D");
   
-  // Inner circle text branding
+  // Inner solid green circle
+  doc.setFillColor(76, 122, 52);
+  doc.circle(logoX, logoY, 8.5, "F");
+  
+  // White capsule outline (Shivalinga)
+  doc.setDrawColor(255, 255, 255);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(logoX - 1.8, logoY - 3.5, 3.6, 6.8, 1.8, 1.8, "D");
+  
+  // Three horizontal lines inside capsule
+  doc.line(logoX - 1.2, logoY - 1, logoX + 1.2, logoY - 1);
+  doc.line(logoX - 1.2, logoY, logoX + 1.2, logoY);
+  doc.line(logoX - 1.2, logoY + 1, logoX + 1.2, logoY + 1);
+  
+  // Three yellow leaves overlapping bottom left of capsule
+  doc.setFillColor(241, 196, 15); // Yellow
+  doc.setDrawColor(76, 122, 52);
+  doc.setLineWidth(0.15);
+  doc.circle(logoX - 2.5, logoY + 1.2, 1.2, "FD");
+  doc.circle(logoX - 1.0, logoY + 2.4, 1.2, "FD");
+  doc.circle(logoX - 2.5, logoY + 3.2, 1.2, "FD");
+  
+  // Curved Text: "MOOLATVAM AYURVED" in top arc
+  const text = "MOOLATVAM AYURVED";
+  const R = 9.8;
+  const startAngle = 200; // degrees
+  const endAngle = 340;   // degrees
+  const totalChars = text.length;
+  const step = (endAngle - startAngle) / (totalChars - 1);
+  
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(6.2);
+  doc.setFontSize(4.8);
   doc.setTextColor(76, 122, 52);
-  doc.text("MOOLATVAM", logoX, logoY - 1, { align: "center" });
-  doc.text("AYURVED", logoX, logoY + 2.5, { align: "center" });
   
-  // Outer circular leaf lines representation
-  doc.setLineWidth(0.8);
-  doc.line(logoX - 5, logoY + 12, logoX - 9, logoY + 15);
-  doc.line(logoX - 9, logoY + 15, logoX - 4, logoY + 15);
+  for (let i = 0; i < totalChars; i++) {
+    const char = text[i];
+    const angleDeg = startAngle + i * step;
+    const angleRad = angleDeg * Math.PI / 180;
+    const charX = logoX + R * Math.cos(angleRad);
+    const charY = logoY + R * Math.sin(angleRad);
+    const rotation = angleDeg - 270;
+    doc.text(char, charX, charY, { align: "center", angle: rotation });
+  }
   
-  doc.line(logoX + 5, logoY + 12, logoX + 9, logoY + 15);
-  doc.line(logoX + 9, logoY + 15, logoX + 4, logoY + 15);
+  // Curved Text: "SWASTHASYA RAKSHANARTHAM" in bottom arc
+  const bottomText = "SWASTHASYA RAKSHANARTHAM";
+  const startAngleBottom = 25; // degrees
+  const endAngleBottom = 155;   // degrees
+  const totalCharsBottom = bottomText.length;
+  const stepBottom = (endAngleBottom - startAngleBottom) / (totalCharsBottom - 1);
   
-  // Sanskrit / English slogan underneath logo
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(6);
-  doc.setTextColor(100, 116, 139); // slate-500
-  doc.text("Swasthasya Swasthya Rakshanam...", logoX, logoY + 19, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(3.2);
+  doc.setTextColor(100, 116, 139);
+  
+  for (let i = 0; i < totalCharsBottom; i++) {
+    const char = bottomText[i];
+    const angleDeg = startAngleBottom + i * stepBottom;
+    const angleRad = angleDeg * Math.PI / 180;
+    const charX = logoX + R * Math.cos(angleRad);
+    const charY = logoY + R * Math.sin(angleRad);
+    const rotation = angleDeg - 90;
+    doc.text(char, charX, charY, { align: "center", angle: rotation });
+  }
   
   // --- Top-Right: Invoice Title & Header ---
   doc.setFont("helvetica", "bold");
