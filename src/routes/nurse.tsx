@@ -528,10 +528,11 @@ function NursePage() {
                       <PatientCaseCard 
                         key={c.id} 
                         c={c} 
-                        doctorPick={doctorPick}
-                        setDoctorPick={setDoctorPick}
-                        sendToDoctor={sendToDoctor}
+                        doctorPick={doctorPick} 
+                        setDoctorPick={setDoctorPick} 
+                        sendToDoctor={sendToDoctor} 
                         onDelete={deleteCase}
+                        doctorsList={doctorsList}
                       />
                     ))}
                   </div>
@@ -597,7 +598,7 @@ function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: s
   );
 }
 
-function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete }: any) {
+function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete, doctorsList }: any) {
   const [expanded, setExpanded] = useState(false);
   const isPending = c.status === "submitted";
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
@@ -709,7 +710,7 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete 
             <div className="flex flex-col sm:flex-row gap-2">
               <Select
                 value={doctorPick[c.id] || c.assigned_doctor || ""}
-                onValueChange={(val) => setDoctorPick(p => ({ ...p, [c.id]: val }))}
+                onValueChange={(val) => setDoctorPick((p: any) => ({ ...p, [c.id]: val }))}
               >
                 <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-xl"><SelectValue placeholder="Pick doctor" /></SelectTrigger>
                 <SelectContent>
