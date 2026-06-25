@@ -925,7 +925,7 @@ function InvoiceSection() {
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs border-y py-2 border-slate-200/40 dark:border-slate-800/40">
                     <div><span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-[9px] mr-1">Mobile:</span>{c.mobile}</div>
                     <div><span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-[9px] mr-1">Age/DOB:</span>{c.age ?? calculateAge(c.dob)} ({c.dob})</div>
-                    <div className="col-span-2 mt-0.5"><span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-[9px] mr-1">Doctor:</span>{c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—"}</div>
+                    <div className="col-span-2 mt-0.5"><span className="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wide text-[9px] mr-1">Doctor:</span>{c.assigned_doctor_name || (c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—")}</div>
                   </div>
 
                   {/* Bill details */}
@@ -1248,6 +1248,7 @@ function StaffSection() {
       await setDoc(doc(db, "profiles", userCred.user.uid), {
         full_name: name.trim(),
         email: email.trim().toLowerCase(),
+        role: role,
         created_at: new Date().toISOString()
       });
 

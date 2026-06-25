@@ -48,14 +48,14 @@ export const Route = createFileRoute("/doctor")({
 const doctorMeta = {
   doctor1: {
     specialty: "Chief Cardiologist & MD",
-    initials: "AM",
+    initials: "KJ",
     bgClass: "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border-teal-500/20",
     colorClass: "text-teal-600 dark:text-teal-400",
     glowClass: "shadow-teal-500/10 dark:shadow-teal-500/5",
   },
   doctor2: {
     specialty: "Senior Consultant & MD",
-    initials: "PS",
+    initials: "OJ",
     bgClass: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border-indigo-500/20",
     colorClass: "text-indigo-600 dark:text-indigo-400",
     glowClass: "shadow-indigo-500/10 dark:shadow-indigo-500/5",
@@ -63,7 +63,7 @@ const doctorMeta = {
 };
 
 function DoctorPage() {
-  const { role, profileName } = useAuth();
+  const { role, profileName, user } = useAuth();
   const docKey = role as "doctor1" | "doctor2";
   const currentDoctorName = profileName || doctorName[docKey];
   const meta = {
@@ -80,7 +80,8 @@ function DoctorPage() {
   useEffect(() => {
     // Note: No orderBy here to avoid requiring a composite Firestore index.
     // Sorting is handled client-side in filteredAndSorted below.
-    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "==", docKey));
+    const assignedIds = user?.uid ? [user.uid, docKey] : [docKey];
+    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "in", assignedIds));
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
       setCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
     }, (err: any) => {

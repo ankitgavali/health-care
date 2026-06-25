@@ -260,7 +260,8 @@ export async function generateCasePaperPDF(c: CaseRow) {
   
   if (c.assigned_doctor && c.status !== "submitted") {
     doc.setFont("helvetica", "italic");
-    doc.text(doctorName[c.assigned_doctor as "doctor1" | "doctor2"], w - 14, footerY + 28, { align: "right" });
+    const dName = c.assigned_doctor_name || doctorName[c.assigned_doctor as "doctor1" | "doctor2"] || "Doctor";
+    doc.text(dName, w - 14, footerY + 28, { align: "right" });
     doc.setFont("helvetica", "bold");
     doc.text("Consulting Signature", w - 14, footerY + 34, { align: "right" });
     doc.line(w - 50, footerY + 30, w - 14, footerY + 30);
@@ -499,7 +500,7 @@ export function generateInvoicePDF(c: CaseRow) {
   rightY += 5.5;
   
   doc.text("Consultant:", 120, rightY);
-  const docNameVal = c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—";
+  const docNameVal = c.assigned_doctor_name || (c.assigned_doctor ? doctorName[c.assigned_doctor as "doctor1" | "doctor2"] : "—");
   doc.text(docNameVal, 145, rightY);
   rightY += 6;
   

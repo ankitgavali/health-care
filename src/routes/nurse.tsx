@@ -48,7 +48,11 @@ function NursePage() {
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [doctorPick, setDoctorPick] = useState<Record<string, "doctor1" | "doctor2">>({});
+  const [doctorPick, setDoctorPick] = useState<Record<string, string>>({});
+  const [doctorsList, setDoctorsList] = useState<{id: string, name: string}[]>([
+    { id: "doctor1", name: doctorName.doctor1 },
+    { id: "doctor2", name: doctorName.doctor2 },
+  ]);
   
   const casesRef = useRef<any[]>([]);
   useEffect(() => { casesRef.current = cases; }, [cases]);
@@ -71,6 +75,42 @@ function NursePage() {
       
       setCases(fetched.map(parseCaseNotes));
     });
+
+    // Fetch dynamic doctors list
+    const fetchDoctors = async () => {
+      try {
+        const rolesSnap = await getDocs(collection(db, "user_roles"));
+        const profilesSnap = await getDocs(collection(db, "profiles"));
+        
+        const rolesMap = new Map();
+        rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
+        
+        const dynamicDocs: {id: string, name: string}[] = [];
+        profilesSnap.forEach(d => {
+          const r = rolesMap.get(d.id);
+          if (r === "doctor1" || r === "doctor2" || r === "doctor") {
+            dynamicDocs.push({ id: d.id, name: d.data().full_name });
+          }
+        });
+        
+        const merged = [
+          { id: "doctor1", name: doctorName.doctor1 },
+          { id: "doctor2", name: doctorName.doctor2 },
+        ];
+        
+        dynamicDocs.forEach(d => {
+          const existing = merged.find(m => m.id === d.id);
+          if (!existing) merged.push(d);
+          else existing.name = d.name;
+        });
+        
+        setDoctorsList(merged);
+      } catch (err) {
+        console.error("Error fetching doctors", err);
+      }
+    };
+    fetchDoctors();
+
     return () => unsubscribe();
   }, []);
 
@@ -159,9 +199,15 @@ function NursePage() {
   const sendToDoctor = async (c: any) => {
     const docPick = doctorPick[c.id] ?? c.assigned_doctor;
     if (!docPick) return toast.error("Pick a doctor first");
+    
+    const docObj = doctorsList.find(d => d.id === docPick);
+    const assignedDocName = docObj ? docObj.name : (doctorName[docPick as "doctor1" | "doctor2"] || "Doctor");
+
     try {
       await updateDoc(doc(db, "case_papers", c.id), {
-        assigned_doctor: docPick, status: "sent_to_doctor",
+        assigned_doctor: docPick, 
+        assigned_doctor_name: assignedDocName,
+        status: "sent_to_doctor",
         updated_at: serverTimestamp()
       });
       toast.success("Sent to doctor");
@@ -662,13 +708,14 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete 
           {c.status === "submitted" && (
             <div className="flex flex-col sm:flex-row gap-2">
               <Select
-                value={doctorPick[c.id] ?? c.assigned_doctor ?? ""}
-                onValueChange={(v) => setDoctorPick({ ...doctorPick, [c.id]: v as "doctor1" | "doctor2" })}
+                value={doctorPick[c.id] || c.assigned_doctor || ""}
+                onValueChange={(val) => setDoctorPick(p => ({ ...p, [c.id]: val }))}
               >
                 <SelectTrigger className="w-full sm:w-[200px] h-9 rounded-xl"><SelectValue placeholder="Pick doctor" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="doctor1">{doctorName.doctor1}</SelectItem>
-                  <SelectItem value="doctor2">{doctorName.doctor2}</SelectItem>
+                  {doctorsList.map((doc: any) => (
+                    <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button 

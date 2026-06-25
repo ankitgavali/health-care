@@ -69,8 +69,8 @@ export const statusColor: Record<CaseStatus, string> = {
 };
 
 export const doctorName: Record<"doctor1" | "doctor2", string> = {
-  doctor1: "Dr. Aarav Mehta",
-  doctor2: "Dr. Priya Sharma",
+  doctor1: "Dr. Kadambari Jagtap",
+  doctor2: "Dr. Omprasad Jagtap",
 };
 
 export const roleHome: Record<AppRole, string> = {
