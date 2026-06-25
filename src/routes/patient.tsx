@@ -238,9 +238,7 @@ function PatientPage() {
         <h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-7 w-7 text-primary" /> My Case Papers</h2>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-             <Button className="gap-2 shadow-md"><Plus className="h-4 w-4" /> New Case Paper</Button>
-          </DialogTrigger>
+
           <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
              <DialogHeader>
                 <DialogTitle>New Case Paper</DialogTitle>
