@@ -782,78 +782,80 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
           </div>
         </DialogHeader>
 
-        {/* Two-Column split workspace */}
-        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-6 pt-4 items-start">
+        {/* Stacked workspace: Patient info on top, Clinical entries below */}
+        <div className="space-y-6 pt-4">
           
-          {/* LEFT: Patient Clinical Info Sidebar Card */}
-          <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-4 border border-slate-100 dark:border-white/5 flex flex-col gap-4 self-stretch">
-            <div>
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Patient Profile</span>
-              <h3 className="font-extrabold text-base text-foreground mt-1 uppercase leading-tight truncate">{caseRow.full_name}</h3>
+          {/* TOP: Patient Clinical Info Banner */}
+          <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-5 border border-slate-100 dark:border-white/5 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b dark:border-white/5 pb-3">
+              <div>
+                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Patient Profile</span>
+                <h3 className="font-extrabold text-xl text-foreground mt-0.5 uppercase leading-tight">{caseRow.full_name}</h3>
+              </div>
+              
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Age / DOB</div>
+                    <div className="font-semibold text-foreground mt-0.5">{caseRow.age ?? calculateAge(caseRow.dob)} Years ({caseRow.dob})</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div>
+                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Contact</div>
+                    <div className="font-semibold text-foreground mt-0.5">{caseRow.mobile || "—"}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 max-w-xs">
+                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Address</div>
+                    <div className="font-semibold text-foreground mt-0.5 truncate" title={caseRow.address}>{caseRow.address}</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="flex flex-col gap-3 text-xs border-t dark:border-white/5 pt-3">
-              <div className="flex items-center gap-2.5">
-                <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-[10px] text-muted-foreground uppercase leading-none">Age / DOB</div>
-                  <div className="font-semibold text-foreground mt-0.5">{caseRow.age ?? calculateAge(caseRow.dob)} Years ({caseRow.dob})</div>
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4 text-xs">
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Marital Status</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.marital_status}>{caseRow.marital_status || "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Weight</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.weight}>{caseRow.weight || "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Education</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.education}>{caseRow.education || "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Occupation</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.occupation}>{caseRow.occupation || "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Parent's Occu.</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.parents_occupation}>{caseRow.parents_occupation || "—"}</div>
+              </div>
+              <div>
+                <div className="text-[10px] text-muted-foreground uppercase leading-none">Past History</div>
+                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.past_history}>{caseRow.past_history || "—"}</div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <div>
-                  <div className="text-[10px] text-muted-foreground uppercase leading-none">Contact</div>
-                  <div className="font-semibold text-foreground mt-0.5">{caseRow.mobile || "—"}</div>
+              {caseRow.gender === "Female" && (
+                <div className="col-span-2">
+                  <div className="text-[10px] text-pink-600 dark:text-pink-400 uppercase leading-none">Menstrual History</div>
+                  <div className="font-semibold text-foreground mt-1">{caseRow.menstrual_history || "—"}</div>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[10px] text-muted-foreground uppercase leading-none">Address</div>
-                  <div className="font-semibold text-foreground mt-0.5 truncate" title={caseRow.address}>{caseRow.address}</div>
-                </div>
-              </div>
-
-              {/* Extended Details in Case Editor */}
-              <div className="border-t dark:border-white/5 pt-3 mt-1 grid grid-cols-2 gap-y-3 gap-x-2">
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Marital Status</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.marital_status}>{caseRow.marital_status || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Weight</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.weight}>{caseRow.weight || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Education</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.education}>{caseRow.education || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Occupation</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.occupation}>{caseRow.occupation || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Parent's Occu.</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.parents_occupation}>{caseRow.parents_occupation || "—"}</div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground uppercase leading-none">Past History</div>
-                  <div className="font-semibold text-foreground mt-0.5 text-[11px] truncate" title={caseRow.past_history}>{caseRow.past_history || "—"}</div>
-                </div>
-                {caseRow.gender === "Female" && (
-                  <div className="col-span-2">
-                    <div className="text-[9px] text-pink-600 dark:text-pink-400 uppercase leading-none">Menstrual History</div>
-                    <div className="font-semibold text-foreground mt-0.5 text-[11px]">{caseRow.menstrual_history || "—"}</div>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             {caseRow.notes && (
-              <div className="border-t dark:border-white/5 pt-3 mt-1 flex flex-col gap-1.5">
+              <div className="border-t dark:border-white/5 pt-3 flex flex-col gap-1.5">
                 <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider">
                   Chief Complaints / History
                 </span>
@@ -864,7 +866,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
             )}
           </div>
 
-          {/* RIGHT: clinical inputs and forms */}
+          {/* BOTTOM: clinical inputs and forms */}
           <div className="space-y-6">
             
             {/* Form Sections */}
