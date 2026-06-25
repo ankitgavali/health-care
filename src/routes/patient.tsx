@@ -27,32 +27,34 @@ export const Route = createFileRoute("/patient")({
   ),
 });
 
-const LogoSVG = () => (
-  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg font-sans">
-    <circle cx="50" cy="50" r="48" fill="#fbbd08" />
-    <circle cx="50" cy="50" r="36" fill="black" />
-    <circle cx="50" cy="50" r="34" fill="none" stroke="#fbbd08" strokeWidth="1" />
-    <path id="curve-top" d="M 8 50 A 42 42 0 1 1 92 50" fill="none" />
-    <text className="fill-black font-bold text-[10.5px]" letterSpacing="0.8">
-      <textPath href="#curve-top" startOffset="50%" textAnchor="middle">MOOLATVAM AYURVED</textPath>
-    </text>
-    <path id="curve-bottom" d="M 92 50 A 42 42 0 0 1 8 50" fill="none" />
-    <text className="fill-black font-bold text-[4.8px]" letterSpacing="0.5">
-      <textPath href="#curve-bottom" startOffset="50%" textAnchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
-    </text>
-    <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="#fbbd08" strokeWidth="2.5" />
-    <path d="M 50 44 L 70 44" stroke="#fbbd08" strokeWidth="2.5" />
-    <path d="M 50 49 L 70 49" stroke="#fbbd08" strokeWidth="2.5" />
-    <path d="M 50 54 L 70 54" stroke="#fbbd08" strokeWidth="2.5" />
-    <path d="M 42 69 C 38 69 36 65 36 65" stroke="#fbbd08" strokeWidth="2" fill="none" strokeLinecap="round" />
-    <path d="M 42 67 C 26 67 26 47 30 43 C 38 47 42 59 42 67 Z" fill="#fbbd08" />
-    <path d="M 42 67 C 34 63 30 43 30 43" stroke="black" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-    <path d="M 42 67 C 30 51 42 35 46 35 C 50 47 46 63 42 67 Z" fill="#fbbd08" />
-    <path d="M 42 67 C 40 55 46 35 46 35" stroke="black" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-    <path d="M 42 67 C 58 71 70 59 70 51 C 62 47 50 59 42 67 Z" fill="#fbbd08" />
-    <path d="M 42 67 C 54 65 70 51 70 51" stroke="black" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-  </svg>
-);
+const LOGO_SVG_STRING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" font-family="sans-serif">
+  <circle cx="50" cy="50" r="48" fill="#fbbd08" />
+  <circle cx="50" cy="50" r="36" fill="black" />
+  <circle cx="50" cy="50" r="34" fill="none" stroke="#fbbd08" stroke-width="1" />
+  <path id="curve-top" d="M 8 50 A 42 42 0 1 1 92 50" fill="none" />
+  <text fill="black" font-weight="bold" font-size="10.5px" letter-spacing="0.8">
+    <textPath href="#curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
+  </text>
+  <path id="curve-bottom" d="M 92 50 A 42 42 0 0 1 8 50" fill="none" />
+  <text fill="black" font-weight="bold" font-size="4.8px" letter-spacing="0.5">
+    <textPath href="#curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+  </text>
+  <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 44 L 70 44" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 49 L 70 49" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 54 L 70 54" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 42 69 C 38 69 36 65 36 65" stroke="#fbbd08" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 26 67 26 47 30 43 C 38 47 42 59 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 34 63 30 43 30 43" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 30 51 42 35 46 35 C 50 47 46 63 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 40 55 46 35 46 35" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 58 71 70 59 70 51 C 62 47 50 59 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 54 65 70 51 70 51" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+</svg>`;
+
+const LogoSVG = ({ idPrefix = "logo" }: { idPrefix?: string }) => {
+  return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(LOGO_SVG_STRING)}`} className="w-full h-full drop-shadow-lg" alt="Logo" />;
+};
 
 const schema = z.object({
   full_name: z.string().trim().min(2).max(100),
@@ -239,32 +241,11 @@ function PatientPage() {
           <DialogTrigger asChild>
              <Button className="gap-2 shadow-md"><Plus className="h-4 w-4" /> New Case Paper</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden border-0 bg-slate-50/50 shadow-2xl">
-             {/* Branded Header */}
-             <div className="relative w-full bg-[#fbbd08] pt-8 pb-8 px-6 z-10 shadow-sm rounded-b-[20px] sm:rounded-b-[40px]">
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1 text-left mt-1">
-                    <div className="font-bold text-black text-[13px] tracking-wide">Dr. Kadambari</div>
-                    <div className="text-[9px] text-black font-semibold">MD Ayu. Sch.</div>
-                  </div>
-                  <div className="flex-none flex flex-col items-center -mt-3">
-                    <div className="text-[12px] font-bold text-black mb-1">॥ श्रीः ॥</div>
-                    <div className="w-[70px] h-[70px]">
-                      <LogoSVG />
-                    </div>
-                  </div>
-                  <div className="flex-1 text-right mt-1">
-                    <div className="font-bold text-black text-[13px] tracking-wide">Dr. Omprasad</div>
-                    <div className="text-[9px] text-black font-semibold">MD Ayu.</div>
-                  </div>
-                </div>
-             </div>
-             
-             <div className="px-6 pb-6 pt-2 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                <div className="text-center mb-6">
-                   <h3 className="text-xl font-bold text-slate-800">Patient Registration</h3>
-                   <p className="text-sm text-slate-500">Fill in your details to register a visit</p>
-                </div>
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+             <DialogHeader>
+                <DialogTitle>New Case Paper</DialogTitle>
+                <DialogDescription>Fill in your details to register a visit</DialogDescription>
+             </DialogHeader>
              <form onSubmit={submit} className="space-y-4">
                  <div>
                    <Label>Full name</Label>
@@ -363,7 +344,6 @@ function PatientPage() {
                   {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit case paper
                 </Button>
              </form>
-             </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -380,10 +360,10 @@ function PatientPage() {
             
             {/* Responsive Wrapper for Mobile */}
             <div className="w-full bg-slate-100/50 dark:bg-slate-900/20">
-              <div className="w-full overflow-x-auto p-4 sm:p-8 flex justify-start md:justify-center">
+              <div className="w-full p-4 sm:p-8 flex justify-center">
                 
-                {/* The actual view (Fixed A4 dimensions) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px]">
+                {/* The actual view (Responsive on mobile, A4-like max width on desktop) */}
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] min-h-[1123px]">
               
               {/* Top Header Background SVG */}
               <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
@@ -412,7 +392,7 @@ function PatientPage() {
                 {/* Right: Logo */}
                 <div className="flex-1 flex justify-end">
                   <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
-                    <LogoSVG />
+                    <LogoSVG idPrefix={`case-${c.id}`} />
                   </div>
                 </div>
               </div>
@@ -574,10 +554,10 @@ function PatientPage() {
               <div className="flex items-center gap-2">
                 {/* Download Button — exact visual clone */}
                 <Button 
-                  onClick={async () => {
+                  onClick={() => {
                     setBusy(true);
                     try {
-                      await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'download');
+                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Failed to generate PDF.");
@@ -592,10 +572,10 @@ function PatientPage() {
 
                 {/* Share Button — opens native share/WhatsApp dialog with exact clone */}
                 <Button 
-                  onClick={async () => {
+                  onClick={() => {
                     setBusy(true);
                     try {
-                      await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'share');
+                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
                     } catch (err) {
                       console.error(err);
                       toast.error("Share failed.");
