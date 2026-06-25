@@ -380,10 +380,10 @@ function PatientPage() {
             
             {/* Responsive Wrapper for Mobile */}
             <div className="w-full bg-slate-100/50 dark:bg-slate-900/20">
-              <div className="w-full p-4 sm:p-8 flex justify-center">
+              <div className="w-full overflow-x-auto p-4 sm:p-8 flex justify-start md:justify-center">
                 
-                {/* The actual view (Responsive on mobile, A4-like max width on desktop) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] min-h-[1123px]">
+                {/* The actual view (Fixed A4 dimensions) */}
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px]">
               
               {/* Top Header Background SVG */}
               <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
@@ -574,10 +574,10 @@ function PatientPage() {
               <div className="flex items-center gap-2">
                 {/* Download Button — exact visual clone */}
                 <Button 
-                  onClick={() => {
+                  onClick={async () => {
                     setBusy(true);
                     try {
-                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
+                      await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'download');
                     } catch (err) {
                       console.error(err);
                       toast.error("Failed to generate PDF.");
@@ -592,10 +592,10 @@ function PatientPage() {
 
                 {/* Share Button — opens native share/WhatsApp dialog with exact clone */}
                 <Button 
-                  onClick={() => {
+                  onClick={async () => {
                     setBusy(true);
                     try {
-                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
+                      await generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'share');
                     } catch (err) {
                       console.error(err);
                       toast.error("Share failed.");

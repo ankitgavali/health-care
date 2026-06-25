@@ -1,9 +1,9 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
+import { toPng } from "html-to-image";
 import { HOSPITAL_NAME, doctorName } from "./case-utils";
 import type { CaseRow } from "./case-utils";
 
-export async function generatePDFFromElementId(elementId: string, filename: string) {
+export async function generatePDFFromElementId(elementId: string, filename: string, action: 'download' | 'share' = 'download') {
   try {
     const element = document.getElementById(elementId);
     if (!element) {
@@ -14,53 +14,47 @@ export async function generatePDFFromElementId(elementId: string, filename: stri
     // Scroll to top to avoid html2canvas clipping bugs
     window.scrollTo(0, 0);
     
-    const canvas = await html2canvas(element, {
-      scale: window.devicePixelRatio > 1 ? 1.5 : 1, // Balance between quality and memory
-      useCORS: true,
-      allowTaint: true, // Allow tainted images just in case
-      logging: true,
+    const imgData = await toPng(element, {
+      pixelRatio: window.devicePixelRatio > 1 ? 1.5 : 1,
       backgroundColor: "#ffffff",
-      ignoreElements: (node) => {
-        // SVGs with textPath often crash html2canvas on mobile
-        if (node.tagName && node.tagName.toLowerCase() === 'textpath') {
-          return true;
-        }
-        return false;
-      }
     });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const rect = element.getBoundingClientRect();
     
     // Calculate PDF dimensions (A4 size is 210x297 mm)
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    const pdfHeight = (rect.height * pdfWidth) / rect.width;
     
     // Add image to PDF
-    pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight);
+    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
     
     const finalFilename = `${filename.replace(/\s+/g, "-")}.pdf`;
     const pdfBlob = pdf.output("blob");
 
-    // Attempt to use Web Share API (Natively supported on Android/iOS for file sharing/saving)
-    if (navigator.share && navigator.canShare) {
-      const file = new File([pdfBlob], finalFilename, { type: "application/pdf" });
-      if (navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({
-            files: [file],
-            title: "Case Paper",
-            text: "Here is your case paper.",
-          });
-          return; // Success!
-        } catch (e) {
-          console.warn("Share API failed or cancelled:", e);
-          // Fallthrough to standard download
+    if (action === 'share') {
+      // Attempt to use Web Share API (Natively supported on Android/iOS for file sharing/saving)
+      if (navigator.share && navigator.canShare) {
+        const file = new File([pdfBlob], finalFilename, { type: "application/pdf" });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: "Case Paper",
+              text: "Here is your case paper.",
+            });
+            return; // Success!
+          } catch (e) {
+            console.warn("Share API failed or cancelled:", e);
+            // Fallthrough to standard download
+          }
         }
+      } else {
+        alert("Sharing is not supported on this browser. Downloading instead.");
       }
     }
 
-    // Fallback: standard anchor tag download
+    // Fallback or standard action: standard anchor tag download
     const blobUrl = URL.createObjectURL(pdfBlob);
     const a = document.createElement("a");
     a.style.display = "none";
@@ -75,7 +69,7 @@ export async function generatePDFFromElementId(elementId: string, filename: stri
   } catch (error) {
     console.error("PDF generation failed, falling back to native print:", error);
     // Fallback for mobile devices if canvas crashes
-    alert("प्रगत PDF जनरेशनमध्ये तांत्रिक अडचण आली. आम्ही तुम्हाला 'Print / Save as PDF' च्या मूळ ऑप्शनवर घेऊन जात आहोत. तिथे 'Save as PDF' निवडा.");
+    alert("प्रगत PDF जनरेशनमध्ये तांत्रिक अडचण आली: " + (error instanceof Error ? error.message : String(error)) + " आम्ही तुम्हाला 'Print / Save as PDF' च्या मूळ ऑप्शनवर घेऊन जात आहोत.");
     window.print();
   }
 }
