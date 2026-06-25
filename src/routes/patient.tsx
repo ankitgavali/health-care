@@ -360,10 +360,10 @@ function PatientPage() {
             
             {/* Responsive Wrapper for Mobile */}
             <div className="w-full bg-slate-100/50 dark:bg-slate-900/20">
-              <div className="w-full p-4 sm:p-8 flex justify-center">
+              <div className="w-full overflow-x-auto p-4 sm:p-8 flex justify-start xl:justify-center custom-scrollbar">
                 
-                {/* The actual view (Responsive on mobile, A4-like max width on desktop) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-full max-w-[794px] min-h-[1123px]">
+                {/* The actual view (Fixed A4 width to ensure PDF consistency) */}
+                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px]">
               
               {/* Top Header Background SVG */}
               <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
