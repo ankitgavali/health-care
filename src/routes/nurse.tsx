@@ -85,7 +85,9 @@ function NursePage() {
         const dynamicDocs: {id: string, name: string}[] = [];
         profilesSnap.forEach(d => {
           const r = rolesMap.get(d.id);
+          const email = d.data().email || "";
           if (r === "doctor1" || r === "doctor2" || r === "doctor") {
+            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
             dynamicDocs.push({ id: d.id, name: d.data().full_name });
           }
         });
