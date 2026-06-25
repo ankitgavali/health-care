@@ -786,82 +786,96 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
         <div className="space-y-6 pt-4">
           
           {/* TOP: Patient Clinical Info Banner */}
-          <div className="bg-slate-50 dark:bg-slate-900/40 rounded-2xl p-5 border border-slate-100 dark:border-white/5 space-y-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b dark:border-white/5 pb-3">
-              <div>
-                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Patient Profile</span>
-                <h3 className="font-extrabold text-xl text-foreground mt-0.5 uppercase leading-tight">{caseRow.full_name}</h3>
+          <div className="bg-gradient-to-r from-teal-500/5 via-indigo-500/5 to-slate-500/5 dark:from-teal-500/10 dark:via-indigo-500/5 dark:to-slate-500/10 rounded-2xl p-5 border border-slate-200/60 dark:border-white/10 shadow-sm backdrop-blur-md space-y-5">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200/50 dark:border-white/5 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-teal-500 to-indigo-500 text-white font-extrabold text-base flex items-center justify-center shadow-md shadow-teal-500/10">
+                  {caseRow.full_name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <span className="text-[10px] text-teal-600 dark:text-teal-400 uppercase font-extrabold tracking-wider">Patient Profile</span>
+                  <h3 className="font-extrabold text-xl text-foreground tracking-tight uppercase leading-none mt-0.5">{caseRow.full_name}</h3>
+                </div>
               </div>
               
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="flex flex-wrap gap-3 text-xs">
+                <div className="flex items-center gap-2 bg-slate-100/80 dark:bg-black/25 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-white/5 shadow-2xs">
+                  <Calendar className="h-4 w-4 text-teal-500 shrink-0" />
                   <div>
-                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Age / DOB</div>
-                    <div className="font-semibold text-foreground mt-0.5">{caseRow.age ?? calculateAge(caseRow.dob)} Years ({caseRow.dob})</div>
+                    <div className="text-[9px] text-muted-foreground uppercase leading-none font-semibold">Age / DOB</div>
+                    <div className="font-bold text-foreground mt-0.5">{caseRow.age ?? calculateAge(caseRow.dob)} Years ({caseRow.dob})</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex items-center gap-2 bg-slate-100/80 dark:bg-black/25 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-white/5 shadow-2xs">
+                  <Phone className="h-4 w-4 text-teal-500 shrink-0" />
                   <div>
-                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Contact</div>
-                    <div className="font-semibold text-foreground mt-0.5">{caseRow.mobile || "—"}</div>
+                    <div className="text-[9px] text-muted-foreground uppercase leading-none font-semibold">Contact</div>
+                    <div className="font-bold text-foreground mt-0.5">{caseRow.mobile || "—"}</div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 max-w-xs">
-                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[10px] text-muted-foreground uppercase leading-none">Address</div>
-                    <div className="font-semibold text-foreground mt-0.5 truncate" title={caseRow.address}>{caseRow.address}</div>
+                <div className="flex items-center gap-2 bg-slate-100/80 dark:bg-black/25 px-3 py-1.5 rounded-xl border border-slate-200/50 dark:border-white/5 shadow-2xs max-w-xs">
+                  <MapPin className="h-4 w-4 text-teal-500 shrink-0" />
+                  <div>
+                    <div className="text-[9px] text-muted-foreground uppercase leading-none font-semibold">Address</div>
+                    <div className="font-bold text-foreground mt-0.5 truncate" title={caseRow.address}>{caseRow.address}</div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4 text-xs">
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Marital Status</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.marital_status}>{caseRow.marital_status || "—"}</div>
+            {/* Grid of details as clean micro-cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Marital Status</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.marital_status || "—"}>{caseRow.marital_status || "—"}</div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Weight</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.weight}>{caseRow.weight || "—"}</div>
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Weight</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.weight || "—"}>{caseRow.weight || "—"}</div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Education</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.education}>{caseRow.education || "—"}</div>
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Education</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.education || "—"}>{caseRow.education || "—"}</div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Occupation</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.occupation}>{caseRow.occupation || "—"}</div>
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Occupation</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.occupation || "—"}>{caseRow.occupation || "—"}</div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Parent's Occu.</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.parents_occupation}>{caseRow.parents_occupation || "—"}</div>
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Parent's Occu.</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.parents_occupation || "—"}>{caseRow.parents_occupation || "—"}</div>
               </div>
-              <div>
-                <div className="text-[10px] text-muted-foreground uppercase leading-none">Past History</div>
-                <div className="font-semibold text-foreground mt-1 truncate" title={caseRow.past_history}>{caseRow.past_history || "—"}</div>
+              <div className="bg-white/40 dark:bg-black/15 p-3 rounded-xl border border-slate-200/40 dark:border-white/5 transition-all hover:bg-white/60 dark:hover:bg-black/25">
+                <div className="text-[9px] text-muted-foreground uppercase font-bold tracking-wider">Past History</div>
+                <div className="font-extrabold text-foreground mt-1 text-xs truncate" title={caseRow.past_history || "—"}>{caseRow.past_history || "—"}</div>
               </div>
 
               {caseRow.gender === "Female" && (
-                <div className="col-span-2">
-                  <div className="text-[10px] text-pink-600 dark:text-pink-400 uppercase leading-none">Menstrual History</div>
-                  <div className="font-semibold text-foreground mt-1">{caseRow.menstrual_history || "—"}</div>
+                <div className="col-span-2 sm:col-span-3 md:col-span-6 bg-pink-500/5 dark:bg-pink-500/10 p-3 rounded-xl border border-pink-500/10">
+                  <div className="text-[9px] text-pink-600 dark:text-pink-400 uppercase font-bold tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse"></span> Menstrual History
+                  </div>
+                  <div className="font-extrabold text-foreground mt-1 text-xs">{caseRow.menstrual_history || "—"}</div>
                 </div>
               )}
             </div>
 
+            {/* Chief Complaints - Warning Style */}
             {caseRow.notes && (
-              <div className="border-t dark:border-white/5 pt-3 flex flex-col gap-1.5">
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider">
-                  Chief Complaints / History
-                </span>
-                <p className="text-xs text-muted-foreground italic leading-relaxed bg-amber-500/5 dark:bg-amber-500/10 p-3 rounded-xl border border-amber-500/10">
-                  "{caseRow.notes}"
-                </p>
+              <div className="bg-amber-500/5 dark:bg-amber-500/10 p-4 rounded-xl border border-amber-500/15 flex gap-3 items-start">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 grid place-items-center shrink-0">
+                  <ClipboardList className="h-4 w-4" />
+                </div>
+                <div>
+                  <span className="text-[9px] text-amber-600 dark:text-amber-400 uppercase font-extrabold tracking-wider">
+                    Chief Complaints / History
+                  </span>
+                  <p className="text-xs font-semibold text-foreground mt-1 leading-relaxed italic">
+                    "{caseRow.notes}"
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -871,7 +885,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
             
             {/* Form Sections */}
             <div className="flex flex-col gap-5">
-              <div className="flex items-center gap-2 border-b dark:border-white/5 pb-2">
+              <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2">
                 <Activity className="h-4.5 w-4.5 text-primary" />
                 <span className="font-bold text-xs uppercase tracking-wider text-foreground">Clinical Entry Details</span>
               </div>
@@ -890,7 +904,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       value={data.prescription}
                       onChange={(e) => setData({ ...data, prescription: e.target.value })}
                       placeholder="Enter patient Rx dosage / instructions..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none"
+                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
                     />
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, prescription: d.prescription ? d.prescription + "\n" + val : val }))} positionClassName="top-3.5" />
                   </div>
@@ -909,7 +923,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       value={data.medical_notes}
                       onChange={(e) => setData({ ...data, medical_notes: e.target.value })}
                       placeholder="Enter diagnosis findings / medical checks..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none"
+                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
                     />
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medical_notes: d.medical_notes ? d.medical_notes + " " + val : val }))} positionClassName="top-3.5" />
                   </div>
@@ -928,7 +942,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       value={data.medicines}
                       onChange={(e) => setData({ ...data, medicines: e.target.value })}
                       placeholder="List specific tablets, syrups, oils..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none"
+                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
                     />
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medicines: d.medicines ? d.medicines + "\n" + val : val }))} positionClassName="top-3.5" />
                   </div>
@@ -947,7 +961,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                       value={data.tests}
                       onChange={(e) => setData({ ...data, tests: e.target.value })}
                       placeholder="Enter required lab test names..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none"
+                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
                     />
                     <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, tests: d.tests ? d.tests + "\n" + val : val }))} positionClassName="top-3.5" />
                   </div>
@@ -955,10 +969,10 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
               </div>
             </div>
 
-            {/* Fees and Billing */}
-            <div className="space-y-4 pt-3 border-t dark:border-white/5">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="h-4.5 w-4.5 text-primary" />
+            {/* Fees and Billing Card style */}
+            <div className="bg-slate-50/60 dark:bg-black/15 p-5 rounded-2xl border border-slate-200/60 dark:border-white/5 space-y-4 pt-4">
+              <div className="flex items-center gap-2 border-b border-slate-200/40 dark:border-white/5 pb-2">
+                <AlertCircle className="h-4.5 w-4.5 text-primary animate-pulse" />
                 <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown</span>
               </div>
               
@@ -971,7 +985,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     step="0.01" 
                     value={data.consultation_charge} 
                     onChange={(e) => setData({ ...data, consultation_charge: Number(e.target.value) || 0 })} 
-                    className="rounded-xl text-xs h-9 focus-visible:ring-primary"
+                    className="rounded-xl text-xs h-9 focus-visible:ring-primary bg-background border-slate-200 dark:border-white/5"
                   />
                 </div>
                 
@@ -983,7 +997,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     step="0.01" 
                     value={data.medicine_charge} 
                     onChange={(e) => setData({ ...data, medicine_charge: Number(e.target.value) || 0 })} 
-                    className="rounded-xl text-xs h-9 focus-visible:ring-primary"
+                    className="rounded-xl text-xs h-9 focus-visible:ring-primary bg-background border-slate-200 dark:border-white/5"
                   />
                 </div>
 
@@ -995,7 +1009,7 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     step="0.01" 
                     value={data.test_charge} 
                     onChange={(e) => setData({ ...data, test_charge: Number(e.target.value) || 0 })} 
-                    className="rounded-xl text-xs h-9 focus-visible:ring-primary"
+                    className="rounded-xl text-xs h-9 focus-visible:ring-primary bg-background border-slate-200 dark:border-white/5"
                   />
                 </div>
 
@@ -1007,30 +1021,30 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                     step="0.01" 
                     value={data.other_charge} 
                     onChange={(e) => setData({ ...data, other_charge: Number(e.target.value) || 0 })} 
-                    className="rounded-xl text-xs h-9 focus-visible:ring-primary"
+                    className="rounded-xl text-xs h-9 focus-visible:ring-primary bg-background border-slate-200 dark:border-white/5"
                   />
                 </div>
               </div>
 
               {/* Total Calculation Row summary */}
-              <div className="flex items-center justify-between rounded-2xl border bg-secondary/20 dark:bg-slate-900/50 px-4 py-3.5 dark:border-white/5">
-                <span className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Estimated Consultation Total</span>
-                <span className="text-xl font-extrabold text-primary">₹ {total.toFixed(2)}</span>
+              <div className="flex items-center justify-between rounded-xl border bg-white/50 dark:bg-black/20 px-4 py-3.5 border-slate-200/50 dark:border-white/5">
+                <span className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Estimated Consultation Total</span>
+                <span className="text-xl font-black text-teal-600 dark:text-teal-400">₹ {total.toFixed(2)}</span>
               </div>
             </div>
 
             {/* Actions panel */}
-            <div className="flex flex-wrap justify-end gap-2 pt-4 border-t dark:border-white/5">
+            <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-slate-200/50 dark:border-white/5">
               <Button 
                 variant="outline" 
                 onClick={() => save(false)} 
-                className="rounded-xl text-xs h-9"
+                className="rounded-xl text-xs h-9 font-semibold"
               >
                 Save Record
               </Button>
               <Button 
                 onClick={() => save(true)} 
-                className="rounded-xl text-xs bg-gradient-to-r from-primary to-accent hover:from-primary/95 hover:to-accent/95 text-primary-foreground flex items-center gap-1.5 shadow-md h-9"
+                className="rounded-xl text-xs bg-gradient-to-r from-teal-500 to-indigo-600 hover:from-teal-600 hover:to-indigo-700 text-white font-bold flex items-center gap-1.5 shadow-md h-9"
               >
                 <Send className="h-3.5 w-3.5" /> Save & Send to Nurse
               </Button>
