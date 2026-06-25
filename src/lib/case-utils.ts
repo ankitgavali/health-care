@@ -19,6 +19,7 @@ export type CaseRow = {
   gender: string | null;
   status: string;
   assigned_doctor: string | null;
+  assigned_doctor_name?: string | null;
   prescription: string | null;
   medical_notes: string | null;
   medicines: string | null;
