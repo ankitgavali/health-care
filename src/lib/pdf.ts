@@ -402,7 +402,7 @@ export async function shareCasePaperPDF(c: CaseRow) {
 
 function getLogoDataUrl(): Promise<string> {
   return new Promise((resolve) => {
-    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" width="300" height="300">
       <circle cx="50" cy="50" r="48" fill="none" stroke="#4C7A34" stroke-width="1.2" />
       <circle cx="50" cy="50" r="45" fill="none" stroke="#4C7A34" stroke-width="0.4" />
       <circle cx="50" cy="50" r="35" fill="#4C7A34" />
@@ -428,28 +428,35 @@ function getLogoDataUrl(): Promise<string> {
     </svg>`;
 
     const img = new Image();
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 300;
-      canvas.height = 300;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, 300, 300);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
+    try {
+      const base64 = btoa(unescape(encodeURIComponent(svgString)));
+      img.src = 'data:image/svg+xml;base64,' + base64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 300;
+        canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 300, 300);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          resolve('');
+        }
+      };
+      img.onerror = (e) => {
+        console.error("Logo SVG load error:", e);
         resolve('');
-      }
-    };
-    img.onerror = () => {
+      };
+    } catch (err) {
+      console.error("Logo SVG base64 encode error:", err);
       resolve('');
-    };
+    }
   });
 }
 
 function getWatermarkDataUrl(): Promise<string> {
   return new Promise((resolve) => {
-    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.08">
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100" width="600" height="600" opacity="0.08">
       <circle cx="50" cy="50" r="48" fill="none" stroke="#4C7A34" stroke-width="1.2" />
       <circle cx="50" cy="50" r="45" fill="none" stroke="#4C7A34" stroke-width="0.4" />
       <circle cx="50" cy="50" r="35" fill="#4C7A34" />
@@ -475,22 +482,29 @@ function getWatermarkDataUrl(): Promise<string> {
     </svg>`;
 
     const img = new Image();
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 600;
-      canvas.height = 600;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0, 600, 600);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
+    try {
+      const base64 = btoa(unescape(encodeURIComponent(svgString)));
+      img.src = 'data:image/svg+xml;base64,' + base64;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 600;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 600, 600);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          resolve('');
+        }
+      };
+      img.onerror = (e) => {
+        console.error("Watermark SVG load error:", e);
         resolve('');
-      }
-    };
-    img.onerror = () => {
+      };
+    } catch (err) {
+      console.error("Watermark SVG base64 encode error:", err);
       resolve('');
-    };
+    }
   });
 }
 
