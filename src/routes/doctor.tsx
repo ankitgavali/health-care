@@ -886,86 +886,103 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
             {/* Form Sections */}
             <div className="flex flex-col gap-5">
               <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2">
-                <Activity className="h-4.5 w-4.5 text-primary" />
+                <Activity className="h-4.5 w-4.5 text-primary animate-pulse" />
                 <span className="font-bold text-xs uppercase tracking-wider text-foreground">Clinical Entry Details</span>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* 1. Prescription Rx */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="prescription" className="text-xs font-bold text-foreground flex items-center justify-between">
-                    <span>Prescription (Rx)</span>
-                    <span className="text-[10px] font-normal text-muted-foreground">Medications prescribed</span>
-                  </Label>
-                  <div className="relative">
-                    <Textarea 
-                      id="prescription"
-                      rows={4}
-                      value={data.prescription}
-                      onChange={(e) => setData({ ...data, prescription: e.target.value })}
-                      placeholder="Enter patient Rx dosage / instructions..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
-                    />
-                    <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, prescription: d.prescription ? d.prescription + "\n" + val : val }))} positionClassName="top-3.5" />
+              <div className="grid gap-6 md:grid-cols-[1fr_1.2fr] items-start">
+                
+                {/* LEFT COLUMN: Observations & Diagnosis */}
+                <div className="bg-slate-50/40 dark:bg-black/10 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 space-y-4 h-full flex flex-col">
+                  <div className="flex items-center gap-2 border-b border-slate-200/30 dark:border-white/5 pb-2">
+                    <ClipboardList className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-foreground">Clinical Observations</span>
+                  </div>
+
+                  {/* Diagnosis & Clinical Notes */}
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <Label htmlFor="medical_notes" className="text-xs font-bold text-foreground flex items-center justify-between">
+                      <span>Diagnosis & Clinical Notes</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">Findings & diagnosis</span>
+                    </Label>
+                    <div className="relative flex-1 flex flex-col">
+                      <Textarea 
+                        id="medical_notes"
+                        value={data.medical_notes}
+                        onChange={(e) => setData({ ...data, medical_notes: e.target.value })}
+                        placeholder="Enter diagnosis findings, medical checks, observations..."
+                        className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-white dark:bg-black/25 border-slate-200/80 dark:border-white/5 flex-1 min-h-[300px]"
+                      />
+                      <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medical_notes: d.medical_notes ? d.medical_notes + " " + val : val }))} positionClassName="top-3.5" />
+                    </div>
                   </div>
                 </div>
 
-                {/* 2. Diagnosis Notes */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="medical_notes" className="text-xs font-bold text-foreground flex items-center justify-between">
-                    <span>Diagnosis & Clinical Notes</span>
-                    <span className="text-[10px] font-normal text-muted-foreground">Findings & diagnosis</span>
-                  </Label>
-                  <div className="relative">
-                    <Textarea 
-                      id="medical_notes"
-                      rows={4}
-                      value={data.medical_notes}
-                      onChange={(e) => setData({ ...data, medical_notes: e.target.value })}
-                      placeholder="Enter diagnosis findings / medical checks..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
-                    />
-                    <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medical_notes: d.medical_notes ? d.medical_notes + " " + val : val }))} positionClassName="top-3.5" />
+                {/* RIGHT COLUMN: Treatment & Prescription (Rx) */}
+                <div className="bg-slate-50/40 dark:bg-black/10 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-200/30 dark:border-white/5 pb-2">
+                    <Stethoscope className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-foreground">Prescription & Plan (Rx)</span>
+                  </div>
+
+                  {/* 1. Prescription Rx */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="prescription" className="text-xs font-bold text-foreground flex items-center justify-between">
+                      <span>Prescription (Rx)</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">Medications prescribed</span>
+                    </Label>
+                    <div className="relative">
+                      <Textarea 
+                        id="prescription"
+                        rows={4}
+                        value={data.prescription}
+                        onChange={(e) => setData({ ...data, prescription: e.target.value })}
+                        placeholder="Enter patient Rx dosage / instructions..."
+                        className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-white dark:bg-black/25 border-slate-200/80 dark:border-white/5"
+                      />
+                      <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, prescription: d.prescription ? d.prescription + "\n" + val : val }))} positionClassName="top-3.5" />
+                    </div>
+                  </div>
+
+                  {/* 2. Medicines Ordered */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="medicines" className="text-xs font-bold text-foreground flex items-center justify-between">
+                      <span>Medicines List</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">Itemized medicines</span>
+                    </Label>
+                    <div className="relative">
+                      <Textarea 
+                        id="medicines"
+                        rows={3}
+                        value={data.medicines}
+                        onChange={(e) => setData({ ...data, medicines: e.target.value })}
+                        placeholder="List specific tablets, syrups, oils..."
+                        className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-white dark:bg-black/25 border-slate-200/80 dark:border-white/5"
+                      />
+                      <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medicines: d.medicines ? d.medicines + "\n" + val : val }))} positionClassName="top-3.5" />
+                    </div>
+                  </div>
+
+                  {/* 3. Tests Ordered */}
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="tests" className="text-xs font-bold text-foreground flex items-center justify-between">
+                      <span>Clinical Tests</span>
+                      <span className="text-[10px] font-normal text-muted-foreground">Lab / radiology tests</span>
+                    </Label>
+                    <div className="relative">
+                      <Textarea 
+                        id="tests"
+                        rows={3}
+                        value={data.tests}
+                        onChange={(e) => setData({ ...data, tests: e.target.value })}
+                        placeholder="Enter required lab test names..."
+                        className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-white dark:bg-black/25 border-slate-200/80 dark:border-white/5"
+                      />
+                      <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, tests: d.tests ? d.tests + "\n" + val : val }))} positionClassName="top-3.5" />
+                    </div>
                   </div>
                 </div>
 
-                {/* 3. Medicines Ordered */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="medicines" className="text-xs font-bold text-foreground flex items-center justify-between">
-                    <span>Medicines List</span>
-                    <span className="text-[10px] font-normal text-muted-foreground">Itemized medicines</span>
-                  </Label>
-                  <div className="relative">
-                    <Textarea 
-                      id="medicines"
-                      rows={3}
-                      value={data.medicines}
-                      onChange={(e) => setData({ ...data, medicines: e.target.value })}
-                      placeholder="List specific tablets, syrups, oils..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
-                    />
-                    <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, medicines: d.medicines ? d.medicines + "\n" + val : val }))} positionClassName="top-3.5" />
-                  </div>
-                </div>
-
-                {/* 4. Tests Ordered */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="tests" className="text-xs font-bold text-foreground flex items-center justify-between">
-                    <span>Clinical Tests</span>
-                    <span className="text-[10px] font-normal text-muted-foreground">Lab / radiology tests</span>
-                  </Label>
-                  <div className="relative">
-                    <Textarea 
-                      id="tests"
-                      rows={3}
-                      value={data.tests}
-                      onChange={(e) => setData({ ...data, tests: e.target.value })}
-                      placeholder="Enter required lab test names..."
-                      className="rounded-xl pr-10 focus-visible:ring-primary focus-visible:border-primary text-xs resize-none bg-slate-50/50 dark:bg-black/15 border-slate-200/80 dark:border-white/5"
-                    />
-                    <VoiceButton onTranscript={(val) => setData((d) => ({ ...d, tests: d.tests ? d.tests + "\n" + val : val }))} positionClassName="top-3.5" />
-                  </div>
-                </div>
               </div>
             </div>
 
