@@ -80,7 +80,12 @@ function DoctorPage() {
   useEffect(() => {
     // Note: No orderBy here to avoid requiring a composite Firestore index.
     // Sorting is handled client-side in filteredAndSorted below.
-    const assignedIds = user?.uid ? [user.uid, docKey] : [docKey];
+    const email = user?.email || "";
+    const isLegacyDoctor = email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12");
+    const assignedIds = isLegacyDoctor
+      ? (user?.uid ? [user.uid, docKey] : [docKey])
+      : (user?.uid ? [user.uid] : ["non-existent-id"]);
+
     const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "in", assignedIds));
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
       setCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
@@ -89,7 +94,7 @@ function DoctorPage() {
       toast.error("Failed to load cases: " + err.message);
     });
     return () => unsubscribe();
-  }, [docKey]);
+  }, [docKey, user?.uid, user?.email]);
 
   // Sidebar Counts
   const counts = useMemo(() => {
