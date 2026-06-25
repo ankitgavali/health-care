@@ -400,7 +400,101 @@ export async function shareCasePaperPDF(c: CaseRow) {
   alert("Sharing is not supported on this browser. Please use the Download button instead.");
 }
 
-export function generateInvoicePDF(c: CaseRow) {
+function getLogoDataUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="48" fill="none" stroke="#4C7A34" stroke-width="1.2" />
+      <circle cx="50" cy="50" r="45" fill="none" stroke="#4C7A34" stroke-width="0.4" />
+      <circle cx="50" cy="50" r="35" fill="#4C7A34" />
+      <path id="curve-top" d="M 12 50 A 38 38 0 1 1 88 50" fill="none" />
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="9.5px" letter-spacing="0.8">
+        <textPath href="#curve-top" xlink:href="#curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
+      </text>
+      <path id="curve-bottom" d="M 88 50 A 38 38 0 0 1 12 50" fill="none" />
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="4.2px" letter-spacing="0.5">
+        <textPath href="#curve-bottom" xlink:href="#curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+      </text>
+      <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="white" stroke-width="2.5" />
+      <path d="M 50 44 L 70 44" stroke="white" stroke-width="2.5" />
+      <path d="M 50 49 L 70 49" stroke="white" stroke-width="2.5" />
+      <path d="M 50 54 L 70 54" stroke="white" stroke-width="2.5" />
+      <path d="M 42 69 C 38 69 36 65 36 65" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 26 67 26 47 30 43 C 38 47 42 59 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 34 63 30 43 30 43" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 30 51 42 35 46 35 C 50 47 46 63 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 40 55 46 35 46 35" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 58 71 70 59 70 51 C 62 47 50 59 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 54 65 70 51 70 51" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+    </svg>`;
+
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 300;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 300, 300);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        resolve('');
+      }
+    };
+    img.onerror = () => {
+      resolve('');
+    };
+  });
+}
+
+function getWatermarkDataUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.08">
+      <circle cx="50" cy="50" r="48" fill="none" stroke="#4C7A34" stroke-width="1.2" />
+      <circle cx="50" cy="50" r="45" fill="none" stroke="#4C7A34" stroke-width="0.4" />
+      <circle cx="50" cy="50" r="35" fill="#4C7A34" />
+      <path id="wm-curve-top" d="M 12 50 A 38 38 0 1 1 88 50" fill="none" />
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="9.5px" letter-spacing="0.8">
+        <textPath href="#wm-curve-top" xlink:href="#wm-curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
+      </text>
+      <path id="wm-curve-bottom" d="M 88 50 A 38 38 0 0 1 12 50" fill="none" />
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="4.2px" letter-spacing="0.5">
+        <textPath href="#wm-curve-bottom" xlink:href="#wm-curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+      </text>
+      <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="white" stroke-width="2.5" />
+      <path d="M 50 44 L 70 44" stroke="white" stroke-width="2.5" />
+      <path d="M 50 49 L 70 49" stroke="white" stroke-width="2.5" />
+      <path d="M 50 54 L 70 54" stroke="white" stroke-width="2.5" />
+      <path d="M 42 69 C 38 69 36 65 36 65" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 26 67 26 47 30 43 C 38 47 42 59 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 34 63 30 43 30 43" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 30 51 42 35 46 35 C 50 47 46 63 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 40 55 46 35 46 35" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+      <path d="M 42 67 C 58 71 70 59 70 51 C 62 47 50 59 42 67 Z" fill="#fbbd08" />
+      <path d="M 42 67 C 54 65 70 51 70 51" stroke="#4C7A34" stroke-width="1.2" fill="none" stroke-linecap="round" />
+    </svg>`;
+
+    const img = new Image();
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 600;
+      canvas.height = 600;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, 600, 600);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        resolve('');
+      }
+    };
+    img.onerror = () => {
+      resolve('');
+    };
+  });
+}
+
+export async function generateInvoicePDF(c: CaseRow) {
   // Create PDF with A4 dimensions (210mm x 297mm)
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
@@ -410,80 +504,13 @@ export function generateInvoicePDF(c: CaseRow) {
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, w, h, "F");
   
-  // --- Top-Left: Circular Logo Emblem ---
-  const logoX = 27;
-  const logoY = 27;
+  // --- Load Logo and Watermark as PNG Data URLs ---
+  const logoDataUrl = await getLogoDataUrl();
+  const watermarkDataUrl = await getWatermarkDataUrl();
   
-  // Outer green rings
-  doc.setDrawColor(76, 122, 52); // Forest Green (#4C7A34)
-  doc.setLineWidth(0.6);
-  doc.circle(logoX, logoY, 12, "D");
-  doc.setLineWidth(0.2);
-  doc.circle(logoX, logoY, 11.4, "D");
-  
-  // Inner solid green circle
-  doc.setFillColor(76, 122, 52);
-  doc.circle(logoX, logoY, 8.5, "F");
-  
-  // White capsule outline (Shivalinga)
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.35);
-  doc.roundedRect(logoX - 1.8, logoY - 3.5, 3.6, 6.8, 1.8, 1.8, "D");
-  
-  // Three horizontal lines inside capsule
-  doc.line(logoX - 1.2, logoY - 1, logoX + 1.2, logoY - 1);
-  doc.line(logoX - 1.2, logoY, logoX + 1.2, logoY);
-  doc.line(logoX - 1.2, logoY + 1, logoX + 1.2, logoY + 1);
-  
-  // Three yellow leaves overlapping bottom left of capsule
-  doc.setFillColor(241, 196, 15); // Yellow
-  doc.setDrawColor(76, 122, 52);
-  doc.setLineWidth(0.15);
-  doc.circle(logoX - 2.5, logoY + 1.2, 1.2, "FD");
-  doc.circle(logoX - 1.0, logoY + 2.4, 1.2, "FD");
-  doc.circle(logoX - 2.5, logoY + 3.2, 1.2, "FD");
-  
-  // Curved Text: "MOOLATVAM AYURVED" in top arc
-  const text = "MOOLATVAM AYURVED";
-  const R = 9.8;
-  const startAngle = 200; // degrees
-  const endAngle = 340;   // degrees
-  const totalChars = text.length;
-  const step = (endAngle - startAngle) / (totalChars - 1);
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(4.8);
-  doc.setTextColor(76, 122, 52);
-  
-  for (let i = 0; i < totalChars; i++) {
-    const char = text[i];
-    const angleDeg = startAngle + i * step;
-    const angleRad = angleDeg * Math.PI / 180;
-    const charX = logoX + R * Math.cos(angleRad);
-    const charY = logoY + R * Math.sin(angleRad);
-    const rotation = angleDeg - 270;
-    doc.text(char, charX, charY, { align: "center", angle: rotation });
-  }
-  
-  // Curved Text: "SWASTHASYA RAKSHANARTHAM" in bottom arc
-  const bottomText = "SWASTHASYA RAKSHANARTHAM";
-  const startAngleBottom = 25; // degrees
-  const endAngleBottom = 155;   // degrees
-  const totalCharsBottom = bottomText.length;
-  const stepBottom = (endAngleBottom - startAngleBottom) / (totalCharsBottom - 1);
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(3.2);
-  doc.setTextColor(100, 116, 139);
-  
-  for (let i = 0; i < totalCharsBottom; i++) {
-    const char = bottomText[i];
-    const angleDeg = startAngleBottom + i * stepBottom;
-    const angleRad = angleDeg * Math.PI / 180;
-    const charX = logoX + R * Math.cos(angleRad);
-    const charY = logoY + R * Math.sin(angleRad);
-    const rotation = angleDeg - 90;
-    doc.text(char, charX, charY, { align: "center", angle: rotation });
+  // Draw primary logo
+  if (logoDataUrl) {
+    doc.addImage(logoDataUrl, "PNG", 15, 12, 26, 26);
   }
   
   // --- Top-Right: Invoice Title & Header ---
@@ -570,16 +597,9 @@ export function generateInvoicePDF(c: CaseRow) {
   const total = activeRows.reduce((sum, r) => sum + r.amount, 0);
   
   // --- Watermark (Drawn in background before table text) ---
-  const watermarkX = w / 2;
-  const watermarkY = 135;
-  doc.setDrawColor(240, 246, 238); // extremely light green
-  doc.setLineWidth(1.5);
-  doc.circle(watermarkX, watermarkY, 32, "D");
-  doc.circle(watermarkX, watermarkY, 28, "D");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(240, 246, 238);
-  doc.text("MOOLATVAM AYURVED", watermarkX, watermarkY + 2.5, { align: "center", angle: 25 });
+  if (watermarkDataUrl) {
+    doc.addImage(watermarkDataUrl, "PNG", 73, 103, 64, 64);
+  }
   
   // --- Billing Invoice Table (x = 15, y = 88) ---
   const tableY = 88;
