@@ -54,7 +54,7 @@ export function RequireRole({ allow, children }: { allow: AppRole[]; children: R
 
     if (isNurseAllowed) {
       targetRoleLabel = "Nurse Console";
-      defaultEmail = "nurse12@gmail.com";
+      defaultEmail = "nurse1@gmail.com";
     } else if (isDoctorAllowed) {
       targetRoleLabel = "Doctor Portal";
       defaultEmail = "doctor1@gmail.com";
@@ -108,10 +108,10 @@ function RoleLoginForm({
       toast.success(`Welcome to ${targetRoleLabel}`);
     } catch (err: any) {
       // 2. Predefined email auto-creation logic
-      if (["admin12@gmail.com", "nurse12@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com"].includes(emailClean)) {
+      if (["admin12@gmail.com", "nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com"].includes(emailClean)) {
         let roleKey: AppRole = "nurse";
         let dbRoleVal: any = "nurse";
-        let name = "Nurse Console";
+        let name = "payal";
 
         if (emailClean === "admin12@gmail.com") {
           roleKey = "admin";

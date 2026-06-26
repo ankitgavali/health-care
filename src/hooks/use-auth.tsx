@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // If role is missing for predefined accounts, auto-insert it
-    if (email && ["nurse12@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com", "guest.patient@medicare.local"].includes(email)) {
+    if (email && ["nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com", "guest.patient@medicare.local"].includes(email)) {
       let roleKey: AppRole = "nurse";
       if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") roleKey = "doctor1";
       if (email === "doctor2@gmail.com") roleKey = "doctor2";
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         await setDoc(roleDocRef, { role: roleKey });
         
-        let name = "Nurse Console";
+        let name = "payal";
         if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") name = "Dr. Kadambari Jagtap";
         if (email === "doctor2@gmail.com") name = "Dr. Omprasad Jagtap";
         if (email === "guest.patient@medicare.local") name = "Guest Patient";

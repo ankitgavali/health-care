@@ -101,10 +101,10 @@ function AuthPage() {
       toast.success("Welcome back");
     } catch (err: any) {
       // 2. If it fails, and it is a predefined email, auto-create the user
-      if (["admin12@gmail.com", "nurse12@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com"].includes(email)) {
+      if (["admin12@gmail.com", "nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com"].includes(email)) {
         let roleKey: AppRole = "nurse";
         let dbRoleVal: any = "nurse";
-        let name = "Nurse Console";
+        let name = "payal";
 
         if (email === "admin12@gmail.com") {
           roleKey = "admin";
