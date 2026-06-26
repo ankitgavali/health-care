@@ -65,7 +65,7 @@ const doctorMeta = {
 function DoctorPage() {
   const { role, profileName, user } = useAuth();
   const docKey = role as "doctor1" | "doctor2";
-  const currentDoctorName = profileName || doctorName[docKey];
+  const currentDoctorName = profileName || (docKey && doctorName[docKey]) || "Doctor Console";
   const meta = {
     ...(doctorMeta[docKey] || doctorMeta.doctor1),
     initials: currentDoctorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
