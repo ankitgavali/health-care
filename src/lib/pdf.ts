@@ -767,7 +767,7 @@ export async function generateInvoicePDF(c: CaseRow) {
     doc.text(String(row.qty), 15 + colSLWidth + colDescWidth + colQtyWidth / 2, currentY + 5.5, { align: "center" });
     
     // Amount
-    doc.text(`${Math.round(row.amount)}₹`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, currentY + 5.5, { align: "center" });
+    doc.text(`${Math.round(row.amount)} Rs.`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, currentY + 5.5, { align: "center" });
     
     currentY += 8;
   });
@@ -796,7 +796,7 @@ export async function generateInvoicePDF(c: CaseRow) {
   doc.text("Total", 18, tableBottomY + 5.5);
   
   // Grand Total amount text (centered in Amount column)
-  doc.text(`${Math.round(total)}₹`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableBottomY + 5.5, { align: "center" });
+  doc.text(`${Math.round(total)} Rs.`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableBottomY + 5.5, { align: "center" });
   
   // --- Open PDF in new tab (allows view, print, and download) ---
   const pdfBlob = doc.output("blob");
