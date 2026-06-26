@@ -411,8 +411,8 @@ function getLogoDataUrl(): Promise<string> {
         <textPath href="#curve-top" xlink:href="#curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
       </text>
       <path id="curve-bottom" d="M 88 50 A 38 38 0 0 1 12 50" fill="none" />
-      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="4.2px" letter-spacing="0.5">
-        <textPath href="#curve-bottom" xlink:href="#curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="3.5px" letter-spacing="0.2px">
+        <textPath href="#curve-bottom" xlink:href="#curve-bottom" startOffset="50%" text-anchor="middle">स्वस्थस्य स्वास्थ्यरक्षणं...व्याधिमोक्षणार्थं च</textPath>
       </text>
       <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="white" stroke-width="2.5" />
       <path d="M 50 44 L 70 44" stroke="white" stroke-width="2.5" />
@@ -465,8 +465,8 @@ function getWatermarkDataUrl(): Promise<string> {
         <textPath href="#wm-curve-top" xlink:href="#wm-curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
       </text>
       <path id="wm-curve-bottom" d="M 88 50 A 38 38 0 0 1 12 50" fill="none" />
-      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="4.2px" letter-spacing="0.5">
-        <textPath href="#wm-curve-bottom" xlink:href="#wm-curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+      <text fill="#4C7A34" font-family="sans-serif" font-weight="bold" font-size="3.5px" letter-spacing="0.2px">
+        <textPath href="#wm-curve-bottom" xlink:href="#wm-curve-bottom" startOffset="50%" text-anchor="middle">स्वस्थस्य स्वास्थ्यरक्षणं...व्याधिमोक्षणार्थं च</textPath>
       </text>
       <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="white" stroke-width="2.5" />
       <path d="M 50 44 L 70 44" stroke="white" stroke-width="2.5" />
@@ -508,13 +508,73 @@ function getWatermarkDataUrl(): Promise<string> {
   });
 }
 
+function parseMedicineLine(line: string, index: number, totalMedicineCharge: number, totalLinesCount: number) {
+  // Remove leading numbers like "1.", "1)", etc.
+  let cleaned = line.replace(/^\s*\d+[\s\.)\-:]+\s*/, "").trim();
+  if (!cleaned) return null;
+
+  let qty = 1;
+  let amount: number | null = null;
+
+  // Try to find quantity in parenthesis like (60)
+  const parenthesizedQty = cleaned.match(/\((\d+)\s*(?:qty|pcs|tab|tabs)?\)/i);
+  if (parenthesizedQty) {
+    qty = parseInt(parenthesizedQty[1], 10);
+    cleaned = cleaned.replace(parenthesizedQty[0], "").trim();
+  } else {
+    // Try to find quantity with prefixes like qty: 60, qty 60, x 60, x60
+    const wordQty = cleaned.match(/(?:qty|quantity|x)[\s\.:\-=]*(\d+)/i);
+    if (wordQty) {
+      qty = parseInt(wordQty[1], 10);
+      cleaned = cleaned.replace(wordQty[0], "").trim();
+    }
+  }
+
+  // Try to find amount: e.g., "450Rs", "450 Rs", "450₹", "450 ₹", "Rs. 450", "Rs 450"
+  const rupeeMatch = cleaned.match(/(?:rs\.?|₹|inr|price|amt|amount|cost)[\s\.:\-=]*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:rs\.?|₹|inr|rupees|rs)/i);
+  if (rupeeMatch) {
+    amount = parseFloat(rupeeMatch[1] || rupeeMatch[2]);
+    cleaned = cleaned.replace(rupeeMatch[0], "").trim();
+  }
+
+  // If amount is still not found, check the end of the line
+  if (amount === null) {
+    const endNumberMatch = /[\s\-,:\/|]+(\d+(?:\.\d+)?)\s*$/;
+    const match = cleaned.match(endNumberMatch);
+    if (match) {
+      amount = parseFloat(match[1]);
+      cleaned = cleaned.replace(endNumberMatch, "").trim();
+
+      // If quantity was not found, check if there is a number before amount
+      const preNumberMatch = /[\s\-,:\/|]+(\d+)\s*$/;
+      const qMatch = cleaned.match(preNumberMatch);
+      if (qMatch) {
+        qty = parseInt(qMatch[1], 10);
+        cleaned = cleaned.replace(preNumberMatch, "").trim();
+      }
+    }
+  }
+
+  cleaned = cleaned.replace(/[\s\-,:|]+$/, "").replace(/^[\s\-,:|]+/, "").trim();
+
+  if (amount === null) {
+    amount = totalMedicineCharge > 0 ? totalMedicineCharge / totalLinesCount : 0;
+  }
+
+  return {
+    name: cleaned || `Medicine ${index + 1}`,
+    qty,
+    amount
+  };
+}
+
 export async function generateInvoicePDF(c: CaseRow) {
   // Create PDF with A4 dimensions (210mm x 297mm)
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
   
-  // --- Background (Clean White - No Letterhead Color Strip) ---
+  // --- Background (Clean White) ---
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, w, h, "F");
   
@@ -524,192 +584,232 @@ export async function generateInvoicePDF(c: CaseRow) {
   
   // Draw primary logo
   if (logoDataUrl) {
-    doc.addImage(logoDataUrl, "PNG", 15, 12, 26, 26);
+    doc.addImage(logoDataUrl, "PNG", 15, 12, 30, 30);
   }
   
   // --- Top-Right: Invoice Title & Header ---
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(26);
+  doc.setFontSize(36);
   doc.setTextColor(76, 122, 52); // Forest Green
-  doc.text("INVOICE", w - 15, 24, { align: "right" });
+  doc.text("INVOICE", w - 15, 25, { align: "right" });
   
   // Date & Invoice Number Box Table
-  doc.setDrawColor(76, 122, 52);
+  doc.setDrawColor(0, 0, 0); // Black thin border
   doc.setLineWidth(0.3);
-  doc.rect(w - 65, 30, 50, 12, "D");
-  doc.line(w - 65, 36, w - 15, 36);
+  const boxX = w - 61;
+  const boxY = 30;
+  const boxW = 46;
+  const boxH = 15;
+  doc.rect(boxX, boxY, boxW, boxH, "D");
+  doc.line(boxX, boxY + 7.5, boxX + boxW, boxY + 7.5);
+  
+  // Get invoice number from case ID
+  let numericPart = c.id.replace(/\D/g, "");
+  if (!numericPart) {
+    let hash = 0;
+    for (let i = 0; i < c.id.length; i++) {
+      hash = c.id.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    numericPart = Math.abs(hash).toString();
+  }
+  const invoiceNo = numericPart.slice(-4) || "2237";
   
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
+  doc.setFontSize(9.5);
   doc.setTextColor(0, 0, 0);
-  doc.text(`Date : ${new Date(c.created_at || Date.now()).toLocaleDateString("en-IN")}`, w - 62, 34.2);
-  doc.text(`Invoice No : ${c.id.slice(0, 8).toUpperCase()}`, w - 62, 40.2);
+  doc.text(`Date : ${new Date(c.created_at || Date.now()).toLocaleDateString("en-GB")}`, boxX + 4, boxY + 5.2);
+  doc.text(`Invoice No : ${invoiceNo}`, boxX + 4, boxY + 12.7);
   
   // --- BILL TO / FROM Section ---
-  const sectionY = 53;
+  const sectionY = 52;
+  const bannerW = 70;
+  const bannerH = 6;
+  
   // Billed To Header Bar
-  doc.setFillColor(76, 122, 52);
-  doc.rect(15, sectionY, 60, 5.5, "F");
+  doc.setFillColor(196, 214, 189); // Sage green #C4D6BD
+  doc.rect(15, sectionY, bannerW, bannerH, "F");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(255, 255, 255);
-  doc.text("BILL TO", 18, sectionY + 4);
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text("BILL TO", 18, sectionY + 4.5);
   
   // From Header Bar
-  doc.setFillColor(76, 122, 52);
-  doc.rect(w - 75, sectionY, 60, 5.5, "F");
-  doc.text("FROM", w - 72, sectionY + 4);
+  doc.setFillColor(196, 214, 189); // Sage green #C4D6BD
+  doc.rect(w - 85, sectionY, bannerW, bannerH, "F");
+  doc.text("FROM", w - 82, sectionY + 4.5);
   
   // Patient details (Left column)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
+  doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
-  doc.text(c.full_name.toUpperCase(), 15, sectionY + 11);
+  doc.text(c.full_name.toUpperCase(), 15, sectionY + 12);
   
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(51, 65, 85); // slate-700
-  const patientAddrLines = doc.splitTextToSize(c.address || "—", 55);
-  doc.text(patientAddrLines, 15, sectionY + 15.5);
+  doc.setFontSize(9);
+  const patientAddrLines = doc.splitTextToSize((c.address || "").toUpperCase(), bannerW);
+  doc.text(patientAddrLines, 15, sectionY + 17);
   
-  const phoneY = sectionY + 15.5 + patientAddrLines.length * 4.2 + 1;
-  doc.text(c.mobile || "—", 15, phoneY);
+  const phoneY = sectionY + 17 + patientAddrLines.length * 4.5;
+  doc.text(c.mobile || "", 15, phoneY);
   
   // Clinic Details (Right column)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.setTextColor(0, 0, 0);
-  doc.text("MOOLATVAM AYURVED HOSPITAL", w - 75, sectionY + 11);
+  doc.setFontSize(10.5);
+  doc.text("MOOLATVAM AYURVED HOSPITAL", w - 85, sectionY + 12);
   
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(51, 65, 85); // slate-700
-  doc.text("SHIV CITY CENTER,", w - 75, sectionY + 15.5);
-  doc.text("VIJAYNAGAR CIRCLE, SANGLI.", w - 75, sectionY + 20);
-  doc.text("PH. 9834623909", w - 75, sectionY + 24.5);
+  doc.setFontSize(9);
+  doc.text("SHIV CITY CENTER,", w - 85, sectionY + 17);
+  doc.text("VIJAYNAGAR CIRCLE, SANGLI.", w - 85, sectionY + 21.5);
+  doc.text("PH. 9834623909", w - 85, sectionY + 26);
   
   // --- Table Data Setup ---
-  const activeRows: { name: string; amount: number }[] = [];
+  const activeRows: { name: string; qty: number; amount: number }[] = [];
+  
+  // 1. Consultation Services
   if (Number(c.consultation_charge ?? 0) > 0) {
-    activeRows.push({ name: "Consultation Services", amount: Number(c.consultation_charge) });
+    activeRows.push({ name: "Consultation Services", qty: 1, amount: Number(c.consultation_charge) });
   }
-  if (Number(c.medicine_charge ?? 0) > 0) {
-    activeRows.push({ name: "Pharmacy / Medicines", amount: Number(c.medicine_charge) });
+  
+  // 2. Medicines
+  let medicinesParsed = false;
+  if (c.medicines && c.medicines.trim()) {
+    const lines = c.medicines.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    const parsedItems: { name: string; qty: number; amount: number }[] = [];
+    
+    lines.forEach((line, idx) => {
+      const parsed = parseMedicineLine(line, idx, Number(c.medicine_charge ?? 0), lines.length);
+      if (parsed) {
+        parsedItems.push(parsed);
+      }
+    });
+    
+    if (parsedItems.length > 0) {
+      activeRows.push(...parsedItems);
+      medicinesParsed = true;
+    }
   }
+  
+  if (!medicinesParsed && Number(c.medicine_charge ?? 0) > 0) {
+    activeRows.push({ name: "Pharmacy / Medicines", qty: 1, amount: Number(c.medicine_charge) });
+  }
+  
+  // 3. Tests
   if (Number(c.test_charge ?? 0) > 0) {
-    activeRows.push({ name: "Investigations / Tests", amount: Number(c.test_charge) });
+    activeRows.push({ name: "Investigations / Tests", qty: 1, amount: Number(c.test_charge) });
   }
+  
+  // 4. Other Charges
   if (Number(c.other_charge ?? 0) > 0) {
-    activeRows.push({ name: "Other General Charges", amount: Number(c.other_charge) });
+    activeRows.push({ name: "Other General Charges", qty: 1, amount: Number(c.other_charge) });
   }
   
   // Fallback row if no charges entered
   if (activeRows.length === 0) {
-    activeRows.push({ name: "Consultation Services", amount: 0 });
+    activeRows.push({ name: "Consultation Services", qty: 1, amount: 0 });
   }
   
   const total = activeRows.reduce((sum, r) => sum + r.amount, 0);
   
-  // --- Watermark (Drawn in background before table text) ---
-  if (watermarkDataUrl) {
-    doc.addImage(watermarkDataUrl, "PNG", 73, 103, 64, 64);
-  }
-  
-  // --- Billing Invoice Table (x = 15, y = 88) ---
-  const tableY = 88;
-  const colSLWidth = 15;
-  const colDescWidth = 110;
+  // --- Billing Invoice Table (x = 15, y = 90) ---
+  const tableY = 90;
+  const colSLWidth = 20;
+  const colDescWidth = 100;
   const colQtyWidth = 20;
-  const colAmtWidth = 35;
+  const colAmtWidth = 40;
   const tableWidth = colSLWidth + colDescWidth + colQtyWidth + colAmtWidth; // 180mm
   
-  // Table Header Background (Sage Green #B9C7B6)
-  doc.setFillColor(185, 199, 182);
+  // Center watermark on the table
+  const tableHeight = 8 + activeRows.length * 8;
+  const tableCenterY = tableY + tableHeight / 2;
+  const watermarkSize = 110;
+  const watermarkX = 105 - watermarkSize / 2;
+  const watermarkY = tableCenterY - watermarkSize / 2;
+  
+  if (watermarkDataUrl) {
+    doc.addImage(watermarkDataUrl, "PNG", watermarkX, watermarkY, watermarkSize, watermarkSize);
+  }
+  
+  // Table Header Background (Sage Green #C4D6BD)
+  doc.setFillColor(196, 214, 189);
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
-  doc.rect(15, tableY, tableWidth, 7.5, "FD");
+  doc.rect(15, tableY, tableWidth, 8, "FD");
   
   // Table Header Text
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
+  doc.setFontSize(10.5);
   doc.setTextColor(0, 0, 0);
-  doc.text("SL", 15 + colSLWidth / 2, tableY + 5.2, { align: "center" });
-  doc.text("Description", 15 + colSLWidth + 3, tableY + 5.2);
-  doc.text("Qty.", 15 + colSLWidth + colDescWidth + colQtyWidth / 2, tableY + 5.2, { align: "center" });
-  doc.text("Amount", 15 + tableWidth - 3, tableY + 5.2, { align: "right" });
+  doc.text("SL", 15 + colSLWidth / 2, tableY + 5.5, { align: "center" });
+  doc.text("Description", 15 + colSLWidth + 3, tableY + 5.5);
+  doc.text("Qty.", 15 + colSLWidth + colDescWidth + colQtyWidth / 2, tableY + 5.5, { align: "center" });
+  doc.text("Amount", 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableY + 5.5, { align: "center" });
   
   // Table Rows Loop
-  let currentY = tableY + 7.5;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
+  let currentY = tableY + 8;
   
   activeRows.forEach((row, idx) => {
     // Draw row separator line
     doc.line(15, currentY + 8, 15 + tableWidth, currentY + 8);
     
     // SL
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
     doc.text(String(idx + 1) + ".", 15 + colSLWidth / 2, currentY + 5.5, { align: "center" });
     
     // Description
+    const isTab = row.name.toLowerCase().startsWith("tab") || row.name.toLowerCase().startsWith("cap");
+    doc.setFont("helvetica", isTab ? "normal" : "italic");
     doc.text(row.name, 15 + colSLWidth + 3, currentY + 5.5);
     
     // Qty
-    doc.text("1", 15 + colSLWidth + colDescWidth + colQtyWidth / 2, currentY + 5.5, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.text(String(row.qty), 15 + colSLWidth + colDescWidth + colQtyWidth / 2, currentY + 5.5, { align: "center" });
     
     // Amount
-    doc.text(`${row.amount.toFixed(2)} Rs.`, 15 + tableWidth - 3, currentY + 5.5, { align: "right" });
+    doc.text(`${Math.round(row.amount)}₹`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, currentY + 5.5, { align: "center" });
     
     currentY += 8;
   });
   
   // Draw vertical borders down the table height
   const tableBottomY = currentY;
-  doc.line(15, tableY, 15, tableBottomY); // Left border
-  doc.line(15 + colSLWidth, tableY, 15 + colSLWidth, tableBottomY); // SL border
-  doc.line(15 + colSLWidth + colDescWidth, tableY, 15 + colSLWidth + colDescWidth, tableBottomY); // Description border
-  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY); // Qty border
-  doc.line(15 + tableWidth, tableY, 15 + tableWidth, tableBottomY); // Right border
+  doc.line(15, tableY, 15, tableBottomY); // Left outer border
+  doc.line(15 + colSLWidth, tableY, 15 + colSLWidth, tableBottomY); // SL vertical border
+  doc.line(15 + colSLWidth + colDescWidth, tableY, 15 + colSLWidth + colDescWidth, tableBottomY); // Description vertical border
+  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY); // Qty vertical border
+  doc.line(15 + tableWidth, tableY, 15 + tableWidth, tableBottomY); // Right outer border
   
   // --- Total Row ---
-  doc.setFillColor(185, 199, 182); // Sage green background
-  doc.rect(15, tableBottomY, tableWidth, 7.5, "FD");
+  doc.setFillColor(196, 214, 189); // Sage green background #C4D6BD
+  doc.rect(15, tableBottomY, tableWidth, 8, "FD");
   
-  // Vertical column borders for Total Row
-  doc.line(15 + colSLWidth, tableBottomY, 15 + colSLWidth, tableBottomY + 7.5);
-  doc.line(15 + colSLWidth + colDescWidth, tableBottomY, 15 + colSLWidth + colDescWidth, tableBottomY + 7.5);
-  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY + 7.5);
+  // Draw borders for Total Row
+  doc.line(15, tableBottomY + 8, 15 + tableWidth, tableBottomY + 8); // Bottom boundary
+  doc.line(15, tableBottomY, 15, tableBottomY + 8); // Left border
+  doc.line(15 + tableWidth, tableBottomY, 15 + tableWidth, tableBottomY + 8); // Right border
+  doc.line(15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY, 15 + colSLWidth + colDescWidth + colQtyWidth, tableBottomY + 8); // Line before amount
   
   // Total Text
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9.5);
-  doc.text("Total", 18, tableBottomY + 5.2);
+  doc.setFontSize(10.5);
+  doc.text("Total", 18, tableBottomY + 5.5);
   
-  // Grand Total amount text
-  doc.text(`${total.toFixed(2)} Rs.`, 15 + tableWidth - 3, tableBottomY + 5.2, { align: "right" });
+  // Grand Total amount text (centered in Amount column)
+  doc.text(`${Math.round(total)}₹`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableBottomY + 5.5, { align: "center" });
   
-  // --- Authorized Signatory Signblock ---
-  let footerY = tableBottomY + 30;
-  doc.setDrawColor(200);
-  doc.setLineWidth(0.3);
-  doc.line(w - 65, footerY, w - 15, footerY);
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8.5);
-  doc.setTextColor(71, 85, 105);
-  doc.text("Authorized Signatory", w - 15, footerY + 4.5, { align: "right" });
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(7.5);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Moolatvam Ayurved", w - 15, footerY + 8.5, { align: "right" });
-  
-  // --- Footer message ---
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text("Thank you for choosing Moolatvam Ayurved. Get well soon!", w / 2, h - 18, { align: "center" });
-  
-  // Open PDF in new tab
+  // --- Download PDF directly ---
+  const fileName = `Invoice-${c.full_name.replace(/\s+/g, "-")}-${invoiceNo}.pdf`;
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
-  window.open(blobUrl, "_blank");
+  const a = document.createElement("a");
+  a.style.display = "none";
+  a.href = blobUrl;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  }, 1000);
 }
