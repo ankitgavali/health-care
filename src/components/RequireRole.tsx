@@ -211,13 +211,6 @@ function RoleLoginForm({
                 )}
               </Button>
 
-              {defaultEmail && (
-                <div className="mt-4 rounded-lg bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-100/50 dark:border-cyan-900/30 p-3 text-xs text-cyan-800 dark:text-cyan-300 flex flex-col gap-1 leading-relaxed">
-                  <span className="font-semibold text-cyan-700 dark:text-cyan-300">Demo Credentials:</span>
-                  <span>Email: <code className="font-mono bg-cyan-100/50 dark:bg-cyan-900/50 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">{defaultEmail}</code></span>
-                  <span>Password: <code className="font-mono bg-cyan-100/50 dark:bg-cyan-900/50 px-1 py-0.5 rounded text-slate-800 dark:text-slate-200">123456</code></span>
-                </div>
-              )}
             </form>
           </CardContent>
         </Card>
