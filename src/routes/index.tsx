@@ -5,6 +5,8 @@ import { getHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/se
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { z } from "zod";
 import { toast } from "sonner";
+import { db } from "@/firebase";
+import { collection, addDoc, getDocs } from "firebase/firestore";
 
 import { useAuth, AppRole } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -50,6 +52,65 @@ function Landing() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [settings, setSettings] = useState<HomepageSettings>(defaultSettings);
+  const [doctorsList, setDoctorsList] = useState<{ id: string; name: string }[]>([]);
+
+  const [enquiryForm, setEnquiryForm] = useState({
+    patient_name: "",
+    mobile: "",
+    age: "",
+    gender: "Male",
+    problem: "",
+    preferred_doctor: "",
+    priority: "Medium"
+  });
+  const [enquiryBusy, setEnquiryBusy] = useState(false);
+
+  const handleEnquirySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enquiryForm.patient_name.trim() || !enquiryForm.mobile.trim()) {
+      return toast.error("Please fill in patient name and mobile number");
+    }
+
+    setEnquiryBusy(true);
+    try {
+      const selectedDoc = doctorsList.find(d => d.id === enquiryForm.preferred_doctor);
+      const doctorNameStr = selectedDoc ? selectedDoc.name : "";
+
+      await addDoc(collection(db, "leads"), {
+        patient_name: enquiryForm.patient_name.trim(),
+        mobile: enquiryForm.mobile.trim(),
+        age: Number(enquiryForm.age) || 30,
+        gender: enquiryForm.gender,
+        problem: enquiryForm.problem.trim() || null,
+        preferred_doctor: enquiryForm.preferred_doctor || null,
+        preferred_doctor_name: doctorNameStr || null,
+        source: "Website",
+        priority: enquiryForm.priority,
+        assigned_nurse_id: null,
+        assigned_nurse_name: null,
+        status: "New Lead",
+        notes: "Generated from homepage enquiry form.",
+        followups: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      toast.success("Enquiry submitted successfully! Our team will contact you shortly.");
+      setEnquiryForm({
+        patient_name: "",
+        mobile: "",
+        age: "",
+        gender: "Male",
+        problem: "",
+        preferred_doctor: "",
+        priority: "Medium"
+      });
+    } catch (err: any) {
+      toast.error("Failed to submit enquiry: " + err.message);
+    } finally {
+      setEnquiryBusy(false);
+    }
+  };
 
   const heroImages = [
     "/hero_bg_doctor.png",
@@ -74,6 +135,30 @@ function Landing() {
     } catch (e) {
       console.error(e);
     }
+
+    const fetchDoctors = async () => {
+      try {
+        const rolesSnap = await getDocs(collection(db, "user_roles"));
+        const profilesSnap = await getDocs(collection(db, "profiles"));
+        
+        const rolesMap = new Map();
+        rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
+        
+        const dynamicDocs: {id: string, name: string}[] = [];
+        profilesSnap.forEach(d => {
+          const role = rolesMap.get(d.id);
+          const email = d.data().email || "";
+          if (role === "doctor" || role === "doctor1" || role === "doctor2") {
+            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
+            dynamicDocs.push({ id: d.id, name: d.data().full_name || "Doctor" });
+          }
+        });
+        setDoctorsList(dynamicDocs);
+      } catch (err) {
+        console.error("Error fetching doctors for homepage enquiry form", err);
+      }
+    };
+    fetchDoctors();
   }, []);
 
   return (
@@ -391,57 +476,156 @@ function Landing() {
                 <Mail className="w-3.5 h-3.5" /> Get in Touch
               </span>
               <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-slate-900 dark:text-white drop-shadow-sm">
-                Contact Information
+                Quick Enquiry & Contact Info
               </h2>
-              <p className="text-slate-600 dark:text-blue-100/70 text-base max-w-xl mx-auto font-medium">We're here for you 24/7. Reach out any time for appointments, queries, or emergencies.</p>
+              <p className="text-slate-600 dark:text-blue-100/70 text-base max-w-xl mx-auto font-medium">Fill out the form to request an appointment, or contact us directly using the details below.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Email */}
-              <div className="group p-8 rounded-3xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-2xl hover:shadow-blue-900/10 dark:hover:bg-white/15 dark:hover:border-blue-500/30 dark:hover:shadow-blue-950/50 hover:-translate-y-2 transition-all duration-500 text-center space-y-5 cursor-default relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-400 to-sky-400 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-sky-50/50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-sm">
-                  <Mail className="h-7 w-7 text-blue-600 dark:text-blue-300" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Email</div>
-                  <div className="font-semibold text-base text-slate-800 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">{settings.contactEmail}</div>
-                </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+              {/* Left Column: Quick Enquiry Form */}
+              <div className="lg:col-span-2 p-8 rounded-3xl border border-slate-200/80 bg-white/75 dark:border-white/10 dark:bg-slate-900/60 backdrop-blur-xl shadow-xl space-y-6">
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white font-serif flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <span>Online Appointment & Enquiry Form</span>
+                </h3>
+                <form onSubmit={handleEnquirySubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Patient Name</Label>
+                      <Input
+                        placeholder="Enter full name"
+                        value={enquiryForm.patient_name}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, patient_name: e.target.value })}
+                        className="h-10 rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Mobile Number</Label>
+                      <Input
+                        placeholder="Enter 10-digit mobile"
+                        value={enquiryForm.mobile}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, mobile: e.target.value })}
+                        className="h-10 rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Age</Label>
+                      <Input
+                        type="number"
+                        placeholder="Age"
+                        value={enquiryForm.age}
+                        onChange={(e) => setEnquiryForm({ ...enquiryForm, age: e.target.value })}
+                        className="h-10 rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gender</Label>
+                      <Select 
+                        value={enquiryForm.gender} 
+                        onValueChange={(val) => setEnquiryForm({ ...enquiryForm, gender: val })}
+                      >
+                        <SelectTrigger className="h-10 rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm">
+                          <SelectValue placeholder="Gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                      <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Preferred Doctor</Label>
+                      <Select 
+                        value={enquiryForm.preferred_doctor} 
+                        onValueChange={(val) => setEnquiryForm({ ...enquiryForm, preferred_doctor: val })}
+                      >
+                        <SelectTrigger className="h-10 rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm">
+                          <SelectValue placeholder="Select Doctor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {doctorsList.map((d) => (
+                            <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Patient Problem / Reason for Visit</Label>
+                    <Textarea
+                      placeholder="Briefly describe your health issue or complaints..."
+                      value={enquiryForm.problem}
+                      onChange={(e) => setEnquiryForm({ ...enquiryForm, problem: e.target.value })}
+                      rows={3}
+                      className="rounded-xl bg-background border-slate-200 dark:border-white/10 text-sm resize-none"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={enquiryBusy}
+                    className="w-full bg-[#1C3A8A] hover:bg-[#162d6e] dark:bg-[#0D7A70] dark:hover:bg-[#0c6b62] text-white font-bold rounded-xl h-11 transition-all flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    {enquiryBusy ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Submitting Enquiry...</>
+                    ) : (
+                      <><Send className="h-4 w-4" /> Submit Quick Enquiry</>
+                    )}
+                  </Button>
+                </form>
               </div>
 
-              {/* Phone */}
-              <div className="group p-8 rounded-3xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-2xl hover:shadow-blue-900/10 dark:hover:bg-white/15 dark:hover:border-blue-500/30 dark:hover:shadow-blue-950/50 hover:-translate-y-2 transition-all duration-500 text-center space-y-5 cursor-default relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-400 to-sky-400 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-sky-50/50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-sm">
-                  <Phone className="h-7 w-7 text-blue-600 dark:text-blue-300" />
+              {/* Right Column: Contact Cards in 2x2 grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Email */}
+                <div className="group p-6 rounded-2xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center space-y-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-sky-50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-115 group-hover:rotate-6 transition-transform duration-300">
+                    <Mail className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Email Address</div>
+                    <div className="font-semibold text-xs text-slate-800 dark:text-white leading-tight truncate">{settings.contactEmail}</div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Phone</div>
-                  <div className="font-semibold text-base text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">{settings.contactPhone}</div>
-                </div>
-              </div>
 
-              {/* Emergency */}
-              <div className="group p-8 rounded-3xl border border-red-200 bg-red-50/40 dark:border-red-500/20 dark:bg-red-950/20 backdrop-blur-xl hover:bg-red-50/90 hover:border-red-400 hover:shadow-2xl hover:shadow-red-900/10 dark:hover:bg-red-900/25 dark:hover:border-red-400/40 dark:hover:shadow-red-950/50 hover:-translate-y-2 transition-all duration-500 text-center space-y-5 cursor-default relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-red-500 to-rose-500 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-red-100 to-rose-50 border border-red-100 dark:from-red-500/30 dark:to-rose-600/10 dark:border-red-500/20 flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                  <HeartPulse className="h-7 w-7 text-red-600 dark:text-red-400 animate-heartbeat" />
+                {/* Phone */}
+                <div className="group p-6 rounded-2xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center space-y-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-sky-50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-115 group-hover:rotate-6 transition-transform duration-300">
+                    <Phone className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Phone Number</div>
+                    <div className="font-semibold text-xs text-slate-800 dark:text-white leading-tight truncate">{settings.contactPhone}</div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-red-600 dark:text-red-400/90 uppercase tracking-widest">24/7 Emergency</div>
-                  <div className="font-bold text-base text-red-700 dark:text-red-300 group-hover:text-red-600 dark:group-hover:text-red-200 transition-colors">Dial {settings.contactEmergency}</div>
-                </div>
-              </div>
 
-              {/* Address */}
-              <div className="group p-8 rounded-3xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-2xl hover:shadow-blue-900/10 dark:hover:bg-white/15 dark:hover:border-blue-500/30 dark:hover:shadow-blue-950/50 hover:-translate-y-2 transition-all duration-500 text-center space-y-5 cursor-default relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-400 to-sky-400 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
-                <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-100 to-sky-50/50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300 shadow-sm">
-                  <MapPin className="h-7 w-7 text-blue-600 dark:text-blue-300" />
+                {/* Emergency */}
+                <div className="group p-6 rounded-2xl border border-red-200 bg-red-50/40 dark:border-red-500/20 dark:bg-red-950/20 backdrop-blur-xl hover:bg-red-50/90 hover:border-red-400 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center space-y-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-red-100 to-rose-50 border border-red-100 dark:from-red-500/30 dark:to-rose-600/10 dark:border-red-500/20 flex items-center justify-center mx-auto group-hover:scale-115 transition-transform duration-300">
+                    <HeartPulse className="h-5 w-5 text-red-600 dark:text-red-400 animate-heartbeat" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-red-600 dark:text-red-400/90 uppercase tracking-widest">24/7 Emergency</div>
+                    <div className="font-bold text-xs text-red-700 dark:text-red-300 truncate">Dial {settings.contactEmergency}</div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <div className="text-xs font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Address</div>
-                  <div className="font-semibold text-sm text-slate-800 dark:text-white leading-relaxed group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">{settings.contactAddress}</div>
+
+                {/* Address */}
+                <div className="group p-6 rounded-2xl border border-slate-200/80 bg-white/60 dark:border-white/10 dark:bg-white/5 backdrop-blur-xl hover:bg-white hover:border-blue-400/50 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-center space-y-4">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-sky-50 border border-blue-100 dark:from-blue-500/20 dark:to-sky-600/10 dark:border-white/10 flex items-center justify-center mx-auto group-hover:scale-115 group-hover:rotate-6 transition-transform duration-300">
+                    <MapPin className="h-5 w-5 text-blue-600 dark:text-blue-300" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-bold text-blue-600 dark:text-blue-400/90 uppercase tracking-widest">Hospital Address</div>
+                    <div className="font-semibold text-[11px] text-slate-800 dark:text-white leading-normal truncate">{settings.contactAddress}</div>
+                  </div>
                 </div>
               </div>
             </div>

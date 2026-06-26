@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { db } from "@/firebase";
-import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc, deleteDoc, getDocs, addDoc, serverTimestamp, where } from "firebase/firestore";
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/components/RequireRole";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes } from "@/lib/case-utils";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
 import { generateInvoicePDF } from "@/lib/pdf";
 import { 
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
-  Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2
+  Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2,
+  Layers, MessageSquare, Edit3
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
@@ -44,8 +45,9 @@ function NursePage() {
   const currentNurseName = profileName || "Clinic Nurse";
   const initials = currentNurseName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase();
   const [cases, setCases] = useState<any[]>([]);
+  const [leads, setLeads] = useState<any[]>([]);
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "returned" | "billed" | "leads">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [doctorPick, setDoctorPick] = useState<Record<string, string>>({});
@@ -53,6 +55,17 @@ function NursePage() {
   
   const casesRef = useRef<any[]>([]);
   useEffect(() => { casesRef.current = cases; }, [cases]);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = fsQuery(collection(db, "leads"), where("assigned_nurse_id", "==", user.uid));
+    const unsubscribeLeads = onSnapshot(q, (snapshot) => {
+      setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.error("Failed to load nurse leads", err);
+    });
+    return () => unsubscribeLeads();
+  }, [user]);
 
   useEffect(() => {
     const q = fsQuery(collection(db, "case_papers"), orderBy("created_at", "desc"));
@@ -341,6 +354,16 @@ function NursePage() {
             onClick={() => { setActiveTab("billed"); setSidebarOpen(false); }}
             colorClass="text-violet-500"
           />
+
+          <SidebarNavItem 
+            icon={Layers} 
+            label="My Leads" 
+            count={leads.filter(l => !["Converted", "Closed"].includes(l.status)).length} 
+            active={activeTab === "leads"} 
+            onClick={() => { setActiveTab("leads"); setSidebarOpen(false); }}
+            colorClass="text-teal-500"
+            glow={leads.filter(l => l.status === "New Lead").length > 0}
+          />
         </div>
 
         <div className="mt-4">
@@ -433,108 +456,132 @@ function NursePage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                Nurse Station
+                {activeTab === "leads" ? "My Leads" : "Nurse Station"}
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {counts.pending > 0 
-                  ? `You have ${counts.pending} new patient visits waiting to be assigned.` 
-                  : "All patients are assigned to doctors. Great job!"}
+                {activeTab === "leads" 
+                  ? "Manage and follow up on patient leads assigned to you."
+                  : counts.pending > 0 
+                    ? `You have ${counts.pending} new patient visits waiting to be assigned.` 
+                    : "All patients are assigned to doctors. Great job!"}
               </p>
             </div>
-            <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm max-w-fit">
-              <TrendingUp className="h-4 w-4" />
-              <span>Today's Progress: {counts.billed} Billed</span>
-            </div>
+            {activeTab !== "leads" && (
+              <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm max-w-fit">
+                <TrendingUp className="h-4 w-4" />
+                <span>Today's Progress: {counts.billed} Billed</span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard label="Total Cases" value={counts.all} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" />
-            <StatCard label="New / Pending" value={counts.pending} icon={User} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={counts.pending > 0} />
-            <StatCard label="Returned" value={counts.returned} icon={Activity} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" pulse={counts.returned > 0} />
-            <StatCard label="Completed" value={counts.billed} icon={Receipt} color="from-violet-500/15 to-violet-500/5 text-violet-700 dark:text-violet-400" />
-          </div>
-
-          <div className="glass border dark:border-white/5 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
-            <div className="relative w-full sm:max-w-md">
-              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder="Search patient name or mobile..." 
-                className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary" 
-                value={query} 
-                onChange={(e) => setQuery(e.target.value)} 
-              />
-              {query && (
-                <button 
-                  onClick={() => setQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-medium"
-                >
-                  Clear
-                </button>
-              )}
+          {activeTab === "leads" ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard label="Total Assigned" value={leads.length} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" />
+              <StatCard label="Pending" value={leads.filter(l => !["Converted", "Closed"].includes(l.status)).length} icon={Clock} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={leads.filter(l => l.status === "New Lead").length > 0} />
+              <StatCard label="Converted" value={leads.filter(l => l.status === "Converted").length} icon={CheckCircle2} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" />
+              <StatCard label="Closed" value={leads.filter(l => l.status === "Closed").length} icon={X} color="from-slate-500/15 to-slate-500/5 text-slate-700 dark:text-slate-400" />
             </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
-              <div className="flex items-center gap-1.5 bg-background/40 border dark:border-white/5 rounded-xl px-2.5 py-1 text-xs text-muted-foreground">
-                <ArrowUpDown className="h-3.5 w-3.5" />
-                <span>Sort by:</span>
-                <select 
-                  className="bg-transparent border-0 font-medium text-foreground focus:ring-0 cursor-pointer pr-1"
-                  value={sortBy}
-                  onChange={(e: any) => setSortBy(e.target.value)}
-                >
-                  <option value="newest">Newest first</option>
-                  <option value="oldest">Oldest first</option>
-                  <option value="name">Patient name</option>
-                </select>
-              </div>
-
-              {(query || activeTab !== "all") && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => { setQuery(""); setActiveTab("all"); }}
-                  className="rounded-xl text-xs h-8 border-dashed"
-                >
-                  Reset
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {casesGroupedByDay.length === 0 ? (
-            <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
-                <ClipboardList className="h-6 w-6 opacity-70" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-foreground">No case papers found</h3>
-              </div>
-            </Card>
           ) : (
-            <div className="space-y-8">
-              {casesGroupedByDay.map(({ dateLabel, items }) => (
-                <div key={dateLabel} className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
-                      {dateLabel} ({items.length})
-                    </span>
-                    <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
-                    {items.map((c) => (
-                      <PatientCaseCard 
-                        key={c.id} 
-                        c={c} 
-                        doctorPick={doctorPick} 
-                        setDoctorPick={setDoctorPick} 
-                        sendToDoctor={sendToDoctor} 
-                        onDelete={deleteCase}
-                        doctorsList={doctorsList}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard label="Total Cases" value={counts.all} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" />
+              <StatCard label="New / Pending" value={counts.pending} icon={User} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={counts.pending > 0} />
+              <StatCard label="Returned" value={counts.returned} icon={Activity} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" pulse={counts.returned > 0} />
+              <StatCard label="Completed" value={counts.billed} icon={Receipt} color="from-violet-500/15 to-violet-500/5 text-violet-700 dark:text-violet-400" />
             </div>
+          )}
+
+          {activeTab === "leads" ? (
+            <MyLeadsSection 
+              leads={leads} 
+              doctorsList={doctorsList} 
+              user={user} 
+              profileName={currentNurseName} 
+            />
+          ) : (
+            <>
+              <div className="glass border dark:border-white/5 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
+                <div className="relative w-full sm:max-w-md">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input 
+                    placeholder="Search patient name or mobile..." 
+                    className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary" 
+                    value={query} 
+                    onChange={(e) => setQuery(e.target.value)} 
+                  />
+                  {query && (
+                    <button 
+                      onClick={() => setQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-medium"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                  <div className="flex items-center gap-1.5 bg-background/40 border dark:border-white/5 rounded-xl px-2.5 py-1 text-xs text-muted-foreground">
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    <span>Sort by:</span>
+                    <select 
+                      className="bg-transparent border-0 font-medium text-foreground focus:ring-0 cursor-pointer pr-1"
+                      value={sortBy}
+                      onChange={(e: any) => setSortBy(e.target.value)}
+                    >
+                      <option value="newest">Newest first</option>
+                      <option value="oldest">Oldest first</option>
+                      <option value="name">Patient name</option>
+                    </select>
+                  </div>
+
+                  {(query || activeTab !== "all") && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => { setQuery(""); setActiveTab("all"); }}
+                      className="rounded-xl text-xs h-8 border-dashed"
+                    >
+                      Reset
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {casesGroupedByDay.length === 0 ? (
+                <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
+                    <ClipboardList className="h-6 w-6 opacity-70" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-foreground">No case papers found</h3>
+                  </div>
+                </Card>
+              ) : (
+                <div className="space-y-8">
+                  {casesGroupedByDay.map(({ dateLabel, items }) => (
+                    <div key={dateLabel} className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
+                          {dateLabel} ({items.length})
+                        </span>
+                        <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
+                        {items.map((c) => (
+                          <PatientCaseCard 
+                            key={c.id} 
+                            c={c} 
+                            doctorPick={doctorPick} 
+                            setDoctorPick={setDoctorPick} 
+                            sendToDoctor={sendToDoctor} 
+                            onDelete={deleteCase}
+                            doctorsList={doctorsList}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -797,5 +844,463 @@ function BillingDialog({ caseRow }: { caseRow: any }) {
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+export function MyLeadsSection({ leads, doctorsList, user, profileName }: { leads: any[]; doctorsList: any[]; user: any; profileName: string }) {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [isActionOpen, setIsActionOpen] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [newFollowupText, setNewFollowupText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  // local state for editing within dialog
+  const [editStatus, setEditStatus] = useState("");
+  const [editDoctor, setEditDoctor] = useState("");
+  const [editDate, setEditDate] = useState("");
+
+  useEffect(() => {
+    if (selectedLead) {
+      setEditStatus(selectedLead.status || "New Lead");
+      setEditDoctor(selectedLead.preferred_doctor || "");
+      setEditDate(selectedLead.appointment_date || "");
+      setNewFollowupText("");
+    }
+  }, [selectedLead]);
+
+  const filteredLeads = useMemo(() => {
+    return leads.filter((l) => {
+      const patientName = l.patient_name || "";
+      const mobile = l.mobile || "";
+      const matchesSearch =
+        patientName.toLowerCase().includes(query.toLowerCase()) ||
+        mobile.includes(query);
+      const matchesStatus = statusFilter === "all" || l.status === statusFilter;
+      const matchesPriority = priorityFilter === "all" || l.priority === priorityFilter;
+      return matchesSearch && matchesStatus && matchesPriority;
+    });
+  }, [leads, query, statusFilter, priorityFilter]);
+
+  const priorityColor = (p: string) => {
+    switch (p) {
+      case "High": return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30";
+      case "Medium": return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30";
+      default: return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50";
+    }
+  };
+
+  const statusColorMap = (s: string) => {
+    switch (s) {
+      case "New Lead": return "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30";
+      case "Contacted": return "bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30";
+      case "Appointment Scheduled": return "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30";
+      case "Patient Visited": return "bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30";
+      case "Converted": return "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30";
+      default: return "bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50";
+    }
+  };
+
+  const handleUpdateLead = async () => {
+    if (!selectedLead) return;
+    setBusy(true);
+    try {
+      const selectedDocObj = doctorsList.find(d => d.id === editDoctor);
+      const docNameStr = selectedDocObj ? selectedDocObj.name : (doctorName[editDoctor as "doctor1" | "doctor2"] || "");
+
+      let followups = selectedLead.followups || [];
+      if (newFollowupText.trim()) {
+        followups = [
+          ...followups,
+          {
+            note: newFollowupText.trim(),
+            date: new Date().toISOString(),
+            nurse_name: profileName || "Nurse"
+          }
+        ];
+      }
+
+      const updateData: any = {
+        status: editStatus,
+        preferred_doctor: editDoctor,
+        preferred_doctor_name: docNameStr,
+        appointment_date: editDate,
+        followups,
+        updated_at: new Date().toISOString()
+      };
+
+      if (editStatus === "Converted" && selectedLead.status !== "Converted") {
+        const leadWithUpdates = { ...selectedLead, ...updateData };
+        await convertLeadToPatient(leadWithUpdates);
+        toast.success("Lead converted to patient profile successfully!");
+      } else {
+        await updateDoc(doc(db, "leads", selectedLead.id), updateData);
+        toast.success("Lead updated successfully!");
+      }
+
+      setIsActionOpen(false);
+      setSelectedLead(null);
+    } catch (err: any) {
+      toast.error("Failed to update lead: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleQuickConvert = async (lead: any) => {
+    setBusy(true);
+    const toastId = toast.loading("Converting lead to patient profile...");
+    try {
+      await convertLeadToPatient(lead);
+      toast.success("Lead converted to patient profile successfully!", { id: toastId });
+    } catch (err: any) {
+      toast.error("Conversion failed: " + err.message, { id: toastId });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleQuickMarkVisited = async (lead: any) => {
+    setBusy(true);
+    try {
+      await updateDoc(doc(db, "leads", lead.id), {
+        status: "Patient Visited",
+        updated_at: new Date().toISOString()
+      });
+      toast.success("Lead marked as Patient Visited!");
+    } catch (err: any) {
+      toast.error("Failed to update status: " + err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Controls */}
+      <div className="glass border dark:border-white/5 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-3 justify-between shadow-sm">
+        <div className="relative w-full sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search patient name or mobile..."
+            className="pl-10 pr-4 bg-background/50 border-slate-200/60 dark:border-white/5 rounded-xl h-10 w-full focus-visible:ring-primary focus-visible:border-primary"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground font-medium"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end text-xs">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 text-xs rounded-xl border-slate-200 dark:border-slate-800 bg-background/50 w-[140px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="New Lead">New Lead</SelectItem>
+              <SelectItem value="Contacted">Contacted</SelectItem>
+              <SelectItem value="Appointment Scheduled">Appointment Scheduled</SelectItem>
+              <SelectItem value="Patient Visited">Patient Visited</SelectItem>
+              <SelectItem value="Converted">Converted</SelectItem>
+              <SelectItem value="Closed">Closed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={priorityFilter} onValueChange={priorityFilter => setPriorityFilter(priorityFilter)}>
+            <SelectTrigger className="h-9 text-xs rounded-xl border-slate-200 dark:border-slate-800 bg-background/50 w-[120px]">
+              <SelectValue placeholder="All Priority" />
+            </SelectTrigger>
+            <SelectContent className="text-xs">
+              <SelectItem value="all">All Priority</SelectItem>
+              <SelectItem value="High">High</SelectItem>
+              <SelectItem value="Medium">Medium</SelectItem>
+              <SelectItem value="Low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(query || statusFilter !== "all" || priorityFilter !== "all") && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setQuery("");
+                setStatusFilter("all");
+                setPriorityFilter("all");
+              }}
+              className="rounded-xl text-xs h-8 border-dashed"
+            >
+              Reset
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Leads Grid */}
+      {filteredLeads.length === 0 ? (
+        <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
+            <Layers className="h-6 w-6 opacity-70" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-foreground">No leads found</h3>
+            <p className="text-xs text-muted-foreground mt-1">There are no leads assigned to you matching the criteria.</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
+          {filteredLeads.map((l) => {
+            const initials = l.patient_name ? l.patient_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "LD";
+            const dateStr = l.appointment_date 
+              ? new Date(l.appointment_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+              : "Unscheduled";
+
+            return (
+              <Card 
+                key={l.id} 
+                className={`glass border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col h-full border-l-4 ${
+                  l.status === "New Lead" ? "border-blue-500 bg-blue-500/[0.01]" : 
+                  l.status === "Converted" ? "border-emerald-500 bg-emerald-500/[0.01]" : 
+                  "border-slate-200 dark:border-slate-800"
+                }`}
+              >
+                <CardContent className="p-5 flex flex-col gap-4 flex-grow">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs grid place-items-center">
+                        {initials}
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm text-foreground uppercase tracking-wide leading-tight">{l.patient_name}</h3>
+                        <div className="text-[10px] text-muted-foreground mt-0.5 font-medium flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" />
+                          <span>Assigned: {l.created_at ? new Date(l.created_at).toLocaleDateString("en-IN") : "Just now"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Badge className={`${statusColorMap(l.status)} text-[10px] font-semibold border`} variant="outline">
+                        {l.status}
+                      </Badge>
+                      <Badge className={`${priorityColor(l.priority)} text-[10px] font-semibold border`} variant="outline">
+                        {l.priority}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Mobile Contact</span>
+                      <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1 truncate">
+                        <Phone className="h-3 w-3 text-muted-foreground" />
+                        <span>{l.mobile || "—"}</span>
+                      </span>
+                    </div>
+                    <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Age / Gender</span>
+                      <span className="font-semibold text-foreground mt-0.5 truncate">{l.age} Y / {l.gender}</span>
+                    </div>
+                    <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Preferred Doctor</span>
+                      <span className="font-semibold text-foreground mt-0.5 truncate">{l.preferred_doctor_name || "Any Doctor"}</span>
+                    </div>
+                    <div className="bg-muted/30 border border-muted/50 rounded-xl px-3 py-2 flex flex-col">
+                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground">Appt Date</span>
+                      <span className="font-semibold text-foreground mt-0.5 flex items-center gap-1 truncate">
+                        <Calendar className="h-3 w-3 text-muted-foreground" />
+                        <span>{dateStr}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {l.problem && (
+                    <div className="border border-slate-100 dark:border-white/5 rounded-xl p-3 bg-muted/10">
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-primary block mb-1">
+                        Reason for Visit / Problem:
+                      </span>
+                      <p className="text-xs text-muted-foreground leading-relaxed italic">
+                        {l.problem}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Followups timeline if present */}
+                  {l.followups && l.followups.length > 0 && (
+                    <div className="border border-slate-100 dark:border-white/5 rounded-xl p-3 bg-muted/5">
+                      <span className="text-[9px] uppercase tracking-wider font-bold text-slate-500 block mb-1">
+                        Latest Follow-up:
+                      </span>
+                      <p className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                        "{l.followups[l.followups.length - 1].note}"
+                      </p>
+                      <span className="text-[9px] text-muted-foreground mt-0.5 block">
+                        — By {l.followups[l.followups.length - 1].nurse_name} on {new Date(l.followups[l.followups.length - 1].date).toLocaleDateString("en-IN")}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-auto pt-2 flex items-center justify-between gap-2 border-t dark:border-white/5">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => { setSelectedLead(l); setIsActionOpen(true); }}
+                      className="rounded-xl flex-1 text-xs h-9 bg-background hover:bg-muted"
+                    >
+                      <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Action / Notes
+                    </Button>
+
+                    {l.status !== "Converted" && l.status !== "Closed" && (
+                      <div className="flex gap-2">
+                        {l.status !== "Patient Visited" && (
+                          <Button 
+                            size="sm" 
+                            variant="secondary"
+                            onClick={() => handleQuickMarkVisited(l)}
+                            disabled={busy}
+                            className="rounded-xl text-xs h-9"
+                          >
+                            Mark Visited
+                          </Button>
+                        )}
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleQuickConvert(l)}
+                          disabled={busy}
+                          className="rounded-xl text-xs h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                        >
+                          Convert
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Action / Notes Dialog */}
+      <Dialog open={isActionOpen} onOpenChange={(open) => { setIsActionOpen(open); if(!open) setSelectedLead(null); }}>
+        <DialogContent className="sm:max-w-[550px] rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle>Lead Follow-up & Actions</DialogTitle>
+            <DialogDescription>Update lead details, add timeline comments, or convert to a patient.</DialogDescription>
+          </DialogHeader>
+
+          {selectedLead && (
+            <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-3 text-xs bg-muted/20 border rounded-2xl p-3.5">
+                <div>
+                  <span className="text-[10px] text-muted-foreground block uppercase font-medium">Patient Name</span>
+                  <span className="font-bold text-sm text-foreground">{selectedLead.patient_name}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-muted-foreground block uppercase font-medium">Mobile Contact</span>
+                  <span className="font-bold text-sm text-foreground">{selectedLead.mobile}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-[10px] text-muted-foreground block uppercase font-medium">Age & Gender</span>
+                  <span className="font-semibold text-foreground">{selectedLead.age} Y / {selectedLead.gender}</span>
+                </div>
+                <div className="mt-2">
+                  <span className="text-[10px] text-muted-foreground block uppercase font-medium">Source & Priority</span>
+                  <span className="font-semibold text-foreground">{selectedLead.source} ({selectedLead.priority})</span>
+                </div>
+              </div>
+
+              {/* Status Update */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Lead Status</Label>
+                  <Select value={editStatus} onValueChange={setEditStatus}>
+                    <SelectTrigger className="h-9 text-xs rounded-xl mt-1.5 bg-background">
+                      <SelectValue placeholder="Select Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="New Lead">New Lead</SelectItem>
+                      <SelectItem value="Contacted">Contacted</SelectItem>
+                      <SelectItem value="Appointment Scheduled">Appointment Scheduled</SelectItem>
+                      <SelectItem value="Patient Visited">Patient Visited</SelectItem>
+                      <SelectItem value="Converted">Converted</SelectItem>
+                      <SelectItem value="Closed">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs">Preferred Doctor</Label>
+                  <Select value={editDoctor} onValueChange={setEditDoctor}>
+                    <SelectTrigger className="h-9 text-xs rounded-xl mt-1.5 bg-background">
+                      <SelectValue placeholder="Any Doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctorsList.map((doc: any) => (
+                        <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Appt Date */}
+              <div>
+                <Label className="text-xs">Appointment Date</Label>
+                <Input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="h-9 text-xs rounded-xl mt-1.5 bg-background"
+                />
+              </div>
+
+              {/* Followups History */}
+              {selectedLead.followups && selectedLead.followups.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Follow-up Timeline</Label>
+                  <div className="max-h-[120px] overflow-y-auto border rounded-xl p-3 bg-muted/20 space-y-3.5">
+                    {selectedLead.followups.map((f: any, idx: number) => (
+                      <div key={idx} className="text-xs border-b dark:border-white/5 last:border-0 pb-2 last:pb-0">
+                        <div className="flex justify-between text-[10px] text-muted-foreground font-medium mb-1">
+                          <span>{f.nurse_name}</span>
+                          <span>{new Date(f.date).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                        </div>
+                        <p className="text-slate-800 dark:text-slate-200 leading-normal font-medium">"{f.note}"</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Add Followup Text */}
+              <div>
+                <Label className="text-xs">Add Follow-up Remark / Note</Label>
+                <Textarea
+                  placeholder="Enter patient response, follow-up status, or notes..."
+                  value={newFollowupText}
+                  onChange={(e) => setNewFollowupText(e.target.value)}
+                  rows={2}
+                  className="text-xs mt-1.5 rounded-xl resize-none"
+                />
+              </div>
+
+              <Button
+                onClick={handleUpdateLead}
+                disabled={busy}
+                className="w-full rounded-xl h-11 bg-primary text-white font-semibold shadow-md mt-2"
+              >
+                {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <span>{editStatus === "Converted" ? "Convert & Save Lead" : "Save Changes"}</span>
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

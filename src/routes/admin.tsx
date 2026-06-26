@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { db, firebaseConfig } from "@/firebase";
-import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc, setDoc } from "firebase/firestore";
+import { collection, query as fsQuery, orderBy, onSnapshot, doc, updateDoc, setDoc, where, addDoc, getDocs, deleteDoc } from "firebase/firestore";
 import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { AppShell } from "@/components/AppShell";
@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getHomepageSettings, saveHomepageSettings, HomepageSettings, ServiceItem } from "@/lib/settings";
 import { generateInvoicePDF } from "@/lib/pdf";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes } from "@/lib/case-utils";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
 import * as Lucide from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -69,7 +69,8 @@ import {
   Calendar,
   Layers,
   FileSpreadsheet,
-  Coins
+  Coins,
+  Clock
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
@@ -149,6 +150,7 @@ function AdminPage() {
     { value: "invoice", label: "Invoices & Billing", icon: Receipt },
     { value: "qrcode", label: "QR Check-In", icon: QrCode },
     { value: "staff", label: "Manage Staff", icon: Users },
+    { value: "leads", label: "Lead Management", icon: Layers },
   ];
 
   return (
@@ -345,6 +347,9 @@ function AdminPage() {
             </TabsContent>
             <TabsContent value="staff" className="outline-none mt-0">
               <StaffSection />
+            </TabsContent>
+            <TabsContent value="leads" className="outline-none mt-0">
+              <LeadsSection />
             </TabsContent>
           </Tabs>
         </main>
@@ -1348,3 +1353,937 @@ function StaffSection() {
     </Card>
   );
 }
+
+/* ========================================================
+   11. LEAD MANAGEMENT SECTION
+   ======================================================== */
+export function LeadsSection() {
+  const [leads, setLeads] = useState<any[]>([]);
+  const [nurses, setNurses] = useState<{ id: string; name: string }[]>([]);
+  const [doctors, setDoctors] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [nurseFilter, setNurseFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<any>(null);
+  const [newFollowupText, setNewFollowupText] = useState("");
+
+  const [form, setForm] = useState({
+    patient_name: "",
+    mobile: "",
+    age: "",
+    gender: "Male",
+    problem: "",
+    preferred_doctor: "",
+    appointment_date: "",
+    source: "Website",
+    priority: "Medium",
+    assigned_nurse_id: "",
+    notes: ""
+  });
+
+  const [busy, setBusy] = useState(false);
+
+  const resetForm = () => {
+    setForm({
+      patient_name: "",
+      mobile: "",
+      age: "",
+      gender: "Male",
+      problem: "",
+      preferred_doctor: "",
+      appointment_date: "",
+      source: "Website",
+      priority: "Medium",
+      assigned_nurse_id: "",
+      notes: ""
+    });
+    setNewFollowupText("");
+  };
+
+  useEffect(() => {
+    const q = fsQuery(collection(db, "leads"), orderBy("created_at", "desc"));
+    const unsubscribeLeads = onSnapshot(q, (snapshot) => {
+      setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (err) => {
+      toast.error("Failed to load leads: " + err.message);
+      setLoading(false);
+    });
+
+    const fetchStaff = async () => {
+      try {
+        const rolesSnap = await getDocs(collection(db, "user_roles"));
+        const profilesSnap = await getDocs(collection(db, "profiles"));
+        
+        const rolesMap = new Map();
+        rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
+        
+        const nursesList: { id: string; name: string }[] = [];
+        const doctorsList: { id: string; name: string }[] = [
+          { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+          { id: "doctor2", name: "Dr. Omprasad Jagtap" }
+        ];
+        
+        profilesSnap.forEach(d => {
+          const roleVal = rolesMap.get(d.id);
+          const email = d.data().email || "";
+          
+          if (roleVal === "nurse") {
+            nursesList.push({ id: d.id, name: d.data().full_name });
+          } else if (roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") {
+            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
+            doctorsList.push({ id: d.id, name: d.data().full_name });
+          }
+        });
+        
+        const uniqueDocs: { id: string; name: string }[] = [];
+        doctorsList.forEach(item => {
+          if (!uniqueDocs.find(x => x.id === item.id)) {
+            uniqueDocs.push(item);
+          }
+        });
+        
+        setNurses(nursesList);
+        setDoctors(uniqueDocs);
+      } catch (err) {
+        console.error("Error loading staff", err);
+      }
+    };
+    
+    fetchStaff();
+    return () => unsubscribeLeads();
+  }, []);
+
+  const stats = useMemo(() => {
+    const total = leads.length;
+    const pending = leads.filter(l => !["Converted", "Closed"].includes(l.status)).length;
+    const converted = leads.filter(l => l.status === "Converted").length;
+    const closed = leads.filter(l => l.status === "Closed").length;
+    
+    const nurseMap: Record<string, number> = {};
+    leads.forEach(l => {
+      if (l.assigned_nurse_name) {
+        nurseMap[l.assigned_nurse_name] = (nurseMap[l.assigned_nurse_name] || 0) + 1;
+      } else {
+        nurseMap["Unassigned"] = (nurseMap["Unassigned"] || 0) + 1;
+      }
+    });
+    
+    return { total, pending, converted, closed, nurseCounts: Object.entries(nurseMap) };
+  }, [leads]);
+
+  const filteredLeads = useMemo(() => {
+    return leads.filter(l => {
+      const matchQuery = !query.trim() ||
+        (l.patient_name || "").toLowerCase().includes(query.toLowerCase()) ||
+        (l.mobile || "").includes(query);
+      const matchStatus = statusFilter === "all" || l.status === statusFilter;
+      const matchPriority = priorityFilter === "all" || l.priority === priorityFilter;
+      const matchSource = sourceFilter === "all" || l.source === sourceFilter;
+      const matchNurse = nurseFilter === "all" || l.assigned_nurse_id === nurseFilter;
+      
+      return matchQuery && matchStatus && matchPriority && matchSource && matchNurse;
+    });
+  }, [leads, query, statusFilter, priorityFilter, sourceFilter, nurseFilter]);
+
+  const handleCreateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.patient_name.trim() || !form.mobile.trim() || !form.age.trim() || !form.problem.trim()) {
+      return toast.error("Please fill all required fields");
+    }
+    
+    setBusy(true);
+    try {
+      const nurseObj = nurses.find(n => n.id === form.assigned_nurse_id);
+      const docObj = doctors.find(d => d.id === form.preferred_doctor);
+      
+      await addDoc(collection(db, "leads"), {
+        patient_name: form.patient_name.trim(),
+        mobile: form.mobile.trim(),
+        age: Number(form.age),
+        gender: form.gender,
+        problem: form.problem.trim(),
+        preferred_doctor: form.preferred_doctor || null,
+        preferred_doctor_name: docObj ? docObj.name : null,
+        appointment_date: form.appointment_date || null,
+        source: form.source,
+        priority: form.priority,
+        assigned_nurse_id: form.assigned_nurse_id || null,
+        assigned_nurse_name: nurseObj ? nurseObj.name : null,
+        status: "New Lead",
+        notes: form.notes.trim() || null,
+        followups: [],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+      
+      toast.success("Lead created successfully");
+      setIsCreateOpen(false);
+      resetForm();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create lead");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openEditDialog = (lead: any) => {
+    setEditingLead(lead);
+    setForm({
+      patient_name: lead.patient_name || "",
+      mobile: lead.mobile || "",
+      age: String(lead.age || ""),
+      gender: lead.gender || "Male",
+      problem: lead.problem || "",
+      preferred_doctor: lead.preferred_doctor || "",
+      appointment_date: lead.appointment_date || "",
+      source: lead.source || "Website",
+      priority: lead.priority || "Medium",
+      assigned_nurse_id: lead.assigned_nurse_id || "",
+      notes: lead.notes || ""
+    });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLead) return;
+    
+    if (!form.patient_name.trim() || !form.mobile.trim() || !form.age.trim() || !form.problem.trim()) {
+      return toast.error("Please fill all required fields");
+    }
+    
+    setBusy(true);
+    try {
+      const nurseObj = nurses.find(n => n.id === form.assigned_nurse_id);
+      const docObj = doctors.find(d => d.id === form.preferred_doctor);
+      
+      await updateDoc(doc(db, "leads", editingLead.id), {
+        patient_name: form.patient_name.trim(),
+        mobile: form.mobile.trim(),
+        age: Number(form.age),
+        gender: form.gender,
+        problem: form.problem.trim(),
+        preferred_doctor: form.preferred_doctor || null,
+        preferred_doctor_name: docObj ? docObj.name : null,
+        appointment_date: form.appointment_date || null,
+        source: form.source,
+        priority: form.priority,
+        assigned_nurse_id: form.assigned_nurse_id || null,
+        assigned_nurse_name: nurseObj ? nurseObj.name : null,
+        notes: form.notes.trim() || null,
+        updated_at: new Date().toISOString()
+      });
+      
+      toast.success("Lead updated successfully");
+      setIsEditOpen(false);
+      setEditingLead(null);
+      resetForm();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update lead");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleQuickStatusChange = async (leadId: string, currentLead: any, newStatus: string) => {
+    try {
+      if (newStatus === "Converted") {
+        setBusy(true);
+        await convertLeadToPatient(currentLead);
+        toast.success("Lead converted to patient successfully!");
+        setBusy(false);
+        return;
+      }
+      
+      await updateDoc(doc(db, "leads", leadId), {
+        status: newStatus,
+        updated_at: new Date().toISOString()
+      });
+      toast.success(`Status updated to ${newStatus}`);
+    } catch (err: any) {
+      toast.error("Failed to update status: " + err.message);
+      setBusy(false);
+    }
+  };
+
+  const handleAddFollowup = async () => {
+    if (!newFollowupText.trim() || !editingLead) return;
+    try {
+      const followupEntry = {
+        note: newFollowupText.trim(),
+        date: new Date().toISOString(),
+        nurse_name: "Admin Office"
+      };
+      const updatedFollowups = [...(editingLead.followups || []), followupEntry];
+      
+      await updateDoc(doc(db, "leads", editingLead.id), {
+        followups: updatedFollowups,
+        updated_at: new Date().toISOString()
+      });
+      
+      setEditingLead({ ...editingLead, followups: updatedFollowups });
+      setNewFollowupText("");
+      toast.success("Follow-up note added");
+    } catch (err: any) {
+      toast.error("Failed to add follow-up: " + err.message);
+    }
+  };
+
+  const handleDeleteLead = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this lead?")) return;
+    try {
+      await deleteDoc(doc(db, "leads", id));
+      toast.success("Lead deleted successfully");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete lead");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="h-9 w-9 animate-spin text-teal-600" />
+        <p className="text-sm text-muted-foreground font-medium">Gathering lead records...</p>
+      </div>
+    );
+  }
+
+  const priorityColor = (p: string) => {
+    switch (p) {
+      case "High": return "bg-red-100 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30";
+      case "Medium": return "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30";
+      default: return "bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50";
+    }
+  };
+
+  const statusColorMap = (s: string) => {
+    switch (s) {
+      case "New Lead": return "bg-blue-50 text-blue-700 border-blue-100 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-900/30";
+      case "Contacted": return "bg-indigo-50 text-indigo-700 border-indigo-100 dark:bg-indigo-950/20 dark:text-indigo-400 dark:border-indigo-900/30";
+      case "Appointment Scheduled": return "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30";
+      case "Patient Visited": return "bg-cyan-50 text-cyan-700 border-cyan-100 dark:bg-cyan-950/20 dark:text-cyan-400 dark:border-cyan-900/30";
+      case "Converted": return "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30";
+      default: return "bg-slate-50 text-slate-700 border-slate-100 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/50";
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Title Header */}
+      <div className="flex justify-between items-center border-b pb-4 border-slate-200 dark:border-slate-800">
+        <div>
+          <h2 className="text-2xl font-serif text-slate-800 dark:text-white font-normal">Lead Management</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Track, assign, and convert incoming patient leads.</p>
+        </div>
+        <Button 
+          onClick={() => { resetForm(); setIsCreateOpen(true); }}
+          className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-semibold rounded-xl h-10 px-4"
+        >
+          <Plus className="h-4 w-4 mr-1.5" />
+          <span>Add Lead</span>
+        </Button>
+      </div>
+
+      {/* Analytics Summary */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground font-semibold uppercase">Total Leads</span>
+              <div className="text-2xl font-bold mt-1">{stats.total}</div>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+              <Users className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground font-semibold uppercase">Pending Leads</span>
+              <div className="text-2xl font-bold mt-1 text-amber-600">{stats.pending}</div>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+              <Clock className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground font-semibold uppercase">Converted Patients</span>
+              <div className="text-2xl font-bold mt-1 text-emerald-600">{stats.converted}</div>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <span className="text-xs text-muted-foreground font-semibold uppercase">Closed Leads</span>
+              <div className="text-2xl font-bold mt-1 text-slate-500">{stats.closed}</div>
+            </div>
+            <div className="h-10 w-10 rounded-xl bg-slate-500/10 text-slate-500 flex items-center justify-center">
+              <Trash2 className="h-5 w-5" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Panel grid: Leads table and Nurse-wise tracking */}
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-4">
+        {/* Left Side: Table & Filters */}
+        <div className="xl:col-span-3 space-y-4">
+          <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-5">
+            {/* Table Filters */}
+            <div className="grid gap-3 grid-cols-2 md:grid-cols-5 mb-5">
+              <div className="col-span-2 md:col-span-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input 
+                  placeholder="Search name/mobile..." 
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="pl-9 h-9 text-xs rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20"
+                />
+              </div>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-9 text-xs rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="New Lead">New Lead</SelectItem>
+                  <SelectItem value="Contacted">Contacted</SelectItem>
+                  <SelectItem value="Appointment Scheduled">Appointment Scheduled</SelectItem>
+                  <SelectItem value="Patient Visited">Patient Visited</SelectItem>
+                  <SelectItem value="Converted">Converted</SelectItem>
+                  <SelectItem value="Closed">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="h-9 text-xs rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20">
+                  <SelectValue placeholder="All Priority" />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="all">All Priority</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="h-9 text-xs rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20">
+                  <SelectValue placeholder="All Sources" />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="Website">Website</SelectItem>
+                  <SelectItem value="QR">QR</SelectItem>
+                  <SelectItem value="Walk-in">Walk-in</SelectItem>
+                  <SelectItem value="Call">Call</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={nurseFilter} onValueChange={setNurseFilter}>
+                <SelectTrigger className="h-9 text-xs rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20">
+                  <SelectValue placeholder="All Nurses" />
+                </SelectTrigger>
+                <SelectContent className="text-xs">
+                  <SelectItem value="all">All Nurses</SelectItem>
+                  {nurses.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Leads list table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-400">
+                    <th className="pb-3 pr-2">Patient Details</th>
+                    <th className="pb-3 px-2">Problem / Source</th>
+                    <th className="pb-3 px-2">Doctor & Appt</th>
+                    <th className="pb-3 px-2">Nurse</th>
+                    <th className="pb-3 px-2">Status</th>
+                    <th className="pb-3 pl-2 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs text-slate-700 dark:text-slate-300">
+                  {filteredLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="text-center py-10 text-slate-400">
+                        No lead records match your search filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLeads.map((l) => (
+                      <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 transition-colors">
+                        <td className="py-3.5 pr-2">
+                          <div className="font-semibold text-slate-800 dark:text-white flex items-center gap-1.5">
+                            <span>{l.patient_name}</span>
+                            <Badge className={`text-[9px] px-1 py-0.5 rounded ${priorityColor(l.priority)}`}>
+                              {l.priority}
+                            </Badge>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.mobile}</span>
+                            <span>• {l.age} Yrs ({l.gender})</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-2">
+                          <div className="max-w-[150px] truncate text-slate-800 dark:text-slate-200">{l.problem || "—"}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">Source: {l.source}</div>
+                        </td>
+                        <td className="py-3.5 px-2">
+                          <div className="font-medium text-slate-800 dark:text-slate-200">{l.preferred_doctor_name || "Any Doctor"}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                            <Calendar className="h-3 w-3 text-slate-400" />
+                            <span>{l.appointment_date ? new Date(l.appointment_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Unscheduled"}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-2 font-medium text-slate-600 dark:text-slate-400">
+                          {l.assigned_nurse_name || <span className="text-amber-500 font-semibold italic text-[10px]">Unassigned</span>}
+                        </td>
+                        <td className="py-3.5 px-2">
+                          <Select 
+                            value={l.status} 
+                            disabled={busy || l.status === "Converted"}
+                            onValueChange={(val) => handleQuickStatusChange(l.id, l, val)}
+                          >
+                            <SelectTrigger className={`h-7 w-36 px-2 py-0.5 border text-[10px] font-bold rounded-lg ${statusColorMap(l.status)}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="text-[10px]">
+                              <SelectItem value="New Lead">New Lead</SelectItem>
+                              <SelectItem value="Contacted">Contacted</SelectItem>
+                              <SelectItem value="Appointment Scheduled">Appointment Scheduled</SelectItem>
+                              <SelectItem value="Patient Visited">Patient Visited</SelectItem>
+                              <SelectItem value="Converted">Converted</SelectItem>
+                              <SelectItem value="Closed">Closed</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="py-3.5 pl-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => openEditDialog(l)}
+                              className="rounded-lg h-7 w-7 text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                            >
+                              <Lucide.Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => handleDeleteLead(l.id)}
+                              className="rounded-lg h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+
+        {/* Right Side: Nurse tracking */}
+        <div className="xl:col-span-1 space-y-6">
+          <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-5">
+            <CardHeader className="p-0 pb-3 border-b mb-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Users className="h-4.5 w-4.5 text-[#0D7A70]" />
+                <span>Nurse Assignment Metrics</span>
+              </CardTitle>
+              <CardDescription className="text-[10px]">Active lead tracking per nurse console</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {stats.nurseCounts.map(([nurse, count]) => (
+                  <div key={nurse} className="flex justify-between items-center py-2.5">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{nurse}</span>
+                    <Badge variant="outline" className="bg-slate-50 border-slate-200 text-slate-700 px-2 py-0.5 font-bold font-mono text-[10px]">
+                      {count} {count === 1 ? "lead" : "leads"}
+                    </Badge>
+                  </div>
+                ))}
+                {stats.nurseCounts.length === 0 && (
+                  <div className="text-center py-4 text-slate-400 text-xs italic">
+                    No active assignments.
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* CREATE LEAD DIALOG */}
+      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <DialogContent className="sm:max-w-lg rounded-[1.5rem] bg-white dark:bg-slate-950">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-[#0D7A70] dark:text-teal-400 text-lg">Create New Patient Lead</DialogTitle>
+            <DialogDescription className="text-xs">Register a new prospective patient lead from calls, web entries, or walk-ins.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateLead} className="space-y-4 pt-3 text-xs">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5 col-span-2">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Patient Full Name *</Label>
+                <Input 
+                  placeholder="Enter full name" 
+                  value={form.patient_name} 
+                  onChange={(e) => setForm({ ...form, patient_name: e.target.value })} 
+                  required 
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                />
+              </div>
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Mobile Number *</Label>
+                <Input 
+                  placeholder="Enter phone number" 
+                  value={form.mobile} 
+                  onChange={(e) => setForm({ ...form, mobile: e.target.value })} 
+                  required 
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                />
+              </div>
+              <div className="space-y-1.5 col-span-1 sm:col-span-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Age *</Label>
+                    <Input 
+                      type="number" 
+                      placeholder="Age" 
+                      value={form.age} 
+                      onChange={(e) => setForm({ ...form, age: e.target.value })} 
+                      required 
+                      className="rounded-xl border-slate-200 dark:border-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Gender</Label>
+                    <Select value={form.gender} onValueChange={(val) => setForm({ ...form, gender: val })}>
+                      <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-1.5 col-span-2">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Problem / Reason for Visit *</Label>
+                <Textarea 
+                  placeholder="e.g. Hair fall, Joint Pain, Regular Checkup..." 
+                  value={form.problem} 
+                  onChange={(e) => setForm({ ...form, problem: e.target.value })} 
+                  required 
+                  rows={2}
+                  className="rounded-xl border-slate-200 dark:border-slate-800 resize-none"
+                />
+              </div>
+
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Preferred Doctor</Label>
+                <Select value={form.preferred_doctor} onValueChange={(val) => setForm({ ...form, preferred_doctor: val })}>
+                  <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                    <SelectValue placeholder="Select Doctor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {doctors.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 col-span-2 sm:col-span-1">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Preferred Appointment Date</Label>
+                <Input 
+                  type="date" 
+                  value={form.appointment_date} 
+                  onChange={(e) => setForm({ ...form, appointment_date: e.target.value })} 
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                />
+              </div>
+
+              <div className="space-y-1.5 col-span-1">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Lead Source</Label>
+                <Select value={form.source} onValueChange={(val) => setForm({ ...form, source: val })}>
+                  <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Website">Website</SelectItem>
+                    <SelectItem value="QR">QR</SelectItem>
+                    <SelectItem value="Walk-in">Walk-in</SelectItem>
+                    <SelectItem value="Call">Call</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 col-span-1">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Priority</Label>
+                <Select value={form.priority} onValueChange={(val) => setForm({ ...form, priority: val })}>
+                  <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Medium">Medium</SelectItem>
+                    <SelectItem value="Low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 col-span-2">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Assign Nurse *</Label>
+                <Select value={form.assigned_nurse_id} onValueChange={(val) => setForm({ ...form, assigned_nurse_id: val })}>
+                  <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                    <SelectValue placeholder="Assign a nurse to manage lead..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nurses.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 col-span-2">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Initial Remarks / Notes</Label>
+                <Textarea 
+                  placeholder="Any additional instructions or remarks..." 
+                  value={form.notes} 
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })} 
+                  rows={2}
+                  className="rounded-xl border-slate-200 dark:border-slate-800 resize-none"
+                />
+              </div>
+            </div>
+
+            <Button type="submit" disabled={busy} className="w-full bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold h-11 rounded-xl shadow-md mt-4">
+              {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Lead"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* EDIT / FOLLOW-UP LEAD DIALOG */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="sm:max-w-2xl rounded-[1.5rem] bg-white dark:bg-slate-950 overflow-y-auto max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-[#0D7A70] dark:text-teal-400 text-lg">Edit Lead Details & Follow-Ups</DialogTitle>
+            <DialogDescription className="text-xs">Update patient lead properties and record nursing follow-ups.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 md:grid-cols-2 pt-3 text-xs">
+            {/* Left Column: Properties Form */}
+            <form onSubmit={handleUpdateLead} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Patient Full Name *</Label>
+                <Input 
+                  value={form.patient_name} 
+                  onChange={(e) => setForm({ ...form, patient_name: e.target.value })} 
+                  required 
+                  className="rounded-xl border-slate-200 dark:border-slate-800"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Mobile Number *</Label>
+                  <Input 
+                    value={form.mobile} 
+                    onChange={(e) => setForm({ ...form, mobile: e.target.value })} 
+                    required 
+                    className="rounded-xl border-slate-200 dark:border-slate-800"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-1.5">
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Age *</Label>
+                    <Input 
+                      type="number" 
+                      value={form.age} 
+                      onChange={(e) => setForm({ ...form, age: e.target.value })} 
+                      required 
+                      className="rounded-xl border-slate-200 dark:border-slate-800"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="font-semibold text-slate-700 dark:text-slate-300">Gender</Label>
+                    <Select value={form.gender} onValueChange={(val) => setForm({ ...form, gender: val })}>
+                      <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Problem / Reason for Visit *</Label>
+                <Textarea 
+                  value={form.problem} 
+                  onChange={(e) => setForm({ ...form, problem: e.target.value })} 
+                  required 
+                  rows={2}
+                  className="rounded-xl border-slate-200 dark:border-slate-800 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Preferred Doctor</Label>
+                  <Select value={form.preferred_doctor} onValueChange={(val) => setForm({ ...form, preferred_doctor: val })}>
+                    <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                      <SelectValue placeholder="Select Doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctors.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Appointment Date</Label>
+                  <Input 
+                    type="date" 
+                    value={form.appointment_date} 
+                    onChange={(e) => setForm({ ...form, appointment_date: e.target.value })} 
+                    className="rounded-xl border-slate-200 dark:border-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Lead Source</Label>
+                  <Select value={form.source} onValueChange={(val) => setForm({ ...form, source: val })}>
+                    <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Website">Website</SelectItem>
+                      <SelectItem value="QR">QR</SelectItem>
+                      <SelectItem value="Walk-in">Walk-in</SelectItem>
+                      <SelectItem value="Call">Call</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Priority</Label>
+                  <Select value={form.priority} onValueChange={(val) => setForm({ ...form, priority: val })}>
+                    <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="High">High</SelectItem>
+                      <SelectItem value="Medium">Medium</SelectItem>
+                      <SelectItem value="Low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Assign Nurse *</Label>
+                <Select value={form.assigned_nurse_id} onValueChange={(val) => setForm({ ...form, assigned_nurse_id: val })}>
+                  <SelectTrigger className="rounded-xl border-slate-200 dark:border-slate-800">
+                    <SelectValue placeholder="Assign a nurse..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {nurses.map(n => <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-slate-700 dark:text-slate-300">Notes / Remarks</Label>
+                <Textarea 
+                  value={form.notes} 
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })} 
+                  rows={2}
+                  className="rounded-xl border-slate-200 dark:border-slate-800 resize-none"
+                />
+              </div>
+
+              <Button type="submit" disabled={busy} className="w-full bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold h-10 rounded-xl shadow-md mt-2">
+                {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</> : "Update Details"}
+              </Button>
+            </form>
+
+            {/* Right Column: Follow-up logs */}
+            <div className="flex flex-col h-full border-l border-slate-100 dark:border-slate-800 pl-6 space-y-4">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5 border-b pb-2">
+                <ClipboardList className="h-4.5 w-4.5 text-[#0D7A70]" />
+                <span>Follow-Up Logs ({editingLead?.followups?.length || 0})</span>
+              </h3>
+              
+              {/* Timeline container */}
+              <div className="flex-1 overflow-y-auto max-h-[300px] space-y-3 pr-1">
+                {(editingLead?.followups || []).length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 italic text-[11px]">No follow-ups recorded yet.</div>
+                ) : (
+                  editingLead.followups.map((f: any, idx: number) => (
+                    <div key={idx} className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-800">
+                      <div className="flex justify-between items-center text-[10px] text-muted-foreground font-semibold mb-1">
+                        <span>{f.nurse_name}</span>
+                        <span>{new Date(f.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>
+                      </div>
+                      <p className="text-slate-700 dark:text-slate-300 leading-normal">{f.note}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Add Followup Action */}
+              {editingLead?.status !== "Converted" && (
+                <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <Label className="font-semibold text-slate-700 dark:text-slate-300">Add New Follow-Up Remark</Label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Type nurse follow-up notes here..." 
+                      value={newFollowupText} 
+                      onChange={(e) => setNewFollowupText(e.target.value)} 
+                      className="rounded-xl border-slate-200 dark:border-slate-800"
+                    />
+                    <Button 
+                      type="button" 
+                      onClick={handleAddFollowup}
+                      className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white px-3 font-semibold rounded-xl"
+                    >
+                      Add
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+

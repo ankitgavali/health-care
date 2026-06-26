@@ -1,4 +1,6 @@
 import type { AppRole } from "@/hooks/use-auth";
+import { db } from "@/firebase";
+import { collection, query, where, getDocs, setDoc, doc, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 export type CaseRow = {
   id: string;
@@ -106,4 +108,62 @@ export function parseCaseNotes(c: any): any {
     // Not JSON, just plain string
   }
   return c;
+}
+
+export async function convertLeadToPatient(lead: any) {
+  // 1. Search for existing patient profile with the same mobile number
+  const q = query(collection(db, "profiles"), where("mobile", "==", lead.mobile));
+  const snap = await getDocs(q);
+  
+  let patientId = "";
+  if (!snap.empty) {
+    patientId = snap.docs[0].id;
+  } else {
+    // Create new patient profile
+    const newPatientRef = doc(collection(db, "profiles"));
+    patientId = newPatientRef.id;
+    await setDoc(newPatientRef, {
+      full_name: lead.patient_name,
+      mobile: lead.mobile,
+      gender: lead.gender || null,
+      age: Number(lead.age || 0),
+      role: "patient",
+      created_at: new Date().toISOString()
+    });
+    
+    // Also ensure they have a row in user_roles
+    await setDoc(doc(db, "user_roles", patientId), {
+      role: "patient"
+    });
+  }
+  
+  // 2. Generate a birth year placeholder DOB based on age
+  const currentYear = new Date().getFullYear();
+  const birthYear = currentYear - (Number(lead.age) || 30);
+  const dobPlaceholder = `${birthYear}-01-01`;
+  
+  // 3. Create Case Paper
+  const casePaperRef = await addDoc(collection(db, "case_papers"), {
+    patient_id: patientId,
+    full_name: lead.patient_name,
+    address: "Davangere", // Default placeholder address
+    mobile: lead.mobile,
+    dob: dobPlaceholder,
+    age: Number(lead.age || 0),
+    notes: `Lead Reason for Visit: ${lead.problem || "N/A"}\nLead Source: ${lead.source || "N/A"}`,
+    assigned_doctor: lead.preferred_doctor || "doctor1",
+    assigned_doctor_name: lead.preferred_doctor_name || "Dr. Kadambari Jagtap",
+    status: "submitted",
+    created_at: serverTimestamp()
+  });
+  
+  // 4. Update Lead status to Converted and link Case Paper ID
+  await updateDoc(doc(db, "leads", lead.id), {
+    status: "Converted",
+    converted_patient_id: patientId,
+    converted_case_id: casePaperRef.id,
+    updated_at: new Date().toISOString()
+  });
+  
+  return { patientId, casePaperId: casePaperRef.id };
 }
