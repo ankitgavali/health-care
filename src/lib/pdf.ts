@@ -798,18 +798,8 @@ export async function generateInvoicePDF(c: CaseRow) {
   // Grand Total amount text (centered in Amount column)
   doc.text(`${Math.round(total)}₹`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableBottomY + 5.5, { align: "center" });
   
-  // --- Download PDF directly ---
-  const fileName = `Invoice-${c.full_name.replace(/\s+/g, "-")}-${invoiceNo}.pdf`;
+  // --- Open PDF in new tab (allows view, print, and download) ---
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
-  const a = document.createElement("a");
-  a.style.display = "none";
-  a.href = blobUrl;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  }, 1000);
+  window.open(blobUrl, "_blank");
 }
