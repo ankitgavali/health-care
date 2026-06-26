@@ -27,8 +27,7 @@ export function RequireRole({ allow, children }: { allow: AppRole[]; children: R
   const isAdminAllowed = allow.includes("admin");
 
   // Check if current logged in user has the required role
-  // DEMO MODE: Allow any logged in user to access all pages to make client demo easy
-  const isAuthorized = !!user;
+  const isAuthorized = user && role && allow.includes(role);
 
   if (!isAuthorized) {
     if (user && role) {
