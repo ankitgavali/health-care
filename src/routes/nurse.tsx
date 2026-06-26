@@ -19,7 +19,7 @@ import {
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
   Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2,
-  Layers, MessageSquare, Edit3
+  Layers, MessageSquare, Edit3, Printer
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { z } from "zod";
@@ -776,17 +776,30 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
             <div className="flex flex-wrap gap-2">
               <BillingDialog caseRow={c} />
               {c.status === "billed" && (
-                <Button size="sm" variant="outline" onClick={() => {
-                  const tId = toast.loading("Generating Invoice PDF...");
-                  try {
-                    generateInvoicePDF(c);
-                    toast.success("Invoice generated successfully!", { id: tId });
-                  } catch (e: any) {
-                    toast.error(`Failed to generate Invoice`, { id: tId });
-                  }
-                }} className="rounded-xl h-9">
-                  <Download className="mr-1.5 h-4 w-4" /> Invoice PDF
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const tId = toast.loading("Downloading Invoice PDF...");
+                    try {
+                      generateInvoicePDF(c, "download");
+                      toast.success("Invoice downloaded successfully!", { id: tId });
+                    } catch (e: any) {
+                      toast.error(`Failed to download Invoice`, { id: tId });
+                    }
+                  }} className="rounded-xl h-9">
+                    <Download className="mr-1.5 h-4 w-4" /> Download
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const tId = toast.loading("Preparing Print...");
+                    try {
+                      generateInvoicePDF(c, "print");
+                      toast.success("Print dialog opened!", { id: tId });
+                    } catch (e: any) {
+                      toast.error(`Failed to print Invoice`, { id: tId });
+                    }
+                  }} className="rounded-xl h-9">
+                    <Printer className="mr-1.5 h-4 w-4" /> Print
+                  </Button>
+                </div>
               )}
             </div>
           )}

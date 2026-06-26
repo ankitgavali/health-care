@@ -568,7 +568,7 @@ function parseMedicineLine(line: string, index: number, totalMedicineCharge: num
   };
 }
 
-export async function generateInvoicePDF(c: CaseRow) {
+export async function generateInvoicePDF(c: CaseRow, action: "view" | "download" | "print" = "view") {
   // Create PDF with A4 dimensions (210mm x 297mm)
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
@@ -798,8 +798,28 @@ export async function generateInvoicePDF(c: CaseRow) {
   // Grand Total amount text (centered in Amount column)
   doc.text(`${Math.round(total)} Rs.`, 15 + colSLWidth + colDescWidth + colQtyWidth + colAmtWidth / 2, tableBottomY + 5.5, { align: "center" });
   
-  // --- Open PDF in new tab (allows view, print, and download) ---
+  // --- Output PDF based on action ---
   const pdfBlob = doc.output("blob");
   const blobUrl = URL.createObjectURL(pdfBlob);
-  window.open(blobUrl, "_blank");
+  
+  if (action === "print") {
+    doc.autoPrint();
+    const printBlob = doc.output("blob");
+    const printUrl = URL.createObjectURL(printBlob);
+    window.open(printUrl, "_blank");
+  } else if (action === "download") {
+    const fileName = `Invoice-${c.full_name.replace(/\s+/g, "-")}-${invoiceNo}.pdf`;
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+  } else {
+    window.open(blobUrl, "_blank");
+  }
 }

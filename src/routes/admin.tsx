@@ -948,15 +948,26 @@ function InvoiceSection() {
                 <div className="flex items-center justify-end gap-2 pt-2">
                   <AdminBillingDialog caseRow={c} onSaved={() => {}} />
                   {(c.status === "billed" || c.status === "returned_to_nurse") && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => generateInvoicePDF(c)}
-                      className="rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-xs font-semibold h-8"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      <span>PDF</span>
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generateInvoicePDF(c, "download")}
+                        className="rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-xs font-semibold h-8"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span>Download</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generateInvoicePDF(c, "print")}
+                        className="rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-xs font-semibold h-8"
+                      >
+                        <Printer className="h-3.5 w-3.5" />
+                        <span>Print</span>
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
