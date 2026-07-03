@@ -38,7 +38,7 @@ import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/doctor")({
   component: () => (
-    <RequireRole allow={["doctor1", "doctor2", "admin"]}>
+    <RequireRole allow={["doctor1", "doctor2"]}>
       <AppShell title="Doctor Dashboard" fullWidth={true}><DoctorPage /></AppShell>
     </RequireRole>
   ),

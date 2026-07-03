@@ -26,7 +26,7 @@ import { z } from "zod";
 
 export const Route = createFileRoute("/nurse")({
   component: () => (
-    <RequireRole allow={["nurse", "admin"]}>
+    <RequireRole allow={["nurse"]}>
       <AppShell title="Nurse Dashboard" fullWidth={true}><NursePage /></AppShell>
     </RequireRole>
   ),

@@ -142,71 +142,100 @@ function AdminPage() {
     router.navigate({ to: "/" });
   };
 
-  // Nav Items layout matching mockup
-  const navigationItems = [
-    { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { value: "services", label: "Services", icon: Settings },
-    { value: "contact", label: "Contact Details", icon: Mail },
-    { value: "invoice", label: "Invoices & Billing", icon: Receipt },
-    { value: "qrcode", label: "QR Check-In", icon: QrCode },
-    { value: "staff", label: "Manage Staff", icon: Users },
-    { value: "leads", label: "Lead Management", icon: Layers },
+  // Grouped Navigation Items for a professional layout
+  const navigationGroups = [
+    {
+      title: "Core Overview",
+      items: [
+        { value: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+      ],
+    },
+    {
+      title: "Clinic Config",
+      items: [
+        { value: "services", label: "Services", icon: Settings },
+        { value: "staff", label: "Manage Staff", icon: Users },
+      ],
+    },
+    {
+      title: "Finance & Operations",
+      items: [
+        { value: "invoice", label: "Invoices & Billing", icon: Receipt },
+        { value: "qrcode", label: "QR Check-In", icon: QrCode },
+        { value: "leads", label: "Lead Management", icon: Layers },
+        { value: "contact", label: "Contact Details", icon: Mail },
+      ],
+    },
   ];
 
   return (
     <div className="min-h-screen flex bg-[#f8fafc] dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans">
       {/* ═══════════════ DESKTOP SIDEBAR ═══════════════ */}
       <aside className="hidden lg:flex flex-col w-64 border-r bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shrink-0 h-screen sticky top-0 z-30 justify-between">
-        <div className="flex flex-col">
+        <div className="flex flex-col overflow-y-auto">
           {/* Logo Brand Header */}
-          <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-teal-600 flex items-center justify-center text-white shadow-md shadow-teal-600/20">
-              <HeartPulse className="h-5 w-5" />
+          <div className="group h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3 shrink-0">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/30 transform transition-transform duration-300 group-hover:scale-105">
+              <HeartPulse className="h-5 w-5 transform transition-transform duration-300 group-hover:rotate-12 group-hover:animate-pulse" />
             </div>
-            <span className="font-serif text-lg font-bold text-teal-800 dark:text-teal-400">HealthEase</span>
+            <span className="font-sans text-xl font-extrabold tracking-tight bg-gradient-to-r from-teal-700 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-300">
+              HealthEase
+            </span>
           </div>
 
           {/* User Profile Block */}
-          <div className="p-4 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-              <User className="h-5 w-5 text-slate-500" />
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-900 flex items-center gap-3 shrink-0">
+            <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700/80 shadow-2xs">
+              <User className="h-5 w-5 text-slate-500 dark:text-slate-400" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center shadow-xs">
+                <span className="absolute h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping opacity-75" />
+              </span>
             </div>
-            <div>
-              <div className="text-sm font-bold leading-tight">Super Admin</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-semibold">MediCare Center</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold leading-tight text-slate-800 dark:text-slate-200 truncate">Super Admin</div>
+              <div className="text-[9px] text-teal-600 dark:text-teal-400 mt-1 font-bold tracking-wider uppercase bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md w-max">
+                MediCare Center
+              </div>
             </div>
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-3 space-y-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.value;
-              return (
-                <button
-                  key={item.value}
-                  onClick={() => setActiveTab(item.value)}
-                  className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? "bg-[#0D7A70] text-white shadow-md shadow-teal-700/20"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/50 dark:hover:text-white"
-                  }`}
-                >
-                  <Icon className={`h-4.5 w-4.5 ${isActive ? "text-white" : "text-slate-400"}`} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
+          <nav className="p-3 space-y-4">
+            {navigationGroups.map((group) => (
+              <div key={group.title} className="space-y-1">
+                <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-1">
+                  {group.title}
+                </div>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeTab === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      onClick={() => setActiveTab(item.value)}
+                      className={`group/nav w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                        isActive
+                          ? "bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-600/25 scale-[1.02]"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900/50 dark:hover:text-white hover:translate-x-1"
+                      }`}
+                    >
+                      <Icon className={`h-4.5 w-4.5 transition-all duration-200 ${isActive ? "text-white scale-110" : "text-slate-400 group-hover/nav:text-teal-600 dark:group-hover/nav:text-teal-400"}`} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         </div>
 
         {/* Bottom Logout */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-t border-slate-100 dark:border-slate-900 shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200 cursor-pointer"
+            className="group/logout w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100 dark:hover:border-red-900/10 transition-all duration-200 cursor-pointer hover:translate-x-1"
           >
-            <LogOut className="h-4.5 w-4.5 text-red-500" />
+            <LogOut className="h-4.5 w-4.5 text-red-500 group-hover/logout:-translate-x-0.5 transition-transform" />
             <span>Log Out</span>
           </button>
         </div>
@@ -217,58 +246,72 @@ function AdminPage() {
         <div className="fixed inset-0 z-40 lg:hidden flex">
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" onClick={() => setMobileSidebarOpen(false)} />
           <aside className="relative flex flex-col w-64 bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 h-full justify-between z-50">
-            <div className="flex flex-col">
-              <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-lg bg-teal-600 flex items-center justify-center text-white">
-                    <HeartPulse className="h-4 w-4" />
+            <div className="flex flex-col overflow-y-auto">
+              <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8.5 w-8.5 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-500 flex items-center justify-center text-white shadow-md">
+                    <HeartPulse className="h-4.5 w-4.5" />
                   </div>
-                  <span className="font-serif text-base font-bold text-teal-800 dark:text-teal-400">HealthEase</span>
+                  <span className="font-sans text-lg font-extrabold tracking-tight bg-gradient-to-r from-teal-700 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-300">
+                    HealthEase
+                  </span>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => setMobileSidebarOpen(false)} className="rounded-full h-8 w-8">
-                  <Lucide.X className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={() => setMobileSidebarOpen(false)} className="rounded-full h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-900">
+                  <Lucide.X className="h-4.5 w-4.5" />
                 </Button>
               </div>
 
-              <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <User className="h-4 w-4 text-slate-500" />
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-900 flex items-center gap-3 shrink-0">
+                <div className="relative h-9 w-9 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-center border border-slate-200 dark:border-slate-850 shadow-2xs">
+                  <User className="h-4.5 w-4.5 text-slate-500 dark:text-slate-400" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 flex items-center justify-center">
+                    <span className="absolute h-1 w-1 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                  </span>
                 </div>
-                <div>
-                  <div className="text-xs font-bold leading-tight">Super Admin</div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider font-semibold">MediCare</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold leading-tight truncate text-slate-800 dark:text-slate-200">Super Admin</div>
+                  <div className="text-[9px] text-teal-600 dark:text-teal-400 mt-0.5 font-bold tracking-wider uppercase bg-teal-50 dark:bg-teal-950/40 px-1.5 py-0.5 rounded-md w-max">
+                    MediCare Center
+                  </div>
                 </div>
               </div>
 
-              <nav className="p-2.5 space-y-1">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.value;
-                  return (
-                    <button
-                      key={item.value}
-                      onClick={() => {
-                        setActiveTab(item.value);
-                        setMobileSidebarOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        isActive
-                          ? "bg-[#0D7A70] text-white shadow-sm"
-                          : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50"
-                      }`}
-                    >
-                      <Icon className="h-4.5 w-4.5" />
-                      <span>{item.label}</span>
-                    </button>
-                  );
-                })}
+              <nav className="p-3 space-y-4">
+                {navigationGroups.map((group) => (
+                  <div key={group.title} className="space-y-1">
+                    <div className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 mb-1">
+                      {group.title}
+                    </div>
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = activeTab === item.value;
+                      return (
+                        <button
+                          key={item.value}
+                          onClick={() => {
+                            setActiveTab(item.value);
+                            setMobileSidebarOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                            isActive
+                              ? "bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm"
+                              : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-900/50"
+                          }`}
+                        >
+                          <Icon className="h-4.5 w-4.5" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
               </nav>
             </div>
 
-            <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="p-3 border-t border-slate-100 dark:border-slate-900 shrink-0">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100 dark:hover:border-red-900/10 transition-all duration-200"
               >
                 <LogOut className="h-4 w-4" />
                 <span>Log Out</span>
@@ -281,12 +324,12 @@ function AdminPage() {
       {/* ═══════════════ MAIN CONTENT PANEL ═══════════════ */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {/* Top Header Navbar */}
-        <header className="h-16 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 z-20 print:hidden">
+        <header className="h-16 bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 z-20 print:hidden shadow-xs">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden rounded-xl h-10 w-10 text-slate-500"
+              className="lg:hidden rounded-xl h-10 w-10 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900"
               onClick={() => setMobileSidebarOpen(true)}
             >
               <Menu className="h-5 w-5" />
@@ -295,33 +338,33 @@ function AdminPage() {
             {/* Go to website action link */}
             <Link
               to="/"
-              className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-[#0D7A70] dark:text-slate-400 dark:hover:text-teal-400 transition-colors bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-800"
+              className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-[#0D7A70] dark:text-slate-300 dark:hover:text-teal-400 transition-all duration-300 bg-slate-50 hover:bg-teal-50/50 dark:bg-slate-900 dark:hover:bg-teal-950/20 px-3.5 py-1.5 rounded-full border border-slate-200/60 dark:border-slate-850 shadow-2xs hover:shadow-xs hover:scale-[1.02]"
             >
-              <Globe className="h-3.5 w-3.5" />
+              <Globe className="h-3.5 w-3.5 text-[#0D7A70] dark:text-teal-400" />
               <span>Go To Website</span>
             </Link>
           </div>
 
           {/* User profile dropdown and chat actions */}
           <div className="flex items-center gap-4">
-            <button className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-900 transition-colors font-medium">
-              <MessageSquare className="h-4 w-4 text-slate-400" />
+            <button className="hidden sm:flex items-center gap-1.5 text-xs text-slate-505 hover:text-[#0D7A70] dark:text-slate-400 dark:hover:text-teal-400 transition-all duration-200 font-medium hover:scale-102 cursor-pointer">
+              <MessageSquare className="h-4 w-4 text-[#0D7A70]/80 dark:text-teal-500" />
               <span>Chat With Us</span>
             </button>
 
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-850 hidden sm:block" />
 
-            <div className="flex items-center gap-2 cursor-pointer group">
-              <div className="h-7 w-7 rounded-full bg-[#0D7A70] text-white flex items-center justify-center font-bold text-xs">
-                A
+            <div className="flex items-center gap-2 cursor-pointer group bg-slate-50 dark:bg-slate-900 border border-slate-250/60 dark:border-slate-800 pl-1.5 pr-3 py-1 rounded-full shadow-2xs hover:shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+              <div className="h-6.5 w-6.5 rounded-full bg-gradient-to-tr from-teal-600 to-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-teal-500/20">
+                {user?.email?.[0].toUpperCase() || 'A'}
               </div>
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+              <span className="text-xs font-semibold text-slate-750 dark:text-slate-250 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                 Admin Control
               </span>
-              <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+              <ChevronDown className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-650 transition-colors" />
             </div>
 
-            <Badge variant="outline" className="border-slate-300 text-slate-600 bg-slate-50 px-2 py-0.5 rounded text-[10px] font-bold">
+            <Badge variant="outline" className="border-slate-300 dark:border-slate-750 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-2 py-0.5 rounded text-[10px] font-bold">
               EN
             </Badge>
           </div>
@@ -415,22 +458,31 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
 
   // Cards display configs matching HealthEase mockup
   const cardConfigs = [
-    { label: "Department", value: stats.departments, icon: Layers, bg: "bg-blue-500/10", text: "text-blue-500", iconBg: "bg-blue-500" },
-    { label: "Doctor", value: stats.doctors, icon: Stethoscope, bg: "bg-emerald-500/10", text: "text-emerald-500", iconBg: "bg-emerald-500" },
-    { label: "Patient", value: stats.patients, icon: Users, bg: "bg-sky-500/10", text: "text-sky-500", iconBg: "bg-sky-500" },
-    { label: "Patient Appointment", value: stats.appointments, icon: Calendar, bg: "bg-amber-500/10", text: "text-amber-500", iconBg: "bg-amber-500" },
-    { label: "Patient Case Studies", value: stats.caseStudies, icon: FileSpreadsheet, bg: "bg-amber-500/10", text: "text-amber-500", iconBg: "bg-amber-500" },
-    { label: "Invoice", value: stats.invoiceCount, icon: Receipt, bg: "bg-blue-500/10", text: "text-blue-500", iconBg: "bg-blue-500" },
-    { label: "Prescription", value: stats.prescriptionCount, icon: FileText, bg: "bg-emerald-500/10", text: "text-emerald-500", iconBg: "bg-emerald-500" },
-    { label: "Payment Collection", value: `₹${stats.revenue.toFixed(0)}`, icon: Coins, bg: "bg-sky-500/10", text: "text-sky-500", iconBg: "bg-sky-500" },
+    { label: "Department", value: stats.departments, icon: Layers, bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", trend: "8 Active Units", trendColor: "text-blue-600 dark:text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Doctor", value: stats.doctors, icon: Stethoscope, bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", trend: "2 Active Duty", trendColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Patient", value: stats.patients, icon: Users, bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400", trend: "+14% this month", trendColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Patient Appointment", value: stats.appointments, icon: Calendar, bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", trend: `${stats.pendingBilled} pending bill`, trendColor: stats.pendingBilled > 0 ? "text-rose-600 dark:text-rose-450 bg-rose-500/5 px-2 py-0.5 rounded-full animate-pulse" : "text-slate-400 dark:text-slate-500 bg-slate-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Patient Case Studies", value: stats.caseStudies, icon: FileSpreadsheet, bg: "bg-amber-500/10", text: "text-amber-600 dark:text-amber-400", trend: "0 archived", trendColor: "text-slate-405 dark:text-slate-500 bg-slate-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Invoice", value: stats.invoiceCount, icon: Receipt, bg: "bg-blue-500/10", text: "text-blue-600 dark:text-blue-400", trend: "4 generated", trendColor: "text-blue-600 dark:text-blue-400 bg-blue-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Prescription", value: stats.prescriptionCount, icon: FileText, bg: "bg-emerald-500/10", text: "text-emerald-600 dark:text-emerald-400", trend: "5 issued today", trendColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full" },
+    { label: "Payment Collection", value: `₹${stats.revenue.toFixed(0)}`, icon: Coins, bg: "bg-sky-500/10", text: "text-sky-600 dark:text-sky-400", trend: "+8.4% growth", trendColor: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full" },
   ];
 
   return (
     <div className="space-y-6">
       {/* Title & Breadcrumbs header */}
-      <div className="flex justify-between items-center border-b pb-4 border-slate-200 dark:border-slate-800">
-        <h2 className="text-2xl font-serif text-slate-800 dark:text-white font-normal">Dashboard</h2>
-        <span className="text-xs text-red-500 font-bold hover:underline cursor-pointer">Dashboard</span>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3 border-b pb-5 border-slate-200/80 dark:border-slate-800">
+        <div>
+          <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard Overview</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Welcome back, Admin. Here is what is happening at MediCare Center today.</p>
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 font-semibold bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800 px-3 py-1.5 rounded-xl w-max shadow-3xs shrink-0">
+          <span className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer">Home</span>
+          <span>/</span>
+          <span className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer">Admin</span>
+          <span>/</span>
+          <span className="text-[#0D7A70] dark:text-teal-400 font-bold">Dashboard</span>
+        </div>
       </div>
 
       {/* Grid of stats cards */}
@@ -438,14 +490,20 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
         {cardConfigs.map((cfg, index) => {
           const Icon = cfg.icon;
           return (
-            <Card key={index} className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl overflow-hidden hover:shadow-md transition-shadow">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">{cfg.label}</span>
-                  <div className="text-2xl font-bold mt-1.5">{cfg.value}</div>
+            <Card key={index} className="group/card border border-slate-200/60 dark:border-slate-850/80 shadow-2xs hover:shadow-md bg-white dark:bg-slate-950 rounded-2xl overflow-hidden hover:-translate-y-1 hover:ring-1 hover:ring-teal-500/10 transition-all duration-300">
+              <CardContent className="p-5 flex flex-col justify-between h-full min-h-32">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">{cfg.label}</span>
+                  <div className={`h-9 w-9 rounded-xl ${cfg.bg} flex items-center justify-center transform transition-transform group-hover/card:scale-110 duration-300 relative`}>
+                    <span className={`absolute inset-0 rounded-xl filter blur-xs opacity-40 animate-pulse ${cfg.bg}`} />
+                    <Icon className={`h-5 w-5 ${cfg.text}`} />
+                  </div>
                 </div>
-                <div className={`h-11 w-11 rounded-lg ${cfg.bg} flex items-center justify-center`}>
-                  <Icon className={`h-6 w-6 ${cfg.text}`} />
+                <div className="mt-3">
+                  <div className="text-2xl font-extrabold text-slate-850 dark:text-slate-100 tracking-tight leading-none">{cfg.value}</div>
+                  <div className={`text-[10px] font-bold mt-2.5 flex items-center gap-1 ${cfg.trendColor} w-max`}>
+                    <span>{cfg.trend}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -456,22 +514,55 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
       {/* Analytics and charts section */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Bar Chart card */}
-        <Card className="lg:col-span-2 border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-5">
+        <Card className="lg:col-span-2 border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5">
           <CardHeader className="p-0 pb-5">
-            <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Monthly Registered Users</CardTitle>
+            <CardTitle className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Monthly Registered Users</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="h-80 w-full text-xs font-semibold">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <defs>
+                    <linearGradient id="barTeal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#14b8a6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#0d7a70" stopOpacity={0.7} />
+                    </linearGradient>
+                    <linearGradient id="barBlue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3b82f6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.7} />
+                    </linearGradient>
+                    <linearGradient id="barEmerald" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#047857" stopOpacity={0.7} />
+                    </linearGradient>
+                    <linearGradient id="barAmber" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#b45309" stopOpacity={0.7} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:stroke-slate-800/80" />
                   <XAxis dataKey="name" stroke="#94a3b8" tickLine={false} axisLine={false} />
                   <YAxis stroke="#94a3b8" tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: "rgba(0, 0, 0, 0.02)" }} />
-                  <Bar dataKey="Users" radius={[4, 4, 0, 0]} maxBarSize={30}>
-                    {chartData.map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                    ))}
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="backdrop-blur-md bg-slate-900/90 dark:bg-slate-950/90 border border-slate-800 dark:border-slate-800 text-white rounded-xl p-3 shadow-lg">
+                            <p className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">{payload[0].payload.name}</p>
+                            <p className="text-sm font-bold mt-1 text-teal-400">
+                              Users: <span className="text-white">{payload[0].value}</span>
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="Users" radius={[6, 6, 0, 0]} maxBarSize={28}>
+                    {chartData.map((_entry, index) => {
+                      const gradientMap = ["url(#barBlue)", "url(#barTeal)", "url(#barEmerald)", "url(#barAmber)"];
+                      return <Cell key={`cell-${index}`} fill={gradientMap[index % gradientMap.length]} />;
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -480,50 +571,52 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
         </Card>
 
         {/* Earning donut cards */}
-        <Card className="lg:col-span-1 border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-5 flex flex-col justify-between">
+        <Card className="lg:col-span-1 border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5 flex flex-col justify-between">
           <div>
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Monthly Earning</CardTitle>
-              <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-0.5 rounded-lg flex">
-                <button className="text-[10px] font-bold px-2 py-1 bg-[#0D7A70] text-white rounded-md shadow-xs">Weekly</button>
-                <button className="text-[10px] font-bold px-2 py-1 text-slate-500 hover:text-slate-800">Monthly</button>
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-850">
+              <CardTitle className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Earning Performance</CardTitle>
+              <div className="bg-slate-100/80 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-850 p-0.5 rounded-lg flex shadow-3xs">
+                <button className="text-[9px] font-extrabold tracking-wide uppercase px-2.5 py-1 bg-white dark:bg-slate-800 text-teal-700 dark:text-teal-400 rounded-md shadow-2xs">Weekly</button>
+                <button className="text-[9px] font-extrabold tracking-wide uppercase px-2.5 py-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Monthly</button>
               </div>
             </div>
 
             <div className="py-4">
-              <span className="text-[11px] text-muted-foreground font-semibold">This Week</span>
-              <div className="text-3xl font-bold text-slate-800 dark:text-white mt-1">₹{stats.revenue.toLocaleString()}</div>
-              <div className="text-xs text-red-500 font-bold mt-1 flex items-center gap-1">
-                <span>-31.08%</span>
-                <span className="text-[10px] text-muted-foreground font-normal">From Previous week</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">This Week Revenue</span>
+              <div className="text-3xl font-extrabold text-slate-850 dark:text-white mt-1.5 tracking-tight">₹{stats.revenue.toLocaleString()}</div>
+              <div className="mt-2.5 flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-600 dark:bg-rose-950/30 dark:text-rose-455">
+                  <Lucide.TrendingDown className="h-3 w-3" /> -31.08%
+                </span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">vs previous week</span>
               </div>
             </div>
           </div>
 
           {/* Progress circle analytics */}
-          <div className="grid grid-cols-2 gap-4 border-t pt-4 border-slate-100 dark:border-slate-800">
+          <div className="grid grid-cols-2 gap-4 border-t pt-4 border-slate-100 dark:border-slate-850">
             {/* Circle 1 */}
             <div className="flex flex-col items-center text-center">
               <div className="relative h-18 w-18 flex items-center justify-center">
                 <svg className="absolute transform -rotate-90 w-full h-full" viewBox="0 0 36 36">
-                  <path className="text-slate-100 dark:text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                  <path className="text-blue-500" strokeDasharray={`${ring1Percent}, 100`} strokeWidth="3.2" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-teal-50/50 dark:text-teal-950/20" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-[#0D7A70] dark:text-teal-400" strokeDasharray={`${ring1Percent}, 100`} strokeWidth="3.2" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
-                <span className="text-xs font-bold text-slate-700 dark:text-white">{ring1Percent}%</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white">{ring1Percent}%</span>
               </div>
-              <span className="text-[10px] text-muted-foreground font-semibold mt-2.5">Billing Analytics</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest mt-3">Billing Analytics</span>
             </div>
 
             {/* Circle 2 */}
             <div className="flex flex-col items-center text-center">
               <div className="relative h-18 w-18 flex items-center justify-center">
                 <svg className="absolute transform -rotate-90 w-full h-full" viewBox="0 0 36 36">
-                  <path className="text-slate-100 dark:text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                  <path className="text-amber-50/50 dark:text-amber-950/20" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                   <path className="text-amber-500" strokeDasharray={`${ring2Percent}, 100`} strokeWidth="3.2" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                 </svg>
-                <span className="text-xs font-bold text-slate-700 dark:text-white">{ring2Percent}%</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white">{ring2Percent}%</span>
               </div>
-              <span className="text-[10px] text-muted-foreground font-semibold mt-2.5">Prescriptions Ratio</span>
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest mt-3">Prescription Ratio</span>
             </div>
           </div>
         </Card>
@@ -1231,18 +1324,30 @@ function QrCodeSection() {
    10. STAFF MANAGEMENT SECTION
    ======================================================== */
 function StaffSection() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("doctor1");
-  const [busy, setBusy] = useState(false);
+  // Doctor form state
+  const [docName, setDocName] = useState("");
+  const [docEmail, setDocEmail] = useState("");
+  const [docPassword, setDocPassword] = useState("");
+  const [docSpecialty, setDocSpecialty] = useState("General Medicine");
+  const [docRegNumber, setDocRegNumber] = useState("");
 
-  const handleCreateStaff = async (e: React.FormEvent) => {
+  // Nurse form state
+  const [nurseName, setNurseName] = useState("");
+  const [nurseEmail, setNurseEmail] = useState("");
+  const [nursePassword, setNursePassword] = useState("");
+  const [nurseDepartment, setNurseDepartment] = useState("ICU");
+  const [nurseShift, setNurseShift] = useState("Morning");
+
+  const [busy, setBusy] = useState(false);
+  const [showDocPass, setShowDocPass] = useState(false);
+  const [showNursePass, setShowNursePass] = useState(false);
+
+  const handleCreateDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      return toast.error("Please fill all fields");
+    if (!docName.trim() || !docEmail.trim() || !docPassword.trim()) {
+      return toast.error("Please fill all fields for Doctor");
     }
-    if (password.length < 6) {
+    if (docPassword.length < 6) {
       return toast.error("Password must be at least 6 characters");
     }
 
@@ -1253,113 +1358,299 @@ function StaffSection() {
       const secondaryAuth = getAuth(secondaryApp);
 
       // Create the user in Auth
-      const userCred = await createUserWithEmailAndPassword(secondaryAuth, email.trim().toLowerCase(), password);
+      const userCred = await createUserWithEmailAndPassword(secondaryAuth, docEmail.trim().toLowerCase(), docPassword);
 
-      // Save role mapping
+      // Save role mapping (using doctor1 for consistency with system routing)
       await setDoc(doc(db, "user_roles", userCred.user.uid), {
-        role: role
+        role: "doctor1"
       });
 
-      // Save user profile info
+      // Save user profile info with doctor-specific fields
       await setDoc(doc(db, "profiles", userCred.user.uid), {
-        full_name: name.trim(),
-        email: email.trim().toLowerCase(),
-        role: role,
+        full_name: docName.trim(),
+        email: docEmail.trim().toLowerCase(),
+        role: "doctor1",
+        specialty: docSpecialty,
+        reg_number: docRegNumber.trim(),
         created_at: new Date().toISOString()
       });
 
       // Sign out the secondary instance to clean up
       await secondaryAuth.signOut();
 
-      toast.success("Staff account created successfully!");
-      setName("");
-      setEmail("");
-      setPassword("");
+      toast.success("Doctor account created successfully!");
+      setDocName("");
+      setDocEmail("");
+      setDocPassword("");
+      setDocRegNumber("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to create staff account");
+      toast.error(err.message || "Failed to create Doctor account");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCreateNurse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nurseName.trim() || !nurseEmail.trim() || !nursePassword.trim()) {
+      return toast.error("Please fill all fields for Nurse");
+    }
+    if (nursePassword.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+
+    setBusy(true);
+    try {
+      // Use a secondary Firebase app instance to avoid logging out the current admin user
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // Create the user in Auth
+      const userCred = await createUserWithEmailAndPassword(secondaryAuth, nurseEmail.trim().toLowerCase(), nursePassword);
+
+      // Save role mapping
+      await setDoc(doc(db, "user_roles", userCred.user.uid), {
+        role: "nurse"
+      });
+
+      // Save user profile info with nurse-specific fields
+      await setDoc(doc(db, "profiles", userCred.user.uid), {
+        full_name: nurseName.trim(),
+        email: nurseEmail.trim().toLowerCase(),
+        role: "nurse",
+        department: nurseDepartment,
+        shift: nurseShift,
+        created_at: new Date().toISOString()
+      });
+
+      // Sign out the secondary instance to clean up
+      await secondaryAuth.signOut();
+
+      toast.success("Nurse account created successfully!");
+      setNurseName("");
+      setNurseEmail("");
+      setNursePassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to create Nurse account");
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6 max-w-2xl mx-auto">
-      <CardHeader className="px-0 pt-0">
-        <div className="flex items-center gap-3 mb-2">
+    <Card className="border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-6 max-w-2xl mx-auto animate-in fade-in-50 duration-300">
+      <CardHeader className="px-0 pt-0 pb-4 border-b border-slate-100 dark:border-slate-850 mb-5">
+        <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center">
             <Users className="h-5 w-5 text-[#0D7A70] dark:text-teal-400" />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-slate-800 dark:text-white">Add New Staff</CardTitle>
-            <CardDescription className="text-xs">Create accounts for doctors and nurses to grant them access.</CardDescription>
+            <CardTitle className="text-xl font-extrabold text-slate-850 dark:text-white tracking-tight">Add New Staff</CardTitle>
+            <CardDescription className="text-xs text-slate-400 dark:text-slate-500 font-medium">Create accounts for doctors and nurses to grant them access.</CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="px-0 pb-0 mt-4">
-        <form onSubmit={handleCreateStaff} className="space-y-5">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Full Name</Label>
-            <Input 
-              placeholder="e.g. Dr. John Doe or Nurse Jane" 
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
-              required
-            />
-          </div>
+      
+      <CardContent className="px-0 pb-0">
+        <Tabs defaultValue="doctor" className="w-full">
+          <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-6 bg-slate-100/85 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1 rounded-xl shadow-3xs">
+            <TabsTrigger value="doctor" className="flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-805 data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 data-[state=active]:shadow-2xs text-slate-400 dark:text-slate-550 cursor-pointer">
+              <Stethoscope className="h-4 w-4" />
+              <span>Add Doctor</span>
+            </TabsTrigger>
+            <TabsTrigger value="nurse" className="flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-805 data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 data-[state=active]:shadow-2xs text-slate-400 dark:text-slate-550 cursor-pointer">
+              <Users className="h-4 w-4" />
+              <span>Add Nurse</span>
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email Address</Label>
-            <Input 
-              type="email"
-              placeholder="doctor@hospital.com" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
-              required
-            />
-          </div>
+          <TabsContent value="doctor" className="outline-none animate-in fade-in-40 duration-200">
+            <form onSubmit={handleCreateDoctor} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Full Name</Label>
+                <Input 
+                  placeholder="e.g. Dr. Kadambari Jagtap" 
+                  value={docName}
+                  onChange={(e) => setDocName(e.target.value)}
+                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  required
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Password</Label>
-            <Input 
-              type="password"
-              placeholder="Min 6 characters" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm"
-              required
-              minLength={6}
-            />
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Email Address</Label>
+                <Input 
+                  type="email"
+                  placeholder="doctor@hospital.com" 
+                  value={docEmail}
+                  onChange={(e) => setDocEmail(e.target.value)}
+                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  required
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Role</Label>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger className="w-full h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
-                <SelectValue placeholder="Select role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="doctor1">Doctor</SelectItem>
-                <SelectItem value="nurse">Nurse</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Password</Label>
+                <div className="relative">
+                  <Input 
+                    type={showDocPass ? "text" : "password"} 
+                    placeholder="Min 6 characters" 
+                    value={docPassword}
+                    onChange={(e) => setDocPassword(e.target.value)}
+                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500 pr-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDocPass(!showDocPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 cursor-pointer"
+                  >
+                    {showDocPass ? <Lucide.EyeOff className="h-4.5 w-4.5" /> : <Lucide.Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
+              </div>
 
-          <div className="pt-2">
-            <Button 
-              type="submit" 
-              className="w-full bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl h-11 shadow-sm"
-              disabled={busy}
-            >
-              {busy ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Account...</>
-              ) : (
-                <><Plus className="mr-2 h-4 w-4" /> Create Staff Account</>
-              )}
-            </Button>
-          </div>
-        </form>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Specialty</Label>
+                  <Select value={docSpecialty} onValueChange={setDocSpecialty}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                      <SelectValue placeholder="Select specialty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="General Medicine">General Medicine</SelectItem>
+                      <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                      <SelectItem value="Cardiology">Cardiology</SelectItem>
+                      <SelectItem value="Dermatology">Dermatology</SelectItem>
+                      <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                      <SelectItem value="Gynaecology">Gynaecology</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Registration Number</Label>
+                  <Input 
+                    placeholder="e.g. MC-12345" 
+                    value={docRegNumber}
+                    onChange={(e) => setDocRegNumber(e.target.value)}
+                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-650 hover:to-emerald-650 text-white font-bold rounded-xl h-11 shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Doctor Account...</>
+                  ) : (
+                    <><Plus className="mr-2 h-4 w-4" /> Create Doctor Account</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="nurse" className="outline-none animate-in fade-in-40 duration-200">
+            <form onSubmit={handleCreateNurse} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Full Name</Label>
+                <Input 
+                  placeholder="e.g. Nurse Alice Patil" 
+                  value={nurseName}
+                  onChange={(e) => setNurseName(e.target.value)}
+                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Email Address</Label>
+                <Input 
+                  type="email"
+                  placeholder="nurse@hospital.com" 
+                  value={nurseEmail}
+                  onChange={(e) => setNurseEmail(e.target.value)}
+                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Password</Label>
+                <div className="relative">
+                  <Input 
+                    type={showNursePass ? "text" : "password"} 
+                    placeholder="Min 6 characters" 
+                    value={nursePassword}
+                    onChange={(e) => setNursePassword(e.target.value)}
+                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500 pr-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNursePass(!showNursePass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 cursor-pointer"
+                  >
+                    {showNursePass ? <Lucide.EyeOff className="h-4.5 w-4.5" /> : <Lucide.Eye className="h-4.5 w-4.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Department</Label>
+                  <Select value={nurseDepartment} onValueChange={setNurseDepartment}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ICU">ICU</SelectItem>
+                      <SelectItem value="OPD">OPD</SelectItem>
+                      <SelectItem value="Emergency">Emergency</SelectItem>
+                      <SelectItem value="General Ward">General Ward</SelectItem>
+                      <SelectItem value="Operation Theatre">Operation Theatre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Working Shift</Label>
+                  <Select value={nurseShift} onValueChange={setNurseShift}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                      <SelectValue placeholder="Select shift" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Morning">Morning (8 AM - 4 PM)</SelectItem>
+                      <SelectItem value="Evening">Evening (4 PM - 12 AM)</SelectItem>
+                      <SelectItem value="Night">Night (12 AM - 8 AM)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="pt-3">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-teal-650 to-emerald-650 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl h-11 shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer"
+                  disabled={busy}
+                >
+                  {busy ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Nurse Account...</>
+                  ) : (
+                    <><Plus className="mr-2 h-4 w-4" /> Create Nurse Account</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );

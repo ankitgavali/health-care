@@ -573,7 +573,7 @@ function PatientPage() {
                   onClick={() => {
                     setBusy(true);
                     try {
-                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
+                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'share');
                     } catch (err) {
                       console.error(err);
                       toast.error("Share failed.");
