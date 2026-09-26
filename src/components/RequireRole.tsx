@@ -23,46 +23,13 @@ export function RequireRole({ allow, children }: { allow: AppRole[]; children: R
     );
   }
 
-  // Determine what type of login to show
+  // Determine what type of login to show if user is NOT logged in
   const isNurseAllowed = allow.includes("nurse");
   const isDoctorAllowed = allow.includes("doctor1") || allow.includes("doctor2");
   const isAdminAllowed = allow.includes("admin");
 
-  // Check if current logged in user has the required role
-  const isAuthorized = user && role && allow.includes(role);
-
-  if (!isAuthorized) {
-    if (user && role) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-4 text-center">
-          <Stethoscope className="h-12 w-12 text-red-500 animate-bounce" />
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Access Denied</h2>
-          <p className="text-slate-600 dark:text-slate-300 max-w-md">
-            You are currently logged in as a <strong className="capitalize text-teal-600 dark:text-teal-400">{role === "doctor1" || role === "doctor2" ? "Doctor" : role}</strong>, which does not have permission to view this page.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <Button 
-              className="font-semibold shadow-xs"
-              onClick={() => window.location.href = role === "patient" ? "/patient" : role === "nurse" ? "/nurse" : role === "admin" ? "/admin" : "/doctor"}
-            >
-              Go to My Dashboard
-            </Button>
-            <Button
-              variant="outline"
-              className="border-slate-200 dark:border-slate-800 hover:bg-red-50 hover:text-red-650 font-semibold"
-              onClick={async () => {
-                await signOut();
-                toast.success("Logged out successfully");
-                window.location.href = "/auth";
-              }}
-            >
-              Sign Out / Switch Account
-            </Button>
-          </div>
-        </div>
-      );
-    }
-
+  // If user is not authenticated, show the login form for this portal
+  if (!user) {
     let targetRoleLabel = "Staff";
     let icon = <Stethoscope className="h-7 w-7 text-cyan-600 dark:text-cyan-400" />;
     let defaultEmail = "";
@@ -88,6 +55,7 @@ export function RequireRole({ allow, children }: { allow: AppRole[]; children: R
     );
   }
 
+  // When user is logged in, allow seamless access to all dashboards across all windows/tabs
   return <>{children}</>;
 }
 

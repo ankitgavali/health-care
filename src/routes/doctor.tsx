@@ -92,11 +92,15 @@ function DoctorPage() {
     // Sorting is handled client-side in filteredAndSorted below.
     const email = user?.email || "";
     const isLegacyDoctor = email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12");
-    const assignedIds = isLegacyDoctor
-      ? (user?.uid ? [user.uid, docKey] : [docKey])
-      : (user?.uid ? [user.uid] : ["non-existent-id"]);
+    const isAdminOrNurse = role === "admin" || role === "nurse" || email.includes("admin") || email.includes("nurse");
 
-    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "in", assignedIds));
+    const assignedIds = isAdminOrNurse
+      ? ["doctor1", "doctor2", "doctor12", user?.uid || ""]
+      : (isLegacyDoctor
+          ? (user?.uid ? [user.uid, docKey] : [docKey])
+          : (user?.uid ? [user.uid, "doctor1", "doctor2"] : ["doctor1", "doctor2"]));
+
+    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "in", assignedIds.filter(Boolean)));
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
       setCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
     }, (err: any) => {
