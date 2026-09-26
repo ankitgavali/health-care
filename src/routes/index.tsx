@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { GlobalNavbar } from "@/components/GlobalNavbar";
-import { getHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/settings";
+import { subscribeHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/settings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -129,7 +129,23 @@ function Landing() {
   }, [heroImages.length]);
 
   useEffect(() => {
-    setSettings(getHomepageSettings());
+    const unsubSettings = subscribeHomepageSettings((s) => {
+      setSettings(s);
+      if (s.doctors && s.doctors.length > 0) {
+        setDoctorsList((prev) => {
+          const mapped = s.doctors.map(d => ({ id: d.id, name: d.name }));
+          if (prev.length === 0) return mapped;
+          const merged = [...mapped];
+          prev.forEach(p => {
+            if (!merged.some(m => m.name.toLowerCase() === p.name.toLowerCase())) {
+              merged.push(p);
+            }
+          });
+          return merged;
+        });
+      }
+    });
+
     // Clear submitted case ids when returning to the landing page to protect privacy on shared devices
     try {
       sessionStorage.removeItem("healthbridge_submitted_case_ids");
@@ -154,12 +170,23 @@ function Landing() {
             dynamicDocs.push({ id: d.id, name: d.data().full_name || "Doctor" });
           }
         });
-        setDoctorsList(dynamicDocs);
+
+        setDoctorsList((prev) => {
+          const combined = [...prev];
+          dynamicDocs.forEach(d => {
+            if (!combined.some(c => c.name.toLowerCase() === d.name.toLowerCase())) {
+              combined.push(d);
+            }
+          });
+          return combined;
+        });
       } catch (err) {
         console.error("Error fetching doctors for homepage enquiry form", err);
       }
     };
     fetchDoctors();
+
+    return () => unsubSettings();
   }, []);
 
   return (

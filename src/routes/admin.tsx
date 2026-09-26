@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { getHomepageSettings, saveHomepageSettings, HomepageSettings, ServiceItem } from "@/lib/settings";
+import { getHomepageSettings, saveHomepageSettingsToFirestore, subscribeHomepageSettings, HomepageSettings, ServiceItem, DoctorItem, StatItem } from "@/lib/settings";
 import { generateInvoicePDF } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
@@ -80,7 +80,10 @@ import {
   Layers,
   FileSpreadsheet,
   Coins,
-  Clock
+  Clock,
+  TrendingUp,
+  Sparkles,
+  Award
 } from "lucide-react";
 
 // Server function to resolve the local network IP address
@@ -114,6 +117,14 @@ const AVAILABLE_IMAGES = [
   { label: "Doctor Team Highlight", value: "/hero_bg_doctor.png" },
   { label: "Premium Medical Graphic / Heart", value: "/premium_bg.png" },
   { label: "Clinical Stats Background", value: "/stats_bg.png" }
+];
+
+const AVAILABLE_DOCTOR_IMAGES = [
+  { label: "Physician (Dr. Aarav)", value: "/dr_aarav_mehta.png" },
+  { label: "Pediatrician (Dr. Priya)", value: "/dr_priya_sharma.png" },
+  { label: "Doctor Team (Clinic)", value: "/hero_bg_doctor.png" },
+  { label: "Consultation Specialist", value: "/hero_bg_consult.png" },
+  { label: "Patient Care Doctor", value: "/hero_bg_care.png" },
 ];
 
 export const Route = createFileRoute("/admin")({
@@ -161,9 +172,13 @@ function AdminPage() {
       ],
     },
     {
-      title: "Clinic Config",
+      title: "Website & Clinic Config",
       items: [
+        { value: "branding", label: "Hospital & Branding", icon: Globe },
         { value: "services", label: "Services", icon: Settings },
+        { value: "doctors", label: "Consulting Doctors", icon: Stethoscope },
+        { value: "stats", label: "Key Statistics", icon: TrendingUp },
+        { value: "contact", label: "Contact Details", icon: Mail },
         { value: "staff", label: "Manage Staff", icon: Users },
       ],
     },
@@ -173,7 +188,6 @@ function AdminPage() {
         { value: "invoice", label: "Invoices & Billing", icon: Receipt },
         { value: "qrcode", label: "QR Check-In", icon: QrCode },
         { value: "leads", label: "Lead Management", icon: Layers },
-        { value: "contact", label: "Contact Details", icon: Mail },
       ],
     },
   ];
@@ -386,8 +400,17 @@ function AdminPage() {
             <TabsContent value="dashboard" className="outline-none mt-0">
               <DashboardSection cases={cases} loading={loading} />
             </TabsContent>
+            <TabsContent value="branding" className="outline-none mt-0">
+              <BrandingSection />
+            </TabsContent>
             <TabsContent value="services" className="outline-none mt-0">
               <ServicesSection />
+            </TabsContent>
+            <TabsContent value="doctors" className="outline-none mt-0">
+              <DoctorsSection />
+            </TabsContent>
+            <TabsContent value="stats" className="outline-none mt-0">
+              <StatsSection />
             </TabsContent>
             <TabsContent value="contact" className="outline-none mt-0">
               <ContactSection />
@@ -652,19 +675,149 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
 }
 
 /* ========================================================
-   2. SERVICES CONFIGURATION SECTION
+   2. BRANDING & HERO CONFIGURATION SECTION
+   ======================================================== */
+function BrandingSection() {
+  const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
+  }, []);
+
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      await saveHomepageSettingsToFirestore(settings);
+      toast.success("Branding & About info saved and updated live on the website!");
+    } catch (err: any) {
+      toast.error("Failed to save settings: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFieldChange = (field: keyof HomepageSettings, value: string) => {
+    if (!settings) return;
+    setSettings({ ...settings, [field]: value });
+  };
+
+  if (!settings) {
+    return <div className="text-center py-10 text-muted-foreground">Loading settings...</div>;
+  }
+
+  return (
+    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6">
+      <CardHeader className="px-0 pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Hospital Branding & Story</CardTitle>
+            <CardDescription className="text-xs">Customize the hospital name, hero section tagline, and about story displayed across the website.</CardDescription>
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-5 shadow-sm self-start text-xs">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Branding
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-0 space-y-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Main Hospital Identity */}
+          <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Hospital Identity</h3>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hospital / Clinic Name</Label>
+              <Input
+                value={settings.hospitalName}
+                onChange={(e) => handleFieldChange("hospitalName", e.target.value)}
+                placeholder="e.g. MediCare General Hospital"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hero Section Subtitle / Tagline</Label>
+              <Textarea
+                value={settings.heroSubtitle}
+                onChange={(e) => handleFieldChange("heroSubtitle", e.target.value)}
+                rows={3}
+                placeholder="e.g. Personalized medical care for the whole family"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+              />
+            </div>
+          </div>
+
+          {/* About Section Heading & Story */}
+          <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">About Us Header</h3>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Section Title</Label>
+              <Input
+                value={settings.aboutTitle}
+                onChange={(e) => handleFieldChange("aboutTitle", e.target.value)}
+                placeholder="e.g. About MediCare"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 1 (Overview)</Label>
+              <Textarea
+                value={settings.aboutText1}
+                onChange={(e) => handleFieldChange("aboutText1", e.target.value)}
+                rows={3}
+                placeholder="Welcome overview..."
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
+          <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 2 (Mission & Care Experience)</Label>
+          <Textarea
+            value={settings.aboutText2}
+            onChange={(e) => handleFieldChange("aboutText2", e.target.value)}
+            rows={3}
+            placeholder="Mission statement and technology integrations..."
+            className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+          />
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-slate-200/50 dark:border-slate-850">
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Branding & Story
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ========================================================
+   3. SERVICES CONFIGURATION SECTION
    ======================================================== */
 function ServicesSection() {
   const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSettings(getHomepageSettings());
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!settings) return;
-    saveHomepageSettings(settings);
-    toast.success("Services settings updated successfully");
+    setSaving(true);
+    try {
+      await saveHomepageSettingsToFirestore(settings);
+      toast.success("Services updated and published live!");
+    } catch (err: any) {
+      toast.error("Failed to save services: " + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleUpdateService = (id: string, field: keyof ServiceItem, value: string) => {
@@ -704,8 +857,8 @@ function ServicesSection() {
       <CardHeader className="px-0 pt-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Homepage Services</CardTitle>
-            <CardDescription className="text-xs">Add, remove, and update the medical service details shown on the homepage carousel.</CardDescription>
+            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Homepage Services Management</CardTitle>
+            <CardDescription className="text-xs">Add, remove, and update the medical service details shown on the homepage carousel in real-time.</CardDescription>
           </div>
           <Button onClick={handleAddService} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-4 shadow-sm self-start text-xs">
             <Plus className="mr-2 h-4 w-4" /> Add Service
@@ -757,15 +910,15 @@ function ServicesSection() {
 
                   <div className="col-span-3 space-y-2">
                     <div>
-                      <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Title</Label>
+                      <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Service Title</Label>
                       <Input
                         value={service.label}
                         onChange={(e) => handleUpdateService(service.id, "label", e.target.value)}
-                        className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
+                        className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5 font-semibold"
                       />
                     </div>
                     <div>
-                      <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Image Illustration</Label>
+                      <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Illustration</Label>
                       <Select
                         value={service.image || ""}
                         onValueChange={(v) => handleUpdateService(service.id, "image", v)}
@@ -806,8 +959,9 @@ function ServicesSection() {
         )}
 
         <div className="flex justify-end pt-4 border-t border-slate-200/50 dark:border-slate-850">
-          <Button onClick={handleSave} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
-            <Save className="mr-2 h-4 w-4" /> Save Services
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Services
           </Button>
         </div>
       </CardContent>
@@ -816,19 +970,321 @@ function ServicesSection() {
 }
 
 /* ========================================================
-   3. CONTACT DETAILS SECTION
+   4. CONSULTING DOCTORS MANAGEMENT SECTION
+   ======================================================== */
+function DoctorsSection() {
+  const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
+  }, []);
+
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      await saveHomepageSettingsToFirestore(settings);
+      toast.success("Doctors directory updated and published live!");
+    } catch (err: any) {
+      toast.error("Failed to save doctors: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateDoctor = (id: string, field: keyof DoctorItem, value: any) => {
+    if (!settings) return;
+    const updated = (settings.doctors || []).map((d) =>
+      d.id === id ? { ...d, [field]: value } : d
+    );
+    setSettings({ ...settings, doctors: updated });
+  };
+
+  const handleAddDoctor = () => {
+    if (!settings) return;
+    const newDoc: DoctorItem = {
+      id: "doc_" + Date.now(),
+      name: "Dr. New Consulting Doctor",
+      role: "Senior Consultant",
+      specialties: ["General Medicine", "Consultation"],
+      experience: "5+ Yrs Exp",
+      desc: "Specialized in comprehensive clinical diagnostics and patient wellness.",
+      image: "/dr_aarav_mehta.png"
+    };
+    setSettings({ ...settings, doctors: [...(settings.doctors || []), newDoc] });
+    toast.success("New doctor added");
+  };
+
+  const handleDeleteDoctor = (id: string) => {
+    if (!settings) return;
+    const filtered = (settings.doctors || []).filter((d) => d.id !== id);
+    setSettings({ ...settings, doctors: filtered });
+    toast.success("Doctor removed");
+  };
+
+  if (!settings) {
+    return <div className="text-center py-10 text-muted-foreground">Loading settings...</div>;
+  }
+
+  return (
+    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6">
+      <CardHeader className="px-0 pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Consulting Doctors Directory</CardTitle>
+            <CardDescription className="text-xs">Manage the doctors displayed on the homepage with their specialities, qualifications, and profile photos.</CardDescription>
+          </div>
+          <Button onClick={handleAddDoctor} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-4 shadow-sm self-start text-xs">
+            <Plus className="mr-2 h-4 w-4" /> Add Doctor
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-0 space-y-6">
+        <div className="grid gap-6 md:grid-cols-2">
+          {(settings.doctors || []).map((doctor, index) => (
+            <div
+              key={doctor.id}
+              className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 space-y-4 relative group"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={doctor.image}
+                    alt={doctor.name}
+                    className="w-12 h-12 object-cover rounded-xl border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm"
+                  />
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-wider">Doctor #{index + 1}</span>
+                    <h4 className="font-bold text-sm text-slate-800 dark:text-white leading-tight">{doctor.name}</h4>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteDoctor(doctor.id)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full h-8 w-8 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Full Name</Label>
+                  <Input
+                    value={doctor.name}
+                    onChange={(e) => handleUpdateDoctor(doctor.id, "name", e.target.value)}
+                    className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5 font-semibold"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Role / Title</Label>
+                  <Input
+                    value={doctor.role}
+                    onChange={(e) => handleUpdateDoctor(doctor.id, "role", e.target.value)}
+                    placeholder="e.g. Senior Consulting Physician"
+                    className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Specialties (comma separated)</Label>
+                  <Input
+                    value={(doctor.specialties || []).join(", ")}
+                    onChange={(e) => handleUpdateDoctor(doctor.id, "specialties", e.target.value.split(",").map(s => s.trim()).filter(Boolean))}
+                    placeholder="e.g. Cardiology, Internal Medicine"
+                    className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Experience</Label>
+                  <Input
+                    value={doctor.experience}
+                    onChange={(e) => handleUpdateDoctor(doctor.id, "experience", e.target.value)}
+                    placeholder="e.g. 12+ Yrs Exp"
+                    className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Photo Image</Label>
+                <div className="grid grid-cols-2 gap-2 mt-0.5">
+                  <Select
+                    value={doctor.image || ""}
+                    onValueChange={(v) => handleUpdateDoctor(doctor.id, "image", v)}
+                  >
+                    <SelectTrigger className="w-full text-xs h-9 border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 rounded-lg">
+                      <SelectValue placeholder="Select Avatar Preset" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AVAILABLE_DOCTOR_IMAGES.map((img) => (
+                        <SelectItem key={img.value} value={img.value}>
+                          <span className="text-xs">{img.label}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={doctor.image}
+                    onChange={(e) => handleUpdateDoctor(doctor.id, "image", e.target.value)}
+                    placeholder="Or enter image URL"
+                    className="h-9 rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Bio / Description</Label>
+                <Textarea
+                  value={doctor.desc}
+                  onChange={(e) => handleUpdateDoctor(doctor.id, "desc", e.target.value)}
+                  rows={2}
+                  className="rounded-lg border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm mt-0.5"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {(settings.doctors || []).length === 0 && (
+          <div className="text-center py-12 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl text-muted-foreground italic bg-slate-50/50 dark:bg-black/5">
+            No doctors configured. Click "Add Doctor" above.
+          </div>
+        )}
+
+        <div className="flex justify-end pt-4 border-t border-slate-200/50 dark:border-slate-850">
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Doctors Directory
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ========================================================
+   5. KEY STATISTICS CONFIGURATION SECTION
+   ======================================================== */
+function StatsSection() {
+  const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
+  }, []);
+
+  const handleSave = async () => {
+    if (!settings) return;
+    setSaving(true);
+    try {
+      await saveHomepageSettingsToFirestore(settings);
+      toast.success("Homepage stats updated and published live!");
+    } catch (err: any) {
+      toast.error("Failed to save stats: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateStat = (id: string, field: keyof StatItem, value: string) => {
+    if (!settings) return;
+    const updated = (settings.stats || []).map((st) =>
+      st.id === id ? { ...st, [field]: value } : st
+    );
+    setSettings({ ...settings, stats: updated });
+  };
+
+  if (!settings) {
+    return <div className="text-center py-10 text-muted-foreground">Loading settings...</div>;
+  }
+
+  return (
+    <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6">
+      <CardHeader className="px-0 pt-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Key Statistics Banner</CardTitle>
+            <CardDescription className="text-xs">Edit the counters and milestone statistics displayed on the homepage stats ribbon.</CardDescription>
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-5 shadow-sm self-start text-xs">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Statistics
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-0 pb-0 space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+          {(settings.stats || []).map((stat, idx) => (
+            <div
+              key={stat.id}
+              className="p-5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/10 space-y-3"
+            >
+              <div className="text-[10px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider">
+                Counter #{idx + 1}
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Display Value</Label>
+                <Input
+                  value={stat.value}
+                  onChange={(e) => handleUpdateStat(stat.id, "value", e.target.value)}
+                  placeholder="e.g. 10K+"
+                  className="mt-1 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-lg font-extrabold text-[#0D7A70] dark:text-teal-400"
+                />
+              </div>
+              <div>
+                <Label className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Label / Metric</Label>
+                <Input
+                  value={stat.label}
+                  onChange={(e) => handleUpdateStat(stat.id, "label", e.target.value)}
+                  placeholder="e.g. Patients Served"
+                  className="mt-1 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-9 text-xs font-semibold"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-end pt-4 border-t border-slate-200/50 dark:border-slate-850">
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Statistics
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ========================================================
+   6. CONTACT DETAILS SECTION
    ======================================================== */
 function ContactSection() {
   const [settings, setSettings] = useState<HomepageSettings | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setSettings(getHomepageSettings());
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
   }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!settings) return;
-    saveHomepageSettings(settings);
-    toast.success("Contact settings and details updated successfully");
+    setSaving(true);
+    try {
+      await saveHomepageSettingsToFirestore(settings);
+      toast.success("Contact settings and details updated live!");
+    } catch (err: any) {
+      toast.error("Failed to save contact settings: " + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleFieldChange = (field: keyof HomepageSettings, value: string) => {
@@ -843,61 +1299,53 @@ function ContactSection() {
   return (
     <Card className="border-0 shadow-xs bg-white dark:bg-slate-950 rounded-xl p-6">
       <CardHeader className="px-0 pt-0">
-        <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Hospital Contact & Identity</CardTitle>
-        <CardDescription className="text-xs">Edit critical clinical identities, contact endpoints, and about page texts dynamically.</CardDescription>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Hospital Contact & Endpoints</CardTitle>
+            <CardDescription className="text-xs">Edit clinical emergency lines, patient phone numbers, email addresses, and location.</CardDescription>
+          </div>
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-5 shadow-sm self-start text-xs">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Contact Details
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="px-0 pb-0 space-y-6">
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Main Info */}
+          {/* Contact Numbers */}
           <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
-            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Clinical Branding</h3>
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Phone & Helpline</h3>
             <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hospital / Clinic Name</Label>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Main Hospital Phone</Label>
               <Input
-                value={settings.hospitalName}
-                onChange={(e) => handleFieldChange("hospitalName", e.target.value)}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
+                value={settings.contactPhone}
+                onChange={(e) => handleFieldChange("contactPhone", e.target.value)}
+                placeholder="+91 98765 43210"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hero Section Subtitle</Label>
-              <Textarea
-                value={settings.heroSubtitle}
-                onChange={(e) => handleFieldChange("heroSubtitle", e.target.value)}
-                rows={2}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">24/7 Emergency Line</Label>
+              <Input
+                value={settings.contactEmergency}
+                onChange={(e) => handleFieldChange("contactEmergency", e.target.value)}
+                placeholder="108 or direct hotline"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-bold text-red-600 dark:text-red-400"
               />
             </div>
           </div>
 
-          {/* Contact Details */}
+          {/* Email & Physical Address */}
           <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
-            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Contact Information</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email Address</Label>
-                <Input
-                  type="email"
-                  value={settings.contactEmail}
-                  onChange={(e) => handleFieldChange("contactEmail", e.target.value)}
-                  className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Phone Number</Label>
-                <Input
-                  value={settings.contactPhone}
-                  onChange={(e) => handleFieldChange("contactPhone", e.target.value)}
-                  className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
-                />
-              </div>
-            </div>
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Email & Address</h3>
             <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Emergency Number</Label>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Official Email Address</Label>
               <Input
-                value={settings.contactEmergency}
-                onChange={(e) => handleFieldChange("contactEmergency", e.target.value)}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
+                type="email"
+                value={settings.contactEmail}
+                onChange={(e) => handleFieldChange("contactEmail", e.target.value)}
+                placeholder="support@medicare.local"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
             <div>
@@ -905,48 +1353,17 @@ function ContactSection() {
               <Input
                 value={settings.contactAddress}
                 onChange={(e) => handleFieldChange("contactAddress", e.target.value)}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* About Section */}
-        <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
-          <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">About Clinical Section</h3>
-          <div>
-            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Section Title</Label>
-            <Input
-              value={settings.aboutTitle}
-              onChange={(e) => handleFieldChange("aboutTitle", e.target.value)}
-              className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm"
-            />
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 1</Label>
-              <Textarea
-                value={settings.aboutText1}
-                onChange={(e) => handleFieldChange("aboutText1", e.target.value)}
-                rows={4}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
-              />
-            </div>
-            <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 2</Label>
-              <Textarea
-                value={settings.aboutText2}
-                onChange={(e) => handleFieldChange("aboutText2", e.target.value)}
-                rows={4}
-                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+                placeholder="123 Health Avenue, City..."
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
           </div>
         </div>
 
         <div className="flex justify-end pt-4 border-t border-slate-200/50 dark:border-slate-850">
-          <Button onClick={handleSave} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
-            <Save className="mr-2 h-4 w-4" /> Save Clinical Identity
+          <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white font-bold rounded-xl px-6 shadow-sm">
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save Contact Details
           </Button>
         </div>
       </CardContent>

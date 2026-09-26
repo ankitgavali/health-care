@@ -1,6 +1,6 @@
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { getHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/settings";
+import { subscribeHomepageSettings, defaultSettings, HomepageSettings } from "@/lib/settings";
 
 import { Button } from "@/components/ui/button";
 import { Stethoscope, Moon, Sun, LogOut } from "lucide-react";
@@ -16,7 +16,8 @@ export function GlobalNavbar({ isFixed = false }: { isFixed?: boolean }) {
   const [settings, setSettings] = useState<HomepageSettings>(defaultSettings);
 
   useEffect(() => {
-    setSettings(getHomepageSettings());
+    const unsub = subscribeHomepageSettings(setSettings);
+    return () => unsub();
   }, []);
 
   useEffect(() => {

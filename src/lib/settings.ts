@@ -1,3 +1,6 @@
+import { db } from "@/firebase";
+import { doc, getDoc, setDoc, onSnapshot } from "firebase/firestore";
+
 export interface ServiceItem {
   id: string;
   iconName: string;
@@ -91,7 +94,7 @@ export function getHomepageSettings(): HomepageSettings {
       return { ...defaultSettings, ...JSON.parse(saved) };
     }
   } catch (e) {
-    console.error("Failed to load homepage settings", e);
+    console.error("Failed to load homepage settings from cache", e);
   }
   return defaultSettings;
 }
@@ -101,6 +104,50 @@ export function saveHomepageSettings(settings: HomepageSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (e) {
-    console.error("Failed to save homepage settings", e);
+    console.error("Failed to save homepage settings to cache", e);
+  }
+}
+
+export async function saveHomepageSettingsToFirestore(settings: HomepageSettings): Promise<void> {
+  saveHomepageSettings(settings);
+  try {
+    await setDoc(doc(db, "settings", "homepage"), settings, { merge: true });
+  } catch (e) {
+    console.error("Failed to save homepage settings to Firestore", e);
+    throw e;
+  }
+}
+
+export function subscribeHomepageSettings(onUpdate: (settings: HomepageSettings) => void): () => void {
+  // First emit from local cache for instantaneous rendering without flicker
+  const cached = getHomepageSettings();
+  onUpdate(cached);
+
+  try {
+    const docRef = doc(db, "settings", "homepage");
+    const unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as Partial<HomepageSettings>;
+        const merged: HomepageSettings = {
+          ...defaultSettings,
+          ...data,
+          services: data.services || defaultSettings.services,
+          stats: data.stats || defaultSettings.stats,
+          doctors: data.doctors || defaultSettings.doctors,
+        };
+        saveHomepageSettings(merged);
+        onUpdate(merged);
+      } else {
+        // If not initialized in Firestore yet, initialize it
+        setDoc(docRef, defaultSettings, { merge: true }).catch(console.error);
+      }
+    }, (err) => {
+      console.warn("Firestore settings subscription warning:", err);
+    });
+
+    return unsubscribe;
+  } catch (err) {
+    console.error("Failed to subscribe to homepage settings:", err);
+    return () => {};
   }
 }
