@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
 import { generateInvoicePDF } from "@/lib/pdf";
+import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
 import { 
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
@@ -22,6 +23,16 @@ import {
   Layers, MessageSquare, Edit3, Printer
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+function AnimatedWrapper({ children }: { children: React.ReactNode, index?: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+      {children}
+    </div>
+  );
+}
 import { z } from "zod";
 
 export const Route = createFileRoute("/nurse")({
@@ -455,8 +466,10 @@ function NursePage() {
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                {activeTab === "leads" ? "My Leads" : "Nurse Station"}
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-2">
+                <span className="bg-gradient-to-r from-primary via-teal-500 to-emerald-600 bg-clip-text text-transparent drop-shadow-sm">
+                  {activeTab === "leads" ? "My Leads" : "Nurse Station"}
+                </span>
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {activeTab === "leads" 
@@ -475,18 +488,18 @@ function NursePage() {
           </div>
 
           {activeTab === "leads" ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard label="Total Assigned" value={leads.length} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" />
-              <StatCard label="Pending" value={leads.filter(l => !["Converted", "Closed"].includes(l.status)).length} icon={Clock} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={leads.filter(l => l.status === "New Lead").length > 0} />
-              <StatCard label="Converted" value={leads.filter(l => l.status === "Converted").length} icon={CheckCircle2} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" />
-              <StatCard label="Closed" value={leads.filter(l => l.status === "Closed").length} icon={X} color="from-slate-500/15 to-slate-500/5 text-slate-700 dark:text-slate-400" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-fr items-stretch">
+              <AnimatedWrapper index={0}><StatCard label="Total Assigned" value={leads.length} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" /></AnimatedWrapper>
+              <AnimatedWrapper index={1}><StatCard label="Pending" value={leads.filter(l => !["Converted", "Closed"].includes(l.status)).length} icon={Clock} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={leads.filter(l => l.status === "New Lead").length > 0} /></AnimatedWrapper>
+              <AnimatedWrapper index={2}><StatCard label="Converted" value={leads.filter(l => l.status === "Converted").length} icon={CheckCircle2} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" /></AnimatedWrapper>
+              <AnimatedWrapper index={3}><StatCard label="Closed" value={leads.filter(l => l.status === "Closed").length} icon={X} color="from-slate-500/15 to-slate-500/5 text-slate-700 dark:text-slate-400" /></AnimatedWrapper>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <StatCard label="Total Cases" value={counts.all} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" />
-              <StatCard label="New / Pending" value={counts.pending} icon={User} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={counts.pending > 0} />
-              <StatCard label="Returned" value={counts.returned} icon={Activity} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" pulse={counts.returned > 0} />
-              <StatCard label="Completed" value={counts.billed} icon={Receipt} color="from-violet-500/15 to-violet-500/5 text-violet-700 dark:text-violet-400" />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 auto-rows-fr items-stretch">
+              <AnimatedWrapper index={0}><StatCard label="Total Cases" value={counts.all} icon={Users} color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400" /></AnimatedWrapper>
+              <AnimatedWrapper index={1}><StatCard label="New / Pending" value={counts.pending} icon={User} color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400" pulse={counts.pending > 0} /></AnimatedWrapper>
+              <AnimatedWrapper index={2}><StatCard label="Returned" value={counts.returned} icon={Activity} color="from-emerald-500/15 to-emerald-500/5 text-emerald-600 dark:text-emerald-400" pulse={counts.returned > 0} /></AnimatedWrapper>
+              <AnimatedWrapper index={3}><StatCard label="Completed" value={counts.billed} icon={Receipt} color="from-violet-500/15 to-violet-500/5 text-violet-700 dark:text-violet-400" /></AnimatedWrapper>
             </div>
           )}
 
@@ -546,39 +559,56 @@ function NursePage() {
               </div>
 
               {casesGroupedByDay.length === 0 ? (
-                <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
-                    <ClipboardList className="h-6 w-6 opacity-70" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base text-foreground">No case papers found</h3>
-                  </div>
-                </Card>
+                <AnimatedWrapper>
+                  <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
+                      <ClipboardList className="h-6 w-6 opacity-70" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">No case papers found</h3>
+                    </div>
+                  </Card>
+                </AnimatedWrapper>
               ) : (
                 <div className="space-y-8">
-                  {casesGroupedByDay.map(({ dateLabel, items }) => (
-                    <div key={dateLabel} className="space-y-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
-                          {dateLabel} ({items.length})
-                        </span>
-                        <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
-                        {items.map((c) => (
-                          <PatientCaseCard 
-                            key={c.id} 
-                            c={c} 
-                            doctorPick={doctorPick} 
-                            setDoctorPick={setDoctorPick} 
-                            sendToDoctor={sendToDoctor} 
-                            onDelete={deleteCase}
-                            doctorsList={doctorsList}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  {(() => {
+                    let globalCardIndex = 0;
+                    return casesGroupedByDay.map(({ dateLabel, items }) => (
+                      <motion.div 
+                        key={dateLabel} 
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="space-y-4"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
+                            {dateLabel} ({items.length})
+                          </span>
+                          <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
+                        </div>
+                        <AnimatePresence mode="popLayout">
+                          <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2" style={{ gridAutoRows: "1fr", alignItems: "stretch" }}>
+                            {items.map((c) => {
+                              const cardIdx = globalCardIndex++;
+                              return (
+                                <AnimatedWrapper key={c.id} index={cardIdx}>
+                                  <PatientCaseCard 
+                                    c={c} 
+                                    doctorPick={doctorPick} 
+                                    setDoctorPick={setDoctorPick} 
+                                    sendToDoctor={sendToDoctor} 
+                                    onDelete={deleteCase}
+                                    doctorsList={doctorsList}
+                                  />
+                                </AnimatedWrapper>
+                              );
+                            })}
+                          </div>
+                        </AnimatePresence>
+                      </motion.div>
+                    ));
+                  })()}
                 </div>
               )}
             </>
@@ -626,15 +656,20 @@ function SidebarNavItem({ icon: Icon, label, count, active, onClick, colorClass 
 }
 
 function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: string; value: number; icon: any; color: string; pulse?: boolean }) {
+  // Extract text color class for the icon
+  const textColorClass = color.split(' ').find(c => c.startsWith('text-')) || "text-primary";
   return (
-    <Card className={`glass border-0 bg-gradient-to-br transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md ${pulse ? "ring-1 ring-amber-500/30" : ""} ${color}`}>
-      <CardContent className="flex items-center gap-3.5 p-4.5">
-        <div className="grid h-11 w-11 place-items-center rounded-xl bg-background/80 shadow-sm border border-black/5 dark:border-white/5 shrink-0">
-          <Icon className={`h-5.5 w-5.5 ${pulse ? "animate-bounce" : ""}`} />
+    <Card className={`relative overflow-hidden bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 transition-all duration-300 shadow-md hover:shadow-xl h-full flex flex-col justify-between flex-1 ${pulse ? "ring-2 ring-amber-400/50 shadow-amber-500/10" : ""}`}>
+      {/* Subtle colorful glow background */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-30 dark:opacity-20 pointer-events-none`} />
+      
+      <CardContent className="flex items-center gap-4 p-5 relative z-10 h-full flex-1 min-h-[96px]">
+        <div className={`grid h-12 w-12 sm:h-14 sm:w-14 place-items-center rounded-2xl bg-white dark:bg-slate-800 shadow-lg border border-slate-100/50 dark:border-white/5 shrink-0 transition-transform group-hover:scale-110`}>
+          <Icon className={`h-6 w-6 ${textColorClass} ${pulse ? "animate-bounce" : ""}`} />
         </div>
-        <div className="min-w-0">
-          <div className="text-2xl font-extrabold tracking-tight leading-none text-foreground">{value}</div>
-          <div className="text-[11px] text-muted-foreground font-medium mt-1 truncate">{label}</div>
+        <div className="min-w-0 flex-1 flex flex-col justify-center">
+          <div className="text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-800 dark:text-white drop-shadow-sm">{value}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1.5 truncate">{label}</div>
         </div>
       </CardContent>
     </Card>
@@ -659,11 +694,14 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
   }, [c.created_at]);
 
   return (
-    <Card className={`
-      glass border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col h-full
-      ${isPending ? "border-l-4 border-amber-500 bg-amber-500/[0.01]" : ""}
-    `}>
-      <CardContent className="p-5 flex flex-col gap-4 flex-grow">
+    <Card 
+      style={{ display: "flex", flexDirection: "column", flex: 1, width: "100%", minHeight: 0 }}
+      className={`
+      relative bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-3xl overflow-hidden h-full flex flex-col flex-1 justify-between
+      ${isPending ? "border-l-4 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : ""}
+    `}
+    >
+      <CardContent style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }} className="p-5 gap-4 justify-between">
         <div className="flex items-start justify-between gap-2.5">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs grid place-items-center">
@@ -777,17 +815,14 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
               <BillingDialog caseRow={c} />
               {c.status === "billed" && (
                 <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const tId = toast.loading("Downloading Invoice PDF...");
-                    try {
-                      generateInvoicePDF(c, "download");
-                      toast.success("Invoice downloaded successfully!", { id: tId });
-                    } catch (e: any) {
-                      toast.error(`Failed to download Invoice`, { id: tId });
+                  <InvoicePreviewDialog
+                    caseRow={c}
+                    trigger={
+                      <Button size="sm" variant="outline" className="rounded-xl h-9">
+                        <Download className="mr-1.5 h-4 w-4" /> Download
+                      </Button>
                     }
-                  }} className="rounded-xl h-9">
-                    <Download className="mr-1.5 h-4 w-4" /> Download
-                  </Button>
+                  />
                   <Button size="sm" variant="outline" onClick={() => {
                     const tId = toast.loading("Preparing Print...");
                     try {
@@ -1067,23 +1102,24 @@ export function MyLeadsSection({ leads, doctorsList, user, profileName }: { lead
           </div>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-          {filteredLeads.map((l) => {
+        <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2" style={{ gridAutoRows: "1fr", alignItems: "stretch" }}>
+          {filteredLeads.map((l, index) => {
             const initials = l.patient_name ? l.patient_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "LD";
             const dateStr = l.appointment_date 
               ? new Date(l.appointment_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
               : "Unscheduled";
 
             return (
-              <Card 
-                key={l.id} 
-                className={`glass border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col h-full border-l-4 ${
-                  l.status === "New Lead" ? "border-blue-500 bg-blue-500/[0.01]" : 
-                  l.status === "Converted" ? "border-emerald-500 bg-emerald-500/[0.01]" : 
-                  "border-slate-200 dark:border-slate-800"
-                }`}
-              >
-                <CardContent className="p-5 flex flex-col gap-4 flex-grow">
+              <AnimatedWrapper key={l.id} index={index}>
+                <Card 
+                  style={{ display: "flex", flexDirection: "column", flex: 1, width: "100%", minHeight: 0 }}
+                  className={`glass border-0 rounded-2xl overflow-hidden flex flex-col h-full flex-1 w-full border-l-4 ${
+                    l.status === "New Lead" ? "border-blue-500 bg-blue-500/[0.01]" : 
+                    l.status === "Converted" ? "border-emerald-500 bg-emerald-500/[0.01]" : 
+                    "border-slate-200 dark:border-slate-800"
+                  }`}
+                >
+                <CardContent style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }} className="p-5 flex flex-col gap-4">
                   <div className="flex items-start justify-between gap-2.5">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary border dark:border-white/5 font-bold text-xs grid place-items-center">
@@ -1194,6 +1230,7 @@ export function MyLeadsSection({ leads, doctorsList, user, profileName }: { lead
                   </div>
                 </CardContent>
               </Card>
+              </AnimatedWrapper>
             );
           })}
         </div>

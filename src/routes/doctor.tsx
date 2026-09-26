@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { db } from "@/firebase";
 import { collection, query as fsQuery, where, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+function AnimatedWrapper({ children }: { children: React.ReactNode, index?: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+      {children}
+    </div>
+  );
+}
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/components/RequireRole";
 import { Button } from "@/components/ui/button";
@@ -335,8 +345,10 @@ function DoctorPage() {
           {/* Welcome Dashboard Banner Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2">
-                Hello, <span className={meta.colorClass}>{currentDoctorName.split(" ")[0] === "Dr." ? currentDoctorName.split(" ")[1] : currentDoctorName.split(" ")[0]}</span>!
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-2">
+                <span className="bg-gradient-to-r from-primary via-teal-500 to-emerald-600 bg-clip-text text-transparent drop-shadow-sm">
+                  Hello, <span className={meta.colorClass}>{currentDoctorName.split(" ")[0] === "Dr." ? currentDoctorName.split(" ")[1] : currentDoctorName.split(" ")[0]}</span>!
+                </span>
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 {counts.pending > 0 
@@ -354,31 +366,39 @@ function DoctorPage() {
 
           {/* Statistics Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard 
-              label="Total Cases" 
-              value={counts.all} 
-              icon={ClipboardList} 
-              color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400"
-            />
-            <StatCard 
-              label="Pending" 
-              value={counts.pending} 
-              icon={Clock} 
-              color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400"
-              pulse={counts.pending > 0}
-            />
-            <StatCard 
-              label="Under Review" 
-              value={counts.reviewing} 
-              icon={Activity} 
-              color="from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400"
-            />
-            <StatCard 
-              label="Completed" 
-              value={counts.completed} 
-              icon={CheckCircle2} 
-              color="from-emerald-500/15 to-emerald-500/5 text-emerald-700 dark:text-emerald-400"
-            />
+            <AnimatedWrapper index={0}>
+              <StatCard 
+                label="Total Cases" 
+                value={counts.all} 
+                icon={ClipboardList} 
+                color="from-sky-500/15 to-sky-500/5 text-sky-600 dark:text-sky-400"
+              />
+            </AnimatedWrapper>
+            <AnimatedWrapper index={1}>
+              <StatCard 
+                label="Pending" 
+                value={counts.pending} 
+                icon={Clock} 
+                color="from-amber-500/15 to-amber-500/5 text-amber-600 dark:text-amber-400"
+                pulse={counts.pending > 0}
+              />
+            </AnimatedWrapper>
+            <AnimatedWrapper index={2}>
+              <StatCard 
+                label="Under Review" 
+                value={counts.reviewing} 
+                icon={Activity} 
+                color="from-violet-500/15 to-violet-500/5 text-violet-600 dark:text-violet-400"
+              />
+            </AnimatedWrapper>
+            <AnimatedWrapper index={3}>
+              <StatCard 
+                label="Completed" 
+                value={counts.completed} 
+                icon={CheckCircle2} 
+                color="from-emerald-500/15 to-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+              />
+            </AnimatedWrapper>
           </div>
 
           {/* Search, Filter & Sort Controls Toolbar */}
@@ -433,44 +453,61 @@ function DoctorPage() {
 
           {/* Case Papers Cards Grid Grouped Day by Day */}
           {casesGroupedByDay.length === 0 ? (
-            <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
-                <ClipboardList className="h-6 w-6 opacity-70" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-foreground">No case papers found</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Try adjusting your text search query or selected case category.
-                </p>
-              </div>
-            </Card>
+            <AnimatedWrapper>
+              <Card className="glass border-0 p-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-900 grid place-items-center text-slate-400">
+                  <ClipboardList className="h-6 w-6 opacity-70" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-foreground">No case papers found</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Try adjusting your text search query or selected case category.
+                  </p>
+                </div>
+              </Card>
+            </AnimatedWrapper>
           ) : (
             <div className="space-y-8">
-              {casesGroupedByDay.map(({ dateLabel, items }) => (
-                <div key={dateLabel} className="space-y-4">
-                  {/* Date Heading Divider */}
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
-                      {dateLabel} ({items.length} {items.length === 1 ? "case" : "cases"})
-                    </span>
-                    <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
-                  </div>
-                  
-                  {/* Cards Grid for this day */}
-                  <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-                    {items.map((c) => (
-                      <PatientCaseCard 
-                        key={c.id} 
-                        c={c} 
-                        onAccept={() => accept(c)} 
-                        onSaved={() => {}} 
-                        meta={meta}
-                        onDelete={deleteCase}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                let globalCardIndex = 0;
+                return casesGroupedByDay.map(({ dateLabel, items }) => (
+                  <motion.div 
+                    key={dateLabel} 
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-4"
+                  >
+                    {/* Date Heading Divider */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground bg-muted/60 px-3 py-1 rounded-xl border dark:border-white/5 select-none">
+                        {dateLabel} ({items.length} {items.length === 1 ? "case" : "cases"})
+                      </span>
+                      <div className="flex-1 h-[1px] bg-gradient-to-r from-slate-200 dark:from-white/10 to-transparent" />
+                    </div>
+                    
+                    {/* Cards Grid for this day */}
+                    <AnimatePresence mode="popLayout">
+                      <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2" style={{ gridAutoRows: "1fr" }}>
+                        {items.map((c) => {
+                          const cardIdx = globalCardIndex++;
+                          return (
+                            <AnimatedWrapper key={c.id} index={cardIdx}>
+                              <PatientCaseCard 
+                                c={c} 
+                                onAccept={() => accept(c)} 
+                                onSaved={() => {}} 
+                                meta={meta}
+                                onDelete={deleteCase}
+                              />
+                            </AnimatedWrapper>
+                          );
+                        })}
+                      </div>
+                    </AnimatePresence>
+                  </motion.div>
+                ));
+              })()}
             </div>
           )}
 
@@ -521,15 +558,17 @@ function SidebarNavItem({ icon: Icon, label, count, active, onClick, colorClass 
 }
 
 function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: string; value: number; icon: any; color: string; pulse?: boolean }) {
+  const textColorClass = color.split(' ').find(c => c.startsWith('text-')) || "text-primary";
   return (
-    <Card className={`glass border-0 bg-gradient-to-br transition-all duration-300 hover:-translate-y-1 shadow-sm hover:shadow-md ${pulse ? "ring-1 ring-amber-500/30" : ""} ${color}`}>
-      <CardContent className="flex items-center gap-3.5 p-4.5">
-        <div className="grid h-11 w-11 place-items-center rounded-xl bg-background/80 shadow-sm border border-black/5 dark:border-white/5 shrink-0">
-          <Icon className={`h-5.5 w-5.5 ${pulse ? "animate-bounce" : ""}`} />
+    <Card className={`relative overflow-hidden bg-white/80 dark:bg-slate-900/70 backdrop-blur-xl border border-white/60 dark:border-white/10 transition-all duration-300 hover:-translate-y-1.5 shadow-md hover:shadow-xl ${pulse ? "ring-2 ring-amber-400/50 shadow-amber-500/10" : ""}`}>
+      <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-30 dark:opacity-20 pointer-events-none`} />
+      <CardContent className="flex items-center gap-4 p-5 relative z-10">
+        <div className={`grid h-14 w-14 place-items-center rounded-2xl bg-white dark:bg-slate-800 shadow-lg border border-slate-100/50 dark:border-white/5 shrink-0 transition-transform group-hover:scale-110`}>
+          <Icon className={`h-6 w-6 ${textColorClass} ${pulse ? "animate-bounce" : ""}`} />
         </div>
         <div className="min-w-0">
-          <div className="text-2xl font-extrabold tracking-tight leading-none text-foreground">{value}</div>
-          <div className="text-[11px] text-muted-foreground font-medium mt-1 truncate">{label}</div>
+          <div className="text-3xl font-black tracking-tight leading-none text-slate-800 dark:text-white drop-shadow-sm">{value}</div>
+          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1.5 truncate">{label}</div>
         </div>
       </CardContent>
     </Card>
@@ -558,12 +597,15 @@ function PatientCaseCard({ c, onAccept, onSaved, meta, onDelete }: { c: any; onA
     : c.notes;
 
   return (
-    <Card className={`
-      glass border-0 rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col h-full
-      ${isPending ? "border-l-4 border-amber-500 bg-amber-500/[0.01]" : ""}
-      ${isReviewing ? "border-l-4 border-violet-500 bg-violet-500/[0.01]" : ""}
-    `}>
-      <CardContent className="p-5 flex flex-col gap-4 flex-grow">
+    <Card 
+      style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1, width: "100%" }}
+      className={`
+      relative bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/50 dark:border-white/10 rounded-3xl overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1
+      ${isPending ? "border-l-4 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.1)]" : ""}
+      ${isReviewing ? "border-l-4 border-violet-400 shadow-[0_0_15px_rgba(139,92,246,0.1)]" : ""}
+    `}
+    >
+      <CardContent style={{ display: "flex", flexDirection: "column", height: "100%", flex: 1 }} className="p-5 gap-4">
         
         {/* Card Header Profile & Status */}
         <div className="flex items-start justify-between gap-2.5">

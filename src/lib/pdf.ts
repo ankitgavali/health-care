@@ -10,21 +10,30 @@ export async function generatePDFFromElementId(elementId: string, filename: stri
       throw new Error("Element not found for PDF generation");
     }
 
-    // Capture the element using html2canvas
+    // Save current transform so we can capture in full unscaled resolution
+    const prevTransform = element.style.transform;
+    const prevTransformOrigin = element.style.transformOrigin;
+    element.style.transform = "none";
+    element.style.transformOrigin = "top left";
+
     // Scroll to top to avoid html2canvas clipping bugs
     window.scrollTo(0, 0);
     
     const imgData = await toPng(element, {
-      pixelRatio: window.devicePixelRatio > 1 ? 1.5 : 1,
+      pixelRatio: 2,
       backgroundColor: "#ffffff",
     });
+
+    // Restore original transform
+    element.style.transform = prevTransform;
+    element.style.transformOrigin = prevTransformOrigin;
 
     const rect = element.getBoundingClientRect();
     
     // Calculate PDF dimensions (A4 size is 210x297 mm)
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (rect.height * pdfWidth) / rect.width;
+    const pdfHeight = (1123 * pdfWidth) / 794;
     
     // Add image to PDF
     pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
@@ -568,7 +577,7 @@ function parseMedicineLine(line: string, index: number, totalMedicineCharge: num
   };
 }
 
-export async function generateInvoicePDF(c: CaseRow, action: "view" | "download" | "print" = "view") {
+export async function generateInvoicePDF(c: CaseRow, action: "view" | "download" | "print" | "blob" = "view"): Promise<string> {
   // Create PDF with A4 dimensions (210mm x 297mm)
   const doc = new jsPDF("p", "mm", "a4");
   const w = doc.internal.pageSize.getWidth();
@@ -807,6 +816,7 @@ export async function generateInvoicePDF(c: CaseRow, action: "view" | "download"
     const printBlob = doc.output("blob");
     const printUrl = URL.createObjectURL(printBlob);
     window.open(printUrl, "_blank");
+    return printUrl;
   } else if (action === "download") {
     const fileName = `Invoice-${c.full_name.replace(/\s+/g, "-")}-${invoiceNo}.pdf`;
     const a = document.createElement("a");
@@ -816,10 +826,14 @@ export async function generateInvoicePDF(c: CaseRow, action: "view" | "download"
     document.body.appendChild(a);
     a.click();
     setTimeout(() => {
-      document.body.removeChild(a);
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
       URL.revokeObjectURL(blobUrl);
     }, 1000);
-  } else {
+  } else if (action === "view") {
     window.open(blobUrl, "_blank");
   }
+  
+  return blobUrl;
 }

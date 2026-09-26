@@ -1,11 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { db, auth } from "@/firebase";
-import { collection, query, where, orderBy, onSnapshot, addDoc, getDocs, doc, setDoc } from "firebase/firestore";
+import { collection, query, where, onSnapshot, getDocs, doc, setDoc } from "firebase/firestore";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
 import { useAuth } from "@/hooks/use-auth";
+
+import { motion, AnimatePresence } from "framer-motion";
+
+function AnimatedWrapper({ children }: { children: React.ReactNode, index?: number }) {
+  return (
+    <div className="flex flex-col h-full [&>div]:flex-1 [&>div]:h-full">
+      {children}
+    </div>
+  );
+}
 import { AppShell } from "@/components/AppShell";
 import { RequireRole } from "@/components/RequireRole";
 import { Button } from "@/components/ui/button";
@@ -18,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
 import { generateCasePaperPDF, generatePDFFromElementId, shareCasePaperPDF } from "@/lib/pdf";
-import { FileText, Download, Share2, Loader2, Plus, Stethoscope } from "lucide-react";
+import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/patient")({
@@ -71,6 +81,328 @@ const schema = z.object({
   weight: z.string().optional(),
   gender: z.string().optional(),
 });
+
+function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [isFitMode, setIsFitMode] = useState(true);
+  const [isMobileScreen, setIsMobileScreen] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (!containerRef.current) return;
+      const width = containerRef.current.clientWidth;
+      const isMobile = width < 820;
+      setIsMobileScreen(isMobile);
+
+      if (isFitMode && isMobile) {
+        // Compute scale factor based on container width
+        const computedScale = Math.min(1, Math.max(0.35, (width - 16) / 794));
+        setScale(computedScale);
+      } else {
+        setScale(1);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [isFitMode]);
+
+  return (
+    <div className="relative mx-auto w-full max-w-[850px] mb-8 bg-white dark:bg-slate-900 shadow-xl transition-all hover:shadow-2xl flex flex-col border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
+      {/* Top Header Bar with Status & Mobile Fit/Zoom Toggle */}
+      <div className="px-4 py-3 bg-slate-50 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Badge className={statusColor[c.status as CaseStatus]} variant="outline">
+            {statusLabel[c.status as CaseStatus]}
+          </Badge>
+          <span className="font-mono text-xs text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded font-semibold">
+            ID: {c.id.substring(0, 8).toUpperCase()}
+          </span>
+        </div>
+
+        {/* View Mode Switch on Mobile/Tablet screens */}
+        {isMobileScreen && (
+          <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800 p-1 rounded-lg">
+            <button
+              type="button"
+              onClick={() => setIsFitMode(true)}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                isFitMode
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              <span>Fit Screen ({Math.round(scale * 100)}%)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFitMode(false)}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition-all ${
+                !isFitMode
+                  ? "bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+              <span>100% Zoom</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Printable Area Wrapper with Dynamic Scaling */}
+      <div ref={containerRef} className="w-full bg-slate-100/70 dark:bg-slate-950/40 p-2 sm:p-4 md:p-6 overflow-hidden">
+        <div
+          className={`w-full flex ${
+            isFitMode && scale < 1 ? "justify-center overflow-hidden" : "overflow-x-auto justify-start xl:justify-center custom-scrollbar"
+          }`}
+          style={{
+            height: isFitMode && scale < 1 ? `${Math.ceil(1123 * scale) + 8}px` : "auto",
+          }}
+        >
+          {/* The actual view (Fixed 794px A4 width to ensure PDF consistency) */}
+          <div
+            id={`case-paper-${c.id}`}
+            style={{
+              transform: isFitMode && scale < 1 ? `scale(${scale})` : "none",
+              transformOrigin: "top center",
+            }}
+            className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-lg border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px] rounded-sm"
+          >
+            {/* Top Header Background SVG */}
+            <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
+              <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
+                <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
+              </svg>
+            </div>
+
+            {/* Top Header Content */}
+            <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
+              {/* Left: Doctor 1 */}
+              <div className="flex-1 mt-1">
+                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
+                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
+              </div>
+
+              {/* Center: Doctor 2 & Quote */}
+              <div className="flex-1 flex flex-col items-center -mt-2">
+                <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
+                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
+                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
+                <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
+              </div>
+
+              {/* Right: Logo */}
+              <div className="flex-1 flex justify-end">
+                <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
+                  <LogoSVG idPrefix={`case-${c.id}`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
+              {/* Name */}
+              <div className="flex mb-6">
+                <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
+                <span className="flex-1 font-semibold">{c.full_name}</span>
+              </div>
+
+              {/* Grid layout matching official format */}
+              <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
+                {/* Row 1 */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Date Of Birth:</span>
+                  <span className="flex-1 font-semibold">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Age & Gender :</span>
+                  <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ""}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Date :</span>
+                  <span className="flex-1 font-semibold">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Phone No. :</span>
+                  <span className="flex-1 font-semibold">{c.mobile}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Married/Unmarried :</span>
+                  <span className="flex-1 font-semibold">{c.marital_status}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Education :</span>
+                  <span className="flex-1 font-semibold">{c.education}</span>
+                </div>
+
+                {/* Row 3 & 4 (Address spanning 2 rows on left) */}
+                <div className="col-span-2 row-span-2 flex items-start">
+                  <span className="font-bold mr-2 mt-0.5">Address :</span>
+                  <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Occupation :</span>
+                  <span className="flex-1 font-semibold">{c.occupation}</span>
+                </div>
+
+                {/* Row 4 right side */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Parent's Occu. :</span>
+                  <span className="flex-1 font-semibold">{c.parents_occupation}</span>
+                </div>
+              </div>
+
+              {/* History Section - 4 labels spread horizontally */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
+                <div className="flex">
+                  <span className="font-bold mr-2">History of present illness :</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">पाळीचा इतिहास</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">मागील इतिहास</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">वजन :</span>
+                </div>
+              </div>
+
+              {/* Actual data for History */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
+                <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{c.notes}</div>
+                <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
+                <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
+                <div className="font-semibold min-h-[40px]">{c.weight}</div>
+              </div>
+
+              {/* Doctor's Notes & Prescription (If available) */}
+              {(c.prescription || c.medical_notes) && (
+                <div className="mt-8 pt-4 border-t border-slate-200">
+                  {c.medical_notes && (
+                    <div className="mb-4">
+                      <div className="font-bold mb-1 underline">Diagnosis:</div>
+                      <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
+                    </div>
+                  )}
+                  {c.prescription && (
+                    <div>
+                      <div className="font-serif font-bold text-2xl mb-1 text-[#b45309]">Rx</div>
+                      <div className="whitespace-pre-wrap font-medium">{c.prescription}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Faint Swoosh Background */}
+            <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
+
+            {/* Solid Yellow Footer */}
+            <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
+              <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
+                <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
+              </svg>
+            </div>
+
+            {/* Consent & Bottom Signatures */}
+            <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
+              <div className="text-center font-bold text-[12px] text-black">Concent</div>
+              <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
+                I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
+              </div>
+
+              <div className="flex flex-col mb-2 gap-3">
+                <div className="flex items-end">
+                  <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
+                  <span className="font-semibold uppercase text-[13px]">{c.full_name}</span>
+                </div>
+                <div className="flex items-end">
+                  <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Yellow Footer Content overlay */}
+            <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
+              <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                9404306548 | 8867303202
+              </div>
+              <div className="text-[11px] text-black font-semibold">
+                Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Bar */}
+      <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-slate-50 dark:bg-slate-900/90 flex flex-col sm:flex-row justify-between items-center gap-3 rounded-b-2xl">
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>Created on {new Date(c.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+        </div>
+
+        <div className="flex items-center justify-end w-full sm:w-auto gap-2 flex-wrap">
+          {/* Download Button */}
+          <Button
+            onClick={() => {
+              setBusy(true);
+              try {
+                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
+              } catch (err) {
+                console.error(err);
+                toast.error("Failed to generate PDF.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="flex-1 sm:flex-initial gap-1.5 shadow-md bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs h-9 px-3.5"
+          >
+            <Download className="h-4 w-4" /> Download PDF
+          </Button>
+
+          {/* Share Button */}
+          <Button
+            onClick={() => {
+              setBusy(true);
+              try {
+                generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, "share");
+              } catch (err) {
+                console.error(err);
+                toast.error("Share failed.");
+              } finally {
+                setBusy(false);
+              }
+            }}
+            variant="outline"
+            className="flex-1 sm:flex-initial gap-1.5 shadow-sm border-amber-500 text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-xl text-xs h-9 px-3.5"
+          >
+            <Share2 className="h-4 w-4" /> Share
+          </Button>
+
+          {/* Done Button */}
+          <Link to="/">
+            <Button
+              variant="ghost"
+              className="rounded-xl text-xs h-9 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-transparent hover:border-slate-300 dark:hover:border-slate-700 px-3"
+            >
+              Done
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PatientPage() {
   const { user, loading, refreshRole } = useAuth();
@@ -233,45 +565,57 @@ function PatientPage() {
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold flex items-center gap-2"><FileText className="h-7 w-7 text-primary" /> My Case Papers</h2>
+    <div className="space-y-6 pb-12 pt-2 md:pt-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-2">
+          <FileText className="h-7 w-7 sm:h-8 sm:w-8 text-primary drop-shadow-sm" /> 
+          <span className="bg-gradient-to-r from-primary via-teal-500 to-emerald-600 bg-clip-text text-transparent drop-shadow-sm">
+            My Case Papers
+          </span>
+        </h2>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white shadow-md rounded-xl">
+              <Plus className="h-4 w-4" /> New Case Paper
+            </Button>
+          </DialogTrigger>
 
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
              <DialogHeader>
-                <DialogTitle>New Case Paper</DialogTitle>
+                <DialogTitle className="text-xl font-bold flex items-center gap-2 text-teal-700 dark:text-teal-400">
+                  <FileText className="h-5 w-5" /> New Case Paper
+                </DialogTitle>
                 <DialogDescription>Fill in your details to register a visit</DialogDescription>
              </DialogHeader>
-             <form onSubmit={submit} className="space-y-4">
+             <form onSubmit={submit} className="space-y-4 mt-2">
                  <div>
-                   <Label>Full name</Label>
-                   <div className="relative">
-                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="pr-10" required />
+                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Full name</Label>
+                   <div className="relative mt-1">
+                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="pr-10 rounded-xl" placeholder="Patient's Full Name" required />
                      <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, full_name: f.full_name ? f.full_name + " " + val : val }))} />
                    </div>
                  </div>
                  <div>
-                   <Label>Address</Label>
-                   <div className="relative">
-                     <Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="pr-10" required />
+                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Address</Label>
+                   <div className="relative mt-1">
+                     <Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="pr-10 rounded-xl" placeholder="Full address" required />
                      <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, address: f.address ? f.address + " " + val : val }))} positionClassName="top-3" />
                    </div>
                  </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <Label>Mobile</Label>
-                      <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} required />
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Mobile</Label>
+                      <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} className="mt-1 rounded-xl" placeholder="Mobile number" required />
                     </div>
                     <div>
-                      <Label>Date of Birth</Label>
-                      <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} required />
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Date of Birth</Label>
+                      <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="mt-1 rounded-xl" required />
                     </div>
                     <div>
-                      <Label>Gender</Label>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Gender</Label>
                       <Select value={form.gender} onValueChange={(val) => setForm({ ...form, gender: val })}>
-                        <SelectTrigger>
+                        <SelectTrigger className="mt-1 rounded-xl">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
@@ -283,15 +627,15 @@ function PatientPage() {
                     </div>
                   </div>
                  {form.dob && (
-                   <div className="rounded-lg border bg-secondary/50 px-3 py-2 text-sm">
-                     Age: <span className="font-semibold">{age}</span> years
+                   <div className="rounded-xl border bg-teal-50/80 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800/40 px-3.5 py-2 text-sm text-teal-900 dark:text-teal-200">
+                     Age: <span className="font-bold">{age}</span> years
                    </div>
                  )}
-                 <div className="grid grid-cols-2 gap-3">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <Label>Marital Status</Label>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Marital Status</Label>
                       <Select value={form.marital_status} onValueChange={(val) => setForm({ ...form, marital_status: val })}>
-                        <SelectTrigger>
+                        <SelectTrigger className="mt-1 rounded-xl">
                           <SelectValue placeholder="Select Status" />
                         </SelectTrigger>
                         <SelectContent>
@@ -301,307 +645,68 @@ function PatientPage() {
                       </Select>
                     </div>
                    <div>
-                     <Label>Education</Label>
-                     <Input value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} />
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Education</Label>
+                     <Input value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} className="mt-1 rounded-xl" placeholder="Education" />
                    </div>
                  </div>
-                 <div className="grid grid-cols-2 gap-3">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                    <div>
-                     <Label>Occupation</Label>
-                     <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} />
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Occupation</Label>
+                     <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} className="mt-1 rounded-xl" placeholder="Occupation" />
                    </div>
                    <div>
-                     <Label>Parent's Occu.</Label>
-                     <Input value={form.parents_occupation} onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} />
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Parent's Occu.</Label>
+                     <Input value={form.parents_occupation} onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} className="mt-1 rounded-xl" placeholder="Parent's Occupation" />
                    </div>
                  </div>
                  <div>
-                   <Label>Chief Complaints / History of present illness</Label>
-                   <div className="relative">
-                     <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="pr-10" />
+                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Chief Complaints / History of present illness</Label>
+                   <div className="relative mt-1">
+                     <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="pr-10 rounded-xl" placeholder="Complaints / Symptoms" />
                      <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, notes: f.notes ? f.notes + " " + val : val }))} positionClassName="top-3" />
                    </div>
                  </div>
-                  <div className={`grid ${form.gender === 'Female' ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}>
+                  <div className={`grid grid-cols-1 ${form.gender === 'Female' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
                     {form.gender === "Female" && (
                       <div>
-                        <Label>पाळीचा इतिहास</Label>
-                        <Input value={form.menstrual_history} onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} />
+                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">पाळीचा इतिहास</Label>
+                        <Input value={form.menstrual_history} onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} className="mt-1 rounded-xl" placeholder="पाळीचा इतिहास" />
                       </div>
                     )}
                    <div>
-                     <Label>मागील इतिहास</Label>
-                     <Input value={form.past_history} onChange={(e) => setForm({ ...form, past_history: e.target.value })} />
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">मागील इतिहास</Label>
+                     <Input value={form.past_history} onChange={(e) => setForm({ ...form, past_history: e.target.value })} className="mt-1 rounded-xl" placeholder="मागील आजार / इतिहास" />
                    </div>
                    <div>
-                     <Label>वजन (Weight)</Label>
-                     <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" />
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">वजन (Weight)</Label>
+                     <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" className="mt-1 rounded-xl" />
                    </div>
                  </div>
-                <Button type="submit" className="w-full h-11 bg-cyan-700 hover:bg-cyan-800 text-white shadow-md shadow-cyan-900/20" disabled={busy}>
-                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit case paper
+                <Button type="submit" className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-900/20 rounded-xl transition-all" disabled={busy}>
+                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Case Paper
                 </Button>
              </form>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="grid gap-10">
-        {cases.length === 0 && (
-          <Card className="glass border-0 p-12 text-center text-muted-foreground">
-            No case papers yet. Click "New Case Paper" to get started.
-          </Card>
-        )}
-        
-        {cases.map((c) => (
-          <div key={c.id} className="relative mx-auto w-full max-w-[850px] mb-8 bg-white shadow-2xl transition-all hover:shadow-3xl flex flex-col border border-slate-200 rounded-2xl overflow-hidden">
-            
-            {/* Responsive Wrapper for Mobile */}
-            <div className="w-full bg-slate-100/50 dark:bg-slate-900/20">
-              <div className="w-full overflow-x-auto p-4 sm:p-8 flex justify-start xl:justify-center custom-scrollbar">
-                
-                {/* The actual view (Fixed A4 width to ensure PDF consistency) */}
-                <div id={`case-paper-${c.id}`} className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-md border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px]">
-              
-              {/* Top Header Background SVG */}
-              <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
-                <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
-                  <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
-                </svg>
-              </div>
-
-              {/* Top Header Content */}
-              <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
-                
-                {/* Left: Doctor 1 */}
-                <div className="flex-1 mt-1">
-                  <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
-                  <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
-                </div>
-
-                {/* Center: Doctor 2 & Quote */}
-                <div className="flex-1 flex flex-col items-center -mt-2">
-                  <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
-                  <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
-                  <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
-                  <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
-                </div>
-
-                {/* Right: Logo */}
-                <div className="flex-1 flex justify-end">
-                  <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
-                    <LogoSVG idPrefix={`case-${c.id}`} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Form Content */}
-              <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
-                
-                {/* Name */}
-                <div className="flex mb-6">
-                  <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
-                  <span className="flex-1 font-semibold">{c.full_name}</span>
-                </div>
-
-                {/* Grid layout exactly matching image */}
-                <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
-                  
-                  {/* Row 1 */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Date Of Birth:</span>
-                    <span className="flex-1 font-semibold">{c.dob ? new Date(c.dob).toLocaleDateString("en-IN") : ""}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Age & Gender :</span>
-                    <span className="flex-1 font-semibold">{c.age} {c.gender ? `/ ${c.gender}` : ''}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Date :</span>
-                    <span className="flex-1 font-semibold">{new Date(c.created_at).toLocaleDateString("en-IN")}</span>
-                  </div>
-
-                  {/* Row 2 */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Phone No. :</span>
-                    <span className="flex-1 font-semibold">{c.mobile}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Married/Unmarried :</span>
-                    <span className="flex-1 font-semibold">{c.marital_status}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Education :</span>
-                    <span className="flex-1 font-semibold">{c.education}</span>
-                  </div>
-
-                  {/* Row 3 & 4 (Address spanning 2 rows on left) */}
-                  <div className="col-span-2 row-span-2 flex items-start">
-                    <span className="font-bold mr-2 mt-0.5">Address :</span>
-                    <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{c.address}</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">Occupation :</span>
-                    <span className="flex-1 font-semibold">{c.occupation}</span>
-                  </div>
-                  
-                  {/* Row 4 right side */}
-                  <div className="flex">
-                    <span className="font-bold mr-2">Parent's Occu. :</span>
-                    <span className="flex-1 font-semibold">{c.parents_occupation}</span>
-                  </div>
-                </div>
-
-                {/* History Section - 4 labels spread horizontally */}
-                <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
-                  <div className="flex">
-                    <span className="font-bold mr-2">History of present illness :</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">पाळीचा इतिहास</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">मागील इतिहास</span>
-                  </div>
-                  <div className="flex">
-                    <span className="font-bold mr-2">वजन :</span>
-                  </div>
-                </div>
-
-                {/* Actual data for History */}
-                <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
-                  <div className="font-semibold min-h-[40px] pr-2 whitespace-pre-wrap">{c.notes}</div>
-                  <div className="font-semibold min-h-[40px] pr-2">{c.menstrual_history}</div>
-                  <div className="font-semibold min-h-[40px] pr-2">{c.past_history}</div>
-                  <div className="font-semibold min-h-[40px]">{c.weight}</div>
-                </div>
-
-                {/* Doctor's Notes & Prescription (If available) */}
-                {(c.prescription || c.medical_notes) && (
-                  <div className="mt-8 pt-4 border-t border-slate-200">
-                    {c.medical_notes && (
-                       <div className="mb-4">
-                         <div className="font-bold mb-1 underline">Diagnosis:</div>
-                         <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
-                       </div>
-                    )}
-                    {c.prescription && (
-                       <div>
-                         <div className="font-serif font-bold text-2xl mb-1 text-[#b45309]">Rx</div>
-                         <div className="whitespace-pre-wrap font-medium">{c.prescription}</div>
-                       </div>
-                    )}
-                  </div>
-                )}
-                
-              </div>
-
-              {/* Faint Swoosh Background */}
-              <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
-
-              {/* Solid Yellow Footer */}
-              <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
-                <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
-                  <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
-                </svg>
-              </div>
-
-              {/* Consent & Bottom Signatures */}
-              <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
-                <div className="text-center font-bold text-[12px] text-black">Concent</div>
-                <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
-                  I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
-                </div>
-                
-                <div className="flex flex-col mb-2 gap-3">
-                  <div className="flex items-end">
-                    <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
-                    <span className="font-semibold uppercase text-[13px]">{c.full_name}</span>
-                  </div>
-                  <div className="flex items-end">
-                    <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom Yellow Footer Content overlay */}
-              <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
-                <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                  9404306548 | 8867303202
-                </div>
-                <div className="text-[11px] text-black font-semibold">
-                  Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
-                </div>
-              </div>
-
-            </div>
-              </div>
-            </div>
-            
-            {/* Action Bar (outside printable area) */}
-            <div className="border-t border-slate-200 dark:border-white/10 p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center rounded-b-2xl">
-
-              <div className="flex items-center gap-2">
-                <Badge className={statusColor[c.status as CaseStatus]} variant="outline">
-                  {statusLabel[c.status as CaseStatus]}
-                </Badge>
-                <span className="font-mono text-xs text-slate-500 bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded">ID: {c.id.substring(0,8).toUpperCase()}</span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {/* Download Button — exact visual clone */}
-                <Button 
-                  onClick={() => {
-                    setBusy(true);
-                    try {
-                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`);
-                    } catch (err) {
-                      console.error(err);
-                      toast.error("Failed to generate PDF.");
-                    } finally {
-                      setBusy(false);
-                    }
-                  }} 
-                  className="gap-2 shadow-md bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl text-xs h-9"
-                >
-                  <Download className="h-4 w-4" /> Download
-                </Button>
-
-                {/* Share Button — opens native share/WhatsApp dialog with exact clone */}
-                <Button 
-                  onClick={() => {
-                    setBusy(true);
-                    try {
-                      generatePDFFromElementId(`case-paper-${c.id}`, `Case-Paper-${c.full_name}`, 'share');
-                    } catch (err) {
-                      console.error(err);
-                      toast.error("Share failed.");
-                    } finally {
-                      setBusy(false);
-                    }
-                  }} 
-                  variant="outline"
-                  className="gap-2 shadow-sm border-yellow-500 text-yellow-700 hover:bg-yellow-50 rounded-xl text-xs h-9"
-                >
-                  <Share2 className="h-4 w-4" /> Share
-                </Button>
-
-                {/* Done Button — returns to homepage and clears session */}
-                <Link to="/">
-                  <Button 
-                    variant="ghost"
-                    className="rounded-xl text-xs h-9 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold border border-transparent hover:border-slate-300 dark:hover:border-slate-700"
-                  >
-                    Done
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            
-          </div>
-        ))}
-      </div>
+      <AnimatePresence mode="popLayout">
+        <div className="grid gap-10">
+          {cases.length === 0 && (
+            <AnimatedWrapper>
+              <Card className="glass border-0 p-12 text-center text-muted-foreground">
+                No case papers yet. Click "New Case Paper" to get started.
+              </Card>
+            </AnimatedWrapper>
+          )}
+          
+          {cases.map((c, i) => (
+            <AnimatedWrapper key={c.id} index={i}>
+              <CasePaperCard c={c} setBusy={setBusy} />
+            </AnimatedWrapper>
+          ))}
+        </div>
+      </AnimatePresence>
     </div>
   );
 }

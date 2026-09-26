@@ -18,10 +18,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getHomepageSettings, saveHomepageSettings, HomepageSettings, ServiceItem } from "@/lib/settings";
 import { generateInvoicePDF } from "@/lib/pdf";
+import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
 import * as Lucide from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useRouter } from "@tanstack/react-router";
+import { motion, AnimatePresence } from "framer-motion";
+
+function AnimatedWrapper({ children }: { children: React.ReactNode; index?: number }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
+      {children}
+    </div>
+  );
+}
 
 // Recharts imports for the Dashboard statistics
 import {
@@ -490,31 +500,39 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
         {cardConfigs.map((cfg, index) => {
           const Icon = cfg.icon;
           return (
-            <Card key={index} className="group/card border border-slate-200/60 dark:border-slate-850/80 shadow-2xs hover:shadow-md bg-white dark:bg-slate-950 rounded-2xl overflow-hidden hover:-translate-y-1 hover:ring-1 hover:ring-teal-500/10 transition-all duration-300">
-              <CardContent className="p-5 flex flex-col justify-between h-full min-h-32">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">{cfg.label}</span>
-                  <div className={`h-9 w-9 rounded-xl ${cfg.bg} flex items-center justify-center transform transition-transform group-hover/card:scale-110 duration-300 relative`}>
-                    <span className={`absolute inset-0 rounded-xl filter blur-xs opacity-40 animate-pulse ${cfg.bg}`} />
-                    <Icon className={`h-5 w-5 ${cfg.text}`} />
+            <AnimatedWrapper key={index} index={index}>
+              <Card className="group/card border border-slate-200/60 dark:border-slate-850/80 shadow-2xs hover:shadow-md bg-white dark:bg-slate-950 rounded-2xl overflow-hidden hover:ring-1 hover:ring-teal-500/10 transition-all duration-300 h-full">
+                <CardContent className="p-5 flex flex-col justify-between h-full min-h-32">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-widest">{cfg.label}</span>
+                    <div className={`h-9 w-9 rounded-xl ${cfg.bg} flex items-center justify-center transform transition-transform group-hover/card:scale-110 duration-300 relative`}>
+                      <span className={`absolute inset-0 rounded-xl filter blur-xs opacity-40 animate-pulse ${cfg.bg}`} />
+                      <Icon className={`h-5 w-5 ${cfg.text}`} />
+                    </div>
                   </div>
-                </div>
-                <div className="mt-3">
-                  <div className="text-2xl font-extrabold text-slate-850 dark:text-slate-100 tracking-tight leading-none">{cfg.value}</div>
-                  <div className={`text-[10px] font-bold mt-2.5 flex items-center gap-1 ${cfg.trendColor} w-max`}>
-                    <span>{cfg.trend}</span>
+                  <div className="mt-3">
+                    <div className="text-2xl font-extrabold text-slate-850 dark:text-slate-100 tracking-tight leading-none">{cfg.value}</div>
+                    <div className={`text-[10px] font-bold mt-2.5 flex items-center gap-1 ${cfg.trendColor} w-max`}>
+                      <span>{cfg.trend}</span>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </AnimatedWrapper>
           );
         })}
       </div>
 
       {/* Analytics and charts section */}
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3" style={{ alignItems: "stretch" }}>
         {/* Bar Chart card */}
-        <Card className="lg:col-span-2 border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.56, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-2"
+        >
+        <Card className="border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5">
           <CardHeader className="p-0 pb-5">
             <CardTitle className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Monthly Registered Users</CardTitle>
           </CardHeader>
@@ -569,9 +587,16 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
             </div>
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* Earning donut cards */}
-        <Card className="lg:col-span-1 border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5 flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.63, ease: [0.22, 1, 0.36, 1] }}
+          className="lg:col-span-1"
+        >
+        <Card className="border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-5 flex flex-col justify-between h-full">
           <div>
             <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-850">
               <CardTitle className="text-[10.5px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500">Earning Performance</CardTitle>
@@ -620,6 +645,7 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
             </div>
           </div>
         </Card>
+        </motion.div>
       </div>
     </div>
   );
@@ -1042,15 +1068,19 @@ function InvoiceSection() {
                   <AdminBillingDialog caseRow={c} onSaved={() => {}} />
                   {(c.status === "billed" || c.status === "returned_to_nurse") && (
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => generateInvoicePDF(c, "download")}
-                        className="rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-xs font-semibold h-8"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                        <span>Download</span>
-                      </Button>
+                      <InvoicePreviewDialog
+                        caseRow={c}
+                        trigger={
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1.5 text-xs font-semibold h-8"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            <span>Download</span>
+                          </Button>
+                        }
+                      />
                       <Button
                         size="sm"
                         variant="outline"

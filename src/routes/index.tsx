@@ -22,6 +22,7 @@ import { roleHome } from "@/lib/case-utils";
 import { Stethoscope, HeartPulse, ShieldCheck, Activity, FileText, Loader2, Users, ClipboardList, Mail, Phone, MapPin, Send, ArrowRight, CheckCircle2 } from "lucide-react";
 import * as Lucide from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { motion } from "framer-motion";
 
 const getServiceImage = (serviceId: string, iconName?: string) => {
   switch (serviceId) {
@@ -168,7 +169,7 @@ function Landing() {
       <main className="flex-1 flex flex-col relative z-[1]">
 
         {/* ═══════════════ HERO SECTION ═══════════════ */}
-        <section className="w-full relative overflow-hidden min-h-[520px] md:min-h-[600px] flex items-center">
+        <section className="w-full relative overflow-hidden min-h-[480px] md:min-h-[600px] flex items-center">
           {/* Sliding Background Images */}
           {heroImages.map((src, idx) => (
             <img
@@ -184,21 +185,21 @@ function Landing() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#EDE8DF]/95 via-[#EDE8DF]/80 to-transparent dark:from-[#1a1f2e]/95 dark:via-[#1a1f2e]/70 dark:to-transparent" />
 
           {/* Text content — left side only */}
-          <div className="relative z-10 w-full mx-auto max-w-7xl px-6 lg:px-10 py-20 md:py-28">
-            <div key={heroIndex} className="max-w-xl space-y-6">
-              <p className="text-sm font-medium tracking-widest uppercase text-[#1C3A8A] dark:text-blue-300 animate-fade-in-up">
+          <div className="relative z-10 w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 py-16 md:py-28">
+            <div key={heroIndex} className="max-w-xl space-y-4 sm:space-y-6">
+              <p className="text-xs sm:text-sm font-medium tracking-widest uppercase text-[#1C3A8A] dark:text-blue-300 animate-fade-in-up">
                 {settings.hospitalName}
               </p>
-              <h1 className="text-4xl md:text-5xl lg:text-[3.6rem] font-serif font-normal text-[#1C3A8A] dark:text-white leading-[1.15] tracking-tight animate-fade-in-up anim-delay-150">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.6rem] font-serif font-normal text-[#1C3A8A] dark:text-white leading-[1.15] tracking-tight animate-fade-in-up anim-delay-150">
                 {settings.hospitalName},<br />
                 <span className="italic">Healthcare for All</span>
               </h1>
-              <p className="text-base md:text-lg text-[#444] dark:text-gray-300 leading-relaxed max-w-md animate-fade-in-up anim-delay-300">
+              <p className="text-sm sm:text-base md:text-lg text-[#444] dark:text-gray-300 leading-relaxed max-w-md animate-fade-in-up anim-delay-300">
                 {settings.heroSubtitle}
               </p>
-              <div className="flex flex-wrap gap-4 pt-2 animate-fade-in-up anim-delay-450">
-                <Link to="/patient">
-                  <Button className="bg-[#1C3A8A] hover:bg-[#162d6e] text-white font-semibold text-base px-8 h-12 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 pt-2 sm:pt-4 animate-fade-in-up anim-delay-450">
+                <Link to="/patient" className="w-full sm:w-auto">
+                  <Button className="w-full sm:w-auto bg-[#1C3A8A] hover:bg-[#162d6e] text-white font-semibold text-sm sm:text-base px-6 sm:px-8 h-12 rounded-full shadow-md hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2">
                     <ClipboardList className="h-5 w-5" />
                     Book an Appointment
                   </Button>
@@ -386,7 +387,9 @@ function Landing() {
                   {(settings.doctors || []).map((doctor) => (
                     <Dialog key={doctor.id}>
                       <DialogTrigger asChild>
-                        <div className="cursor-pointer flex flex-col sm:flex-row items-center gap-5 p-5 rounded-2xl bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-sm hover:shadow-lg transition-all duration-300 hover:scale-[1.02] hover:border-emerald-200 dark:hover:border-emerald-800/50">
+                        <div 
+                          className="cursor-pointer flex flex-col sm:flex-row items-center gap-5 p-5 rounded-2xl bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 shadow-sm hover:shadow-lg transition-all duration-300 hover:border-emerald-200 dark:hover:border-emerald-800/50"
+                        >
                           <img src={doctor.image} alt={doctor.name} className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl border border-gray-100 dark:border-white/10 shrink-0" />
                           <div className="space-y-1.5 text-center sm:text-left">
                             <h4 className="text-lg font-bold text-[#1a1a1a] dark:text-white hover:text-emerald-600">{doctor.name}</h4>
