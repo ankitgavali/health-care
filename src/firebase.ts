@@ -6,12 +6,13 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 export const firebaseConfig = {
-  apiKey: "AIzaSyBYRST72eYxYAM5y5f8PxxFSO3KpDGwLzg",
-  authDomain: "hospital-care-981d5.firebaseapp.com",
-  projectId: "hospital-care-981d5",
-  storageBucket: "hospital-care-981d5.firebasestorage.app",
-  messagingSenderId: "388271453191",
-  appId: "1:388271453191:web:c5a54bd6618f5390b566a2"
+  apiKey: "AIzaSyBqteCYk9ZxDD7Ixq7PemfmxZ9NF2vf7OQ",
+  authDomain: "hoapital-care.firebaseapp.com",
+  projectId: "hoapital-care",
+  storageBucket: "hoapital-care.firebasestorage.app",
+  messagingSenderId: "186955954455",
+  appId: "1:186955954455:web:3c797695bf65d16bdd1f52",
+  measurementId: "G-VTKHWW2C60"
 };
 
 // Initialize Firebase

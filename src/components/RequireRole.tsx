@@ -143,33 +143,31 @@ function RoleLoginForm({
       setBusy(false);
       toast.success(`Welcome to ${targetRoleLabel}`);
     } catch (err: any) {
-      // 2. Predefined / Staff email auto-creation logic
-      const isStaffEmail = emailClean.includes("nurse") || emailClean.includes("doctor") || emailClean.includes("admin");
-      if (isStaffEmail || ["admin12@gmail.com", "nurse1@gmail.com", "nurse12@gmail.com", "doctor12@gmail.com", "doctor1@gmail.com", "doctor2@gmail.com"].includes(emailClean)) {
+      // 2. Predefined email auto-creation logic
+      if (["admin12@gmail.com", "nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com"].includes(emailClean)) {
         let roleKey: AppRole = "nurse";
         let dbRoleVal: any = "nurse";
-        let name = "Nurse Staff";
+        let name = "payal";
 
-        if (emailClean.includes("admin")) {
+        if (emailClean === "admin12@gmail.com") {
           roleKey = "admin";
-          dbRoleVal = "admin";
+          dbRoleVal = "patient"; // Store as patient to bypass constraints if any
           name = "Admin Control";
-        } else if (emailClean.includes("doctor2")) {
-          roleKey = "doctor2";
-          dbRoleVal = "doctor2";
-          name = "Dr. Omprasad Jagtap";
-        } else if (emailClean.includes("doctor")) {
+        } else if (emailClean === "doctor12@gmail.com" || emailClean === "doctor12@gmail" || emailClean === "doctor1@gmail.com") {
           roleKey = "doctor1";
           dbRoleVal = "doctor1";
           name = "Dr. Kadambari Jagtap";
+        } else if (emailClean === "doctor2@gmail.com") {
+          roleKey = "doctor2";
+          dbRoleVal = "doctor2";
+          name = "Dr. Omprasad Jagtap";
         }
 
         try {
           const userCred = await createUserWithEmailAndPassword(auth, emailClean, password);
           
           await setDoc(doc(db, "user_roles", userCred.user.uid), {
-            role: dbRoleVal,
-            user_id: userCred.user.uid
+            role: dbRoleVal
           });
 
           await setDoc(doc(db, "profiles", userCred.user.uid), {
@@ -183,7 +181,7 @@ function RoleLoginForm({
           return;
         } catch (upErr: any) {
           setBusy(false);
-          return toast.error("Login failed: " + upErr.message);
+          return toast.error("Login failed and predefined creation failed: " + upErr.message);
         }
       }
 

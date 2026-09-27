@@ -504,25 +504,11 @@ function PatientPage() {
     e.preventDefault();
     const r = schema.safeParse(form);
     if (!r.success) return toast.error(r.error.issues[0].message);
-    setBusy(true);
-    let currentUser = user;
-    if (!currentUser) {
-      try {
-        const guestEmail = "guest.patient@medicare.local";
-        const guestPassword = "guestPassword123";
-        try {
-          const res = await signInWithEmailAndPassword(auth, guestEmail, guestPassword);
-          currentUser = res.user;
-        } catch {
-          const res = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
-          currentUser = res.user;
-        }
-      } catch (authErr: any) {
-        console.warn("Guest auth attempt:", authErr);
-      }
+    if (!user) {
+      toast.error("Please wait, connecting to server or verification failed. Check your internet connection.");
+      return;
     }
-
-    const patientUid = currentUser?.uid || `guest_${Date.now()}`;
+    setBusy(true);
     try {
       const newDocRef = doc(collection(db, "case_papers"));
       const newId = newDocRef.id;
@@ -537,7 +523,7 @@ function PatientPage() {
       }
 
       await setDoc(newDocRef, {
-        patient_id: patientUid,
+        patient_id: user.uid,
         full_name: form.full_name.trim(),
         address: form.address.trim(),
         mobile: form.mobile.trim(),
