@@ -45,39 +45,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileName(null);
     }
 
-    if (roleDoc.exists()) {
+    if (roleDoc.exists() && roleDoc.data().role) {
       setRole(roleDoc.data().role as AppRole);
       return;
     }
 
-    // If role is missing for predefined accounts, auto-insert it
-    if (email && ["nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com", "guest.patient@medicare.local"].includes(email)) {
-      let roleKey: AppRole = "nurse";
-      if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") roleKey = "doctor1";
-      if (email === "doctor2@gmail.com") roleKey = "doctor2";
-      if (email === "guest.patient@medicare.local") roleKey = "patient";
+    // Auto-detect and persist role if missing in Firestore
+    if (email) {
+      let roleKey: AppRole | null = null;
+      let name = "Hospital Staff";
 
-      try {
-        await setDoc(roleDocRef, { role: roleKey });
-        
-        let name = "payal";
-        if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") name = "Dr. Kadambari Jagtap";
-        if (email === "doctor2@gmail.com") name = "Dr. Omprasad Jagtap";
-        if (email === "guest.patient@medicare.local") name = "Guest Patient";
-
-        await setDoc(doc(db, "profiles", currentUser.uid), {
-          full_name: name,
-          email,
-        });
-
-        setRole(roleKey);
-        setProfileName(name);
-      } catch (err) {
-        console.error("Failed to auto-insert role in Firestore", err);
-        setRole(null);
-        setProfileName(null);
+      if (email === "admin12@gmail.com" || email.includes("admin")) {
+        roleKey = "admin";
+        name = "Super Admin";
+      } else if (email.includes("nurse") || email === "nurse1@gmail.com" || email === "nurse12@gmail.com") {
+        roleKey = "nurse";
+        name = "Nurse Staff";
+      } else if (email.includes("doctor2") || email === "doctor2@gmail.com") {
+        roleKey = "doctor2";
+        name = "Dr. Omprasad Jagtap";
+      } else if (email.includes("doctor") || email === "doctor1@gmail.com" || email === "doctor12@gmail.com") {
+        roleKey = "doctor1";
+        name = "Dr. Kadambari Jagtap";
+      } else if (email.includes("patient") || email === "guest.patient@medicare.local") {
+        roleKey = "patient";
+        name = "Guest Patient";
       }
-      return;
+
+      if (roleKey) {
+        try {
+          await setDoc(roleDocRef, { role: roleKey, user_id: currentUser.uid }, { merge: true });
+          await setDoc(profileDocRef, {
+            full_name: profileDoc.exists() && profileDoc.data().full_name ? profileDoc.data().full_name : name,
+            email,
+          }, { merge: true });
+
+          setRole(roleKey);
+          if (!profileName) setProfileName(name);
+          return;
+        } catch (err) {
+          console.error("Failed to auto-insert role in Firestore", err);
+          setRole(roleKey);
+          return;
+        }
+      }
     }
 
     setRole(null);
