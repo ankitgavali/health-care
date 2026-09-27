@@ -23,6 +23,7 @@ import {
   Layers, MessageSquare, Edit3, Printer
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { subscribeHomepageSettings } from "@/lib/settings";
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -62,7 +63,11 @@ function NursePage() {
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [doctorPick, setDoctorPick] = useState<Record<string, string>>({});
-  const [doctorsList, setDoctorsList] = useState<{id: string, name: string}[]>([]);
+  const DEFAULT_DOCTORS = [
+    { id: "doctor1", name: "Dr. Kadambari Jagtap" },
+    { id: "doctor2", name: "Dr. Omprasad Jagtap" },
+  ];
+  const [doctorsList, setDoctorsList] = useState<{id: string, name: string}[]>(DEFAULT_DOCTORS);
   
   const casesRef = useRef<any[]>([]);
   useEffect(() => { casesRef.current = cases; }, [cases]);
@@ -97,7 +102,20 @@ function NursePage() {
       setCases(fetched.map(parseCaseNotes));
     });
 
-    // Fetch dynamic doctors list
+    // Subscribe to homepage consulting doctors
+    const unsubSettings = subscribeHomepageSettings((s) => {
+      if (s.doctors && s.doctors.length > 0) {
+        setDoctorsList((prev) => {
+          const map = new Map<string, string>();
+          DEFAULT_DOCTORS.forEach(d => map.set(d.id, d.name));
+          prev.forEach(d => map.set(d.id, d.name));
+          s.doctors.forEach(d => map.set(d.id, d.name));
+          return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+        });
+      }
+    });
+
+    // Fetch dynamic doctors from Firestore
     const fetchDoctors = async () => {
       try {
         const rolesSnap = await getDocs(collection(db, "user_roles"));
@@ -109,29 +127,29 @@ function NursePage() {
         const dynamicDocs: {id: string, name: string}[] = [];
         profilesSnap.forEach(d => {
           const r = rolesMap.get(d.id);
-          const email = d.data().email || "";
-          if (r === "doctor1" || r === "doctor2" || r === "doctor") {
-            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
-            dynamicDocs.push({ id: d.id, name: d.data().full_name });
+          const fullName = d.data().full_name;
+          if ((r === "doctor1" || r === "doctor2" || r === "doctor" || r?.includes?.("doctor")) && fullName) {
+            dynamicDocs.push({ id: d.id, name: fullName });
           }
         });
         
-        const merged: {id: string, name: string}[] = [];
-        
-        dynamicDocs.forEach(d => {
-          const existing = merged.find(m => m.id === d.id);
-          if (!existing) merged.push(d);
-          else existing.name = d.name;
+        setDoctorsList((prev) => {
+          const map = new Map<string, string>();
+          DEFAULT_DOCTORS.forEach(d => map.set(d.id, d.name));
+          prev.forEach(d => map.set(d.id, d.name));
+          dynamicDocs.forEach(d => map.set(d.id, d.name));
+          return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
         });
-        
-        setDoctorsList(merged);
       } catch (err) {
         console.error("Error fetching doctors", err);
       }
     };
     fetchDoctors();
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubSettings();
+    };
   }, []);
 
   // Sidebar Counts
