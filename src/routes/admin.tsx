@@ -438,7 +438,7 @@ function AdminPage() {
    1. DASHBOARD OVERVIEW SECTION
    ======================================================== */
 function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }) {
-  // Compute Stats from real Supabase case sheet rows
+  // Compute Stats from real Firestore case sheet rows
   const stats = useMemo(() => {
     // Unique Patients: count distinct mobile or full name
     const uniquePatients = new Set(cases.map((c) => c.mobile || c.full_name)).size;
