@@ -13,16 +13,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
-import { generateInvoicePDF } from "@/lib/pdf";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
+import { generateInvoicePDF, generatePDFFromElementId } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
 import { 
   Search, Send, Receipt, Download, Users, ClipboardList, CheckCircle2, 
   Plus, Loader2, FileText, Menu, X, ArrowUpDown, Phone, User, MapPin, 
   Calendar, Stethoscope, TrendingUp, AlertCircle, Clock, Activity, History, Trash2,
-  Layers, MessageSquare, Edit3, Printer
+  Layers, MessageSquare, Edit3, Printer, ZoomIn
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { VoiceButton } from "@/components/VoiceButton";
 
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -34,6 +35,35 @@ function AnimatedWrapper({ children }: { children: React.ReactNode, index?: numb
   );
 }
 import { z } from "zod";
+
+const LOGO_SVG_STRING = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" font-family="sans-serif">
+  <circle cx="50" cy="50" r="48" fill="#fbbd08" />
+  <circle cx="50" cy="50" r="36" fill="black" />
+  <circle cx="50" cy="50" r="34" fill="none" stroke="#fbbd08" stroke-width="1" />
+  <path id="curve-top" d="M 8 50 A 42 42 0 1 1 92 50" fill="none" />
+  <text fill="black" font-weight="bold" font-size="10.5px" letter-spacing="0.8">
+    <textPath href="#curve-top" startOffset="50%" text-anchor="middle">MOOLATVAM AYURVED</textPath>
+  </text>
+  <path id="curve-bottom" d="M 92 50 A 42 42 0 0 1 8 50" fill="none" />
+  <text fill="black" font-weight="bold" font-size="4.8px" letter-spacing="0.5">
+    <textPath href="#curve-bottom" startOffset="50%" text-anchor="middle">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</textPath>
+  </text>
+  <path d="M 50 63 L 50 39 A 10 10 0 0 1 70 39 L 70 63 Z" fill="none" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 44 L 70 44" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 49 L 70 49" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 50 54 L 70 54" stroke="#fbbd08" stroke-width="2.5" />
+  <path d="M 42 69 C 38 69 36 65 36 65" stroke="#fbbd08" stroke-width="2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 26 67 26 47 30 43 C 38 47 42 59 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 34 63 30 43 30 43" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 30 51 42 35 46 35 C 50 47 46 63 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 40 55 46 35 46 35" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+  <path d="M 42 67 C 58 71 70 59 70 51 C 62 47 50 59 42 67 Z" fill="#fbbd08" />
+  <path d="M 42 67 C 54 65 70 51 70 51" stroke="black" stroke-width="1.2" fill="none" stroke-linecap="round" />
+</svg>`;
+
+const LogoSVG = ({ idPrefix = "logo" }: { idPrefix?: string }) => {
+  return <img src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(LOGO_SVG_STRING)}`} className="w-full h-full drop-shadow-lg" alt="Logo" />;
+};
 
 export const Route = createFileRoute("/nurse")({
   component: () => (
@@ -97,7 +127,7 @@ function NursePage() {
       setCases(fetched.map(parseCaseNotes));
     });
 
-    // Fetch dynamic doctors list
+    // Fetch dynamic doctors list strictly from database
     const fetchDoctors = async () => {
       try {
         const rolesSnap = await getDocs(collection(db, "user_roles"));
@@ -106,27 +136,37 @@ function NursePage() {
         const rolesMap = new Map();
         rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
         
-        const dynamicDocs: {id: string, name: string}[] = [];
+        const dynamicDocs: { id: string; name: string }[] = [];
+
         profilesSnap.forEach(d => {
-          const r = rolesMap.get(d.id);
-          const email = d.data().email || "";
+          const r = rolesMap.get(d.id) || d.data().role;
+          const fullName = d.data().full_name;
+          if ((r === "doctor1" || r === "doctor2" || r === "doctor") && fullName) {
+            const docKey = getDoctorDeduplicationKey(fullName);
+            const exists = dynamicDocs.some(m => m.id === d.id || (docKey && getDoctorDeduplicationKey(m.name) === docKey));
+            if (!exists) {
+              dynamicDocs.push({ id: d.id, name: fullName });
+            }
+          }
+        });
+
+        // Also check any doctor in user_roles that might not have a profile doc yet
+        rolesSnap.forEach(d => {
+          const r = d.data().role;
           if (r === "doctor1" || r === "doctor2" || r === "doctor") {
-            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
-            dynamicDocs.push({ id: d.id, name: d.data().full_name });
+            const name = d.data().full_name || d.data().name;
+            const docKey = getDoctorDeduplicationKey(name || "");
+            const exists = dynamicDocs.some(m => m.id === d.id || (docKey && getDoctorDeduplicationKey(m.name) === docKey));
+            if (!exists && name) {
+              dynamicDocs.push({ id: d.id, name });
+            }
           }
         });
         
-        const merged: {id: string, name: string}[] = [];
-        
-        dynamicDocs.forEach(d => {
-          const existing = merged.find(m => m.id === d.id);
-          if (!existing) merged.push(d);
-          else existing.name = d.name;
-        });
-        
-        setDoctorsList(merged);
+        setDoctorsList(dynamicDocs);
       } catch (err) {
         console.error("Error fetching doctors", err);
+        setDoctorsList([]);
       }
     };
     fetchDoctors();
@@ -255,9 +295,19 @@ function NursePage() {
         mobile: form.mobile.trim(),
         dob: form.dob,
         age,
-        notes: form.notes?.trim() || null,
+        notes: JSON.stringify({
+          notes: form.notes?.trim() || "",
+          marital_status: "",
+          education: "",
+          occupation: "",
+          parents_occupation: "",
+          menstrual_history: "",
+          past_history: "",
+          weight: "",
+          gender: "",
+        }),
         status: "submitted",
-        created_at: serverTimestamp(),
+        created_at: new Date().toISOString(),
       });
       toast.success("Patient Case Paper created successfully");
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "" });
@@ -676,10 +726,467 @@ function StatCard({ label, value, icon: Icon, color, pulse = false }: { label: s
   );
 }
 
+function NurseClinicalEditDialog({
+  caseRow,
+  doctorPick,
+  setDoctorPick,
+  sendToDoctor,
+  doctorsList,
+  trigger
+}: {
+  caseRow: any;
+  doctorPick?: Record<string, string>;
+  setDoctorPick?: any;
+  sendToDoctor?: (c: any) => Promise<void>;
+  doctorsList?: { id: string; name: string }[];
+  trigger?: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [notes, setNotes] = useState(caseRow.notes || "");
+  const [pastHistory, setPastHistory] = useState(caseRow.past_history || "");
+  const [menstrualHistory, setMenstrualHistory] = useState(caseRow.menstrual_history || "");
+  const [weight, setWeight] = useState(caseRow.weight || "");
+  const [consultationCharge, setConsultationCharge] = useState(Number(caseRow.consultation_charge ?? 0));
+  const [medicineCharge, setMedicineCharge] = useState(Number(caseRow.medicine_charge ?? 0));
+  const [testCharge, setTestCharge] = useState(Number(caseRow.test_charge ?? 0));
+  const [otherCharge, setOtherCharge] = useState(Number(caseRow.other_charge ?? 0));
+
+  useEffect(() => {
+    if (open) {
+      setNotes(caseRow.notes || "");
+      setPastHistory(caseRow.past_history || "");
+      setMenstrualHistory(caseRow.menstrual_history || "");
+      setWeight(caseRow.weight || "");
+      setConsultationCharge(Number(caseRow.consultation_charge ?? 0));
+      setMedicineCharge(Number(caseRow.medicine_charge ?? 0));
+      setTestCharge(Number(caseRow.test_charge ?? 0));
+      setOtherCharge(Number(caseRow.other_charge ?? 0));
+    }
+  }, [open, caseRow]);
+
+  const totalFee = Number(consultationCharge || 0) + Number(medicineCharge || 0) + Number(testCharge || 0) + Number(otherCharge || 0);
+
+  const handleSave = async (andSendDoctor = false) => {
+    setSaving(true);
+    try {
+      const updatedNotesJson = JSON.stringify({
+        notes: notes.trim(),
+        marital_status: caseRow.marital_status || "",
+        education: caseRow.education || "",
+        occupation: caseRow.occupation || "",
+        parents_occupation: caseRow.parents_occupation || "",
+        menstrual_history: menstrualHistory.trim(),
+        past_history: pastHistory.trim(),
+        weight: weight.trim(),
+        gender: caseRow.gender || "",
+      });
+
+      const updatePayload: any = {
+        notes: updatedNotesJson,
+        consultation_charge: Number(consultationCharge || 0),
+        medicine_charge: Number(medicineCharge || 0),
+        test_charge: Number(testCharge || 0),
+        other_charge: Number(otherCharge || 0),
+        total_bill: totalFee,
+        updated_at: serverTimestamp()
+      };
+
+      await updateDoc(doc(db, "case_papers", caseRow.id), updatePayload);
+      toast.success("रुग्ण तक्रारी व इतिहास सेव्ह झाला (Saved successfully!)");
+      
+      if (andSendDoctor && sendToDoctor) {
+        await sendToDoctor({
+          ...caseRow,
+          notes: notes.trim(),
+          past_history: pastHistory.trim(),
+          menstrual_history: menstrualHistory.trim(),
+          weight: weight.trim(),
+        });
+      }
+      setOpen(false);
+    } catch (err: any) {
+      toast.error("Failed to save clinical details: " + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      await generatePDFFromElementId(`case-paper-${caseRow.id}`, `Case-Paper-${caseRow.full_name}`);
+      toast.success("PDF Downloaded successfully!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate PDF.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        {trigger || (
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl text-xs h-9 gap-1.5 border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 font-bold shadow-sm"
+          >
+            <FileText className="h-3.5 w-3.5 text-amber-600" />
+            <span>केस पेपर (Case Paper)</span>
+          </Button>
+        )}
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl w-[96vw] max-h-[92vh] overflow-y-auto rounded-3xl p-4 sm:p-6 bg-slate-100/90 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+        {/* Top Header & Actions Bar */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-200/60 dark:border-white/10">
+          <div>
+            <DialogTitle className="text-lg sm:text-xl font-bold flex items-center gap-2 text-slate-800 dark:text-white">
+              <span className="w-3 h-3 rounded-full bg-[#fbbd08]"></span>
+              Electronic Case Paper — Moolatvam Ayurved
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Visit Date: {new Date(caseRow.created_at).toLocaleDateString("en-IN")}
+            </DialogDescription>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPDF}
+              disabled={downloading}
+              className="rounded-xl h-9 text-xs gap-1.5 border-amber-500/50 text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-semibold"
+            >
+              {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5 text-amber-600" />}
+              PDF Download
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="rounded-xl h-9 text-xs gap-1.5 font-semibold"
+            >
+              <Printer className="h-3.5 w-3.5" /> Print
+            </Button>
+
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              className="rounded-xl h-9 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-sm"
+            >
+              {saving && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />} Save Details (जतन करा)
+            </Button>
+
+            {caseRow.status === "submitted" && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleSave(true)}
+                disabled={saving}
+                className="rounded-xl h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold text-xs shadow-md"
+              >
+                {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1.5 h-3.5 w-3.5" />}
+                Save & Send to Doctor
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* The Exact A4 Case Paper Layout Container matching Image 3 */}
+        <div className="w-full overflow-x-auto p-2 sm:p-4 flex justify-start lg:justify-center custom-scrollbar">
+          <div
+            id={`case-paper-${caseRow.id}`}
+            className="bg-white relative flex flex-col overflow-hidden text-black font-serif shadow-xl border border-slate-200 shrink-0 w-[794px] min-w-[794px] min-h-[1123px] rounded-sm"
+          >
+            {/* Top Header Background SVG */}
+            <div className="absolute top-0 left-0 w-full h-[180px] z-0 pointer-events-none">
+              <svg preserveAspectRatio="none" viewBox="0 0 1000 200" className="w-full h-full">
+                <path d="M0,0 L1000,0 L1000,160 Q500,200 0,120 Z" fill="#fbbd08" />
+              </svg>
+            </div>
+
+            {/* Top Header Content */}
+            <div className="relative z-10 w-full px-12 pt-8 pb-4 flex justify-between items-start">
+              {/* Left: Doctor 1 */}
+              <div className="flex-1 mt-1">
+                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Kadambari Jagtap</div>
+                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[145px]">MD Ayu. Sch.</div>
+              </div>
+
+              {/* Center: Doctor 2 & Quote */}
+              <div className="flex-1 flex flex-col items-center -mt-2">
+                <div className="text-[14px] font-bold text-black mb-1">॥ श्रीः ॥</div>
+                <div className="font-bold text-black text-[16px] tracking-wide">Dr. Omprasad Jagtap</div>
+                <div className="text-[11px] text-black font-semibold mt-0.5 text-right w-[140px]">MD Ayu.</div>
+                <div className="text-[12px] text-black font-bold mt-4 tracking-wider">स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...</div>
+              </div>
+
+              {/* Right: Logo */}
+              <div className="flex-1 flex justify-end">
+                <div className="relative flex items-center justify-center w-[120px] h-[120px] -mt-2">
+                  <LogoSVG idPrefix={`nurse-case-${caseRow.id}`} />
+                </div>
+              </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="relative z-10 px-12 py-8 flex-1 flex flex-col text-[14px] font-medium leading-relaxed">
+              {/* Name */}
+              <div className="flex mb-6">
+                <span className="font-bold mr-2 whitespace-nowrap">Name :</span>
+                <span className="flex-1 font-semibold uppercase">{caseRow.full_name}</span>
+              </div>
+
+              {/* Grid layout matching official format */}
+              <div className="grid grid-cols-[1fr_1.2fr_0.8fr] gap-x-4 gap-y-6 w-full">
+                {/* Row 1 */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Date Of Birth:</span>
+                  <span className="flex-1 font-semibold">{caseRow.dob ? new Date(caseRow.dob).toLocaleDateString("en-IN") : ""}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Age & Gender :</span>
+                  <span className="flex-1 font-semibold">{caseRow.age ?? calculateAge(caseRow.dob)} {caseRow.gender ? `/ ${caseRow.gender}` : ""}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Date :</span>
+                  <span className="flex-1 font-semibold">{new Date(caseRow.created_at).toLocaleDateString("en-IN")}</span>
+                </div>
+
+                {/* Row 2 */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Phone No. :</span>
+                  <span className="flex-1 font-semibold">{caseRow.mobile || "-"}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Married/Unmarried :</span>
+                  <span className="flex-1 font-semibold">{caseRow.marital_status || "-"}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Education :</span>
+                  <span className="flex-1 font-semibold">{caseRow.education || "-"}</span>
+                </div>
+
+                {/* Row 3 & 4 (Address spanning 2 rows on left) */}
+                <div className="col-span-2 row-span-2 flex items-start">
+                  <span className="font-bold mr-2 mt-0.5">Address :</span>
+                  <span className="flex-1 font-semibold pr-4 whitespace-pre-wrap leading-relaxed">{caseRow.address || "-"}</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">Occupation :</span>
+                  <span className="flex-1 font-semibold">{caseRow.occupation || "-"}</span>
+                </div>
+
+                {/* Row 4 right side */}
+                <div className="flex">
+                  <span className="font-bold mr-2">Parent's Occu. :</span>
+                  <span className="flex-1 font-semibold">{caseRow.parents_occupation || "-"}</span>
+                </div>
+              </div>
+
+              {/* History Section - 4 labels spread horizontally (Exact Image 3 Layout) */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mt-10 mb-2">
+                <div className="flex">
+                  <span className="font-bold mr-2">History of present illness :</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">पाळीचा इतिहास</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">मागील इतिहास</span>
+                </div>
+                <div className="flex">
+                  <span className="font-bold mr-2">वजन :</span>
+                </div>
+              </div>
+
+              {/* Actual interactive data inputs for History & Clinical details */}
+              <div className="grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-4 w-full mb-6">
+                <div className="relative">
+                  <Textarea
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="तक्रारी / लक्षणे (Symptoms & Complaints)"
+                    className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 resize-none focus:bg-white"
+                  />
+                  <VoiceButton onTranscript={(val) => setNotes((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-2 right-1.5" />
+                </div>
+
+                <div className="relative">
+                  <Input
+                    value={menstrualHistory}
+                    onChange={(e) => setMenstrualHistory(e.target.value)}
+                    placeholder="पाळीचा इतिहास..."
+                    className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 h-9 focus:bg-white"
+                  />
+                  <VoiceButton onTranscript={(val) => setMenstrualHistory((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-1.5 right-1.5" />
+                </div>
+
+                <div className="relative">
+                  <Input
+                    value={pastHistory}
+                    onChange={(e) => setPastHistory(e.target.value)}
+                    placeholder="मागील आजार/इतिहास..."
+                    className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black pr-8 h-9 focus:bg-white"
+                  />
+                  <VoiceButton onTranscript={(val) => setPastHistory((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-1.5 right-1.5" />
+                </div>
+
+                <div>
+                  <Input
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    placeholder="e.g. 65 kg"
+                    className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-amber-50/20 text-black h-9 focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Doctor's Notes & Prescription (If available) */}
+              {(caseRow.prescription || caseRow.medical_notes) && (
+                <div className="mt-6 pt-4 border-t border-slate-200">
+                  {caseRow.medical_notes && (
+                    <div className="mb-4">
+                      <div className="font-bold mb-1 underline">Diagnosis:</div>
+                      <div className="whitespace-pre-wrap font-medium">{caseRow.medical_notes}</div>
+                    </div>
+                  )}
+                  {caseRow.prescription && (
+                    <div>
+                      <div className="font-serif font-bold text-2xl mb-1 text-[#b45309]">Rx</div>
+                      <div className="whitespace-pre-wrap font-medium">{caseRow.prescription}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Faint Swoosh Background */}
+            <div className="absolute bottom-[-150px] left-[-150px] w-[600px] h-[600px] bg-[#fbbd08] opacity-[0.04] rounded-full z-0 pointer-events-none"></div>
+
+            {/* Solid Yellow Footer */}
+            <div className="absolute bottom-0 left-0 w-full h-[90px] z-0 pointer-events-none overflow-hidden">
+              <svg preserveAspectRatio="none" viewBox="0 0 1000 100" className="w-full h-full">
+                <path d="M0,100 L0,70 Q500,90 1000,10 L1000,100 Z" fill="#fbbd08" />
+              </svg>
+            </div>
+
+            {/* Consent & Bottom Signatures */}
+            <div className="relative z-10 px-12 pb-16 mt-auto flex flex-col justify-end min-h-[220px]">
+              <div className="text-center font-bold text-[12px] text-black">Concent</div>
+              <div className="text-[10px] text-black leading-tight text-justify mt-1.5 mb-8 font-medium">
+                I, hereby consent to the collection of personal information for medical purposes. This includes demographic details, medical history, and contact information. I understand that this information is essential for accurate diagnosis and treatment planning. I authorize healthcare professionals to administer necessary treatments based on this collected information.I also grant permission for the collection of photos for medical records, research, and promotional activities related to healthcare. These images may be used anonymously to enhance medical understanding, contribute to research initiatives, and for promotional materials. I acknowledge that my personal information and images will be handled with utmost confidentiality and in compliance with applicable privacy laws.
+              </div>
+
+              <div className="flex flex-col mb-2 gap-3">
+                <div className="flex items-end">
+                  <span className="font-bold text-[13px] text-black w-[80px]">Name :</span>
+                  <span className="font-semibold uppercase text-[13px]">{caseRow.full_name}</span>
+                </div>
+                <div className="flex items-end">
+                  <span className="font-bold text-[13px] text-black w-[80px]">Signature :</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Yellow Footer Content overlay */}
+            <div className="absolute bottom-3 left-0 w-full z-10 px-12 flex flex-col items-end">
+              <div className="flex items-center gap-1.5 text-black font-bold text-[12px] mb-1.5 mr-6">
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+                9404306548 | 8867303202
+              </div>
+              <div className="text-[11px] text-black font-semibold">
+                Address : Flat No. 106, Shiv City Center, Miraj Sangli Road, Near Vijaynagar Circle, Sangli. 416416
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nurse Direct Billing Charges Breakdown Card */}
+        <div className="bg-slate-50/90 dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-4 max-w-[800px] mx-auto w-full shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
+            <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400 animate-pulse" />
+            <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown (बिलिंग तपशील)</span>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Consultation (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={consultationCharge} 
+                onChange={(e) => setConsultationCharge(Number(e.target.value) || 0)} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+            
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Medicines (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={medicineCharge} 
+                onChange={(e) => setMedicineCharge(Number(e.target.value) || 0)} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Tests (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={testCharge} 
+                onChange={(e) => setTestCharge(Number(e.target.value) || 0)} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Other (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={otherCharge} 
+                onChange={(e) => setOtherCharge(Number(e.target.value) || 0)} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+          </div>
+
+          {/* Total Calculation Preview */}
+          <div className="flex items-center justify-between bg-white dark:bg-slate-800/80 p-3.5 rounded-xl border border-slate-200/60 dark:border-white/10">
+            <span className="font-extrabold text-foreground tracking-wide uppercase text-[11px]">Estimated Consultation Total</span>
+            <span className="font-black text-base sm:text-lg text-teal-600 dark:text-teal-400">₹ {totalFee.toFixed(2)}</span>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete, doctorsList }: any) {
   const [expanded, setExpanded] = useState(false);
   const isPending = c.status === "submitted";
   const initials = c.full_name ? c.full_name.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase() : "PT";
+  const hasClinicalDetails = Boolean(c.notes || c.past_history || c.menstrual_history);
 
   const relativeTime = useMemo(() => {
     if (!c.created_at) return "Unknown";
@@ -715,7 +1222,19 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            <NurseClinicalEditDialog
+              caseRow={c}
+              doctorPick={doctorPick}
+              setDoctorPick={setDoctorPick}
+              sendToDoctor={sendToDoctor}
+              doctorsList={doctorsList}
+              trigger={
+                <Button size="sm" variant="outline" className="h-7 text-xs px-2.5 rounded-xl border-amber-500/50 bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 font-bold gap-1 shadow-2xs">
+                  <FileText className="h-3 w-3 text-amber-600" /> Case Paper
+                </Button>
+              }
+            />
             <Badge className={`${statusColor[c.status as CaseStatus] || ""} text-[10px] font-semibold border`} variant="outline">
               {statusLabel[c.status as CaseStatus] || c.status}
             </Badge>
@@ -745,17 +1264,92 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
           </div>
         </div>
 
-        <div className="border border-slate-100 dark:border-white/5 rounded-xl p-3 bg-muted/10">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-primary block">
-              Patient History & Details
+        {/* Patient Details & Clinical History */}
+        <div className="border border-slate-100 dark:border-white/5 rounded-2xl p-3.5 bg-muted/10 space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-primary flex items-center gap-1.5">
+              <ClipboardList className="h-3.5 w-3.5" />
+              तक्रारी व इतिहास (Complaints & History)
             </span>
-            <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-primary hover:underline font-bold">
-              {expanded ? "Hide Details" : "Show Full Details"}
-            </button>
+            <div className="flex items-center gap-2">
+              <NurseClinicalEditDialog
+                caseRow={c}
+                doctorPick={doctorPick}
+                setDoctorPick={setDoctorPick}
+                sendToDoctor={sendToDoctor}
+                doctorsList={doctorsList}
+                trigger={
+                  <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 rounded-lg text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 font-bold">
+                    <Edit3 className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                }
+              />
+              <button onClick={() => setExpanded(!expanded)} className="text-[10px] text-muted-foreground hover:text-foreground font-semibold">
+                {expanded ? "Less" : "Details"}
+              </button>
+            </div>
           </div>
+
+          {/* Notice if complaints & past history not yet entered */}
+          {!hasClinicalDetails && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-800 dark:text-amber-300 font-medium">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                <span>तक्रारी व इतिहास नोंदवलेले नाहीत</span>
+              </div>
+              <NurseClinicalEditDialog
+                caseRow={c}
+                doctorPick={doctorPick}
+                setDoctorPick={setDoctorPick}
+                sendToDoctor={sendToDoctor}
+                doctorsList={doctorsList}
+                trigger={
+                  <Button size="sm" className="h-7 text-[11px] px-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-semibold shadow-sm">
+                    + नोंदवा (Add)
+                  </Button>
+                }
+              />
+            </div>
+          )}
+
+          {/* Chief Complaints Display */}
+          {c.notes && (
+            <div className="bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/15 rounded-xl p-2.5">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400 block mb-0.5">
+                Chief Complaints / लक्षणे:
+              </span>
+              <p className="text-xs text-foreground leading-relaxed whitespace-pre-line font-medium">
+                {c.notes}
+              </p>
+            </div>
+          )}
+
+          {/* Past History Display */}
+          {c.past_history && (
+            <div className="bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/15 rounded-xl p-2.5">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-teal-700 dark:text-teal-400 block mb-0.5">
+                मागील इतिहास (Past History):
+              </span>
+              <p className="text-xs text-foreground leading-relaxed font-medium">
+                {c.past_history}
+              </p>
+            </div>
+          )}
+
+          {/* Menstrual History Display if any */}
+          {c.menstrual_history && (
+            <div className="bg-pink-500/5 dark:bg-pink-500/10 border border-pink-500/15 rounded-xl p-2.5">
+              <span className="text-[9px] uppercase tracking-wider font-bold text-pink-700 dark:text-pink-400 block mb-0.5">
+                पाळीचा इतिहास:
+              </span>
+              <p className="text-xs text-foreground leading-relaxed font-medium">
+                {c.menstrual_history}
+              </p>
+            </div>
+          )}
+
           {expanded && (
-            <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-xs mt-3 border-t dark:border-white/5 pt-3">
+            <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs pt-2 border-t dark:border-white/5">
               <div>
                 <span className="text-[9px] uppercase text-muted-foreground block">Marital Status</span>
                 <span className="font-semibold text-foreground">{c.marital_status || "—"}</span>
@@ -774,16 +1368,21 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
               </div>
             </div>
           )}
-          {c.notes && (
-             <div className="mt-3 border-t dark:border-white/5 pt-3">
-               <span className="text-[9px] uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400 block mb-1">
-                 Chief Complaints / Notes:
-               </span>
-               <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line italic">
-                 {c.notes}
-               </p>
-             </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <NurseClinicalEditDialog
+              caseRow={c}
+              doctorPick={doctorPick}
+              setDoctorPick={setDoctorPick}
+              sendToDoctor={sendToDoctor}
+              doctorsList={doctorsList}
+            />
+            <BillingDialog caseRow={c} />
+            {c.total_bill ? (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                ₹ {Number(c.total_bill).toFixed(2)}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-auto pt-2 flex flex-col gap-2">
@@ -803,39 +1402,34 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
               <Button 
                 size="sm" 
                 onClick={() => sendToDoctor(c)}
-                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9"
+                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 h-9 font-semibold text-xs"
               >
                 <Send className="mr-1.5 h-4 w-4" /> Send to Dr.
               </Button>
             </div>
           )}
 
-          {["returned_to_nurse", "billed"].includes(c.status) && (
+          {["returned_to_nurse", "billed", "completed"].includes(c.status) && (
             <div className="flex flex-wrap gap-2">
-              <BillingDialog caseRow={c} />
-              {c.status === "billed" && (
-                <div className="flex gap-2">
-                  <InvoicePreviewDialog
-                    caseRow={c}
-                    trigger={
-                      <Button size="sm" variant="outline" className="rounded-xl h-9">
-                        <Download className="mr-1.5 h-4 w-4" /> Download
-                      </Button>
-                    }
-                  />
-                  <Button size="sm" variant="outline" onClick={() => {
-                    const tId = toast.loading("Preparing Print...");
-                    try {
-                      generateInvoicePDF(c, "print");
-                      toast.success("Print dialog opened!", { id: tId });
-                    } catch (e: any) {
-                      toast.error(`Failed to print Invoice`, { id: tId });
-                    }
-                  }} className="rounded-xl h-9">
-                    <Printer className="mr-1.5 h-4 w-4" /> Print
+              <InvoicePreviewDialog
+                caseRow={c}
+                trigger={
+                  <Button size="sm" variant="outline" className="rounded-xl h-9 text-xs">
+                    <Download className="mr-1.5 h-4 w-4" /> Download Bill
                   </Button>
-                </div>
-              )}
+                }
+              />
+              <Button size="sm" variant="outline" onClick={() => {
+                const tId = toast.loading("Preparing Print...");
+                try {
+                  generateInvoicePDF(c, "print");
+                  toast.success("Print dialog opened!", { id: tId });
+                } catch (e: any) {
+                  toast.error(`Failed to print Invoice`, { id: tId });
+                }
+              }} className="rounded-xl h-9 text-xs">
+                <Printer className="mr-1.5 h-4 w-4" /> Print Bill
+              </Button>
             </div>
           )}
         </div>
@@ -846,49 +1440,142 @@ function PatientCaseCard({ c, doctorPick, setDoctorPick, sendToDoctor, onDelete,
 
 function BillingDialog({ caseRow }: { caseRow: any }) {
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [bill, setBill] = useState({
     consultation_charge: Number(caseRow.consultation_charge ?? 0),
     medicine_charge: Number(caseRow.medicine_charge ?? 0),
     test_charge: Number(caseRow.test_charge ?? 0),
     other_charge: Number(caseRow.other_charge ?? 0),
   });
-  const total = bill.consultation_charge + bill.medicine_charge + bill.test_charge + bill.other_charge;
+
+  useEffect(() => {
+    if (open) {
+      setBill({
+        consultation_charge: Number(caseRow.consultation_charge ?? 0),
+        medicine_charge: Number(caseRow.medicine_charge ?? 0),
+        test_charge: Number(caseRow.test_charge ?? 0),
+        other_charge: Number(caseRow.other_charge ?? 0),
+      });
+    }
+  }, [open, caseRow]);
+
+  const total = Number(bill.consultation_charge || 0) + Number(bill.medicine_charge || 0) + Number(bill.test_charge || 0) + Number(bill.other_charge || 0);
 
   const saveBill = async () => {
+    setSaving(true);
     try {
       await updateDoc(doc(db, "case_papers", caseRow.id), {
-        ...bill,
+        consultation_charge: Number(bill.consultation_charge || 0),
+        medicine_charge: Number(bill.medicine_charge || 0),
+        test_charge: Number(bill.test_charge || 0),
+        other_charge: Number(bill.other_charge || 0),
         total_bill: total,
         status: "billed",
         updated_at: serverTimestamp()
       });
-      toast.success("Bill generated & saved");
+      toast.success("Bill generated & saved successfully!");
       setOpen(false);
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" className="rounded-xl h-9 bg-emerald-600 hover:bg-emerald-700 text-white"><Receipt className="mr-1.5 h-4 w-4" /> Billing / Checkout</Button>
+        <Button size="sm" className="rounded-xl h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm">
+          <Receipt className="mr-1.5 h-3.5 w-3.5" /> Billing / Checkout
+        </Button>
       </DialogTrigger>
-      <DialogContent className="rounded-3xl p-6">
-        <DialogHeader><DialogTitle>Generate Bill — {caseRow.full_name}</DialogTitle></DialogHeader>
-        <div className="space-y-3 pt-4">
-          {(["consultation_charge", "medicine_charge", "test_charge", "other_charge"] as const).map((k) => (
-            <div key={k}>
-              <Label className="capitalize">{k.replace("_", " ").replace("charge", "charge (₹)")}</Label>
-              <Input type="number" min="0" step="0.01" value={bill[k]} className="rounded-xl mt-1"
-                onChange={(e) => setBill({ ...bill, [k]: Number(e.target.value) || 0 })} />
+      <DialogContent className="max-w-xl w-[94vw] rounded-3xl p-6 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10 shadow-2xl">
+        <DialogHeader className="border-b border-slate-200/60 dark:border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+              <Receipt className="h-5 w-5" />
             </div>
-          ))}
-          <div className="flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 mt-4">
-            <span className="font-bold text-emerald-700 dark:text-emerald-400">Total Bill</span>
-            <span className="text-2xl font-black text-emerald-700 dark:text-emerald-400">₹ {total.toFixed(2)}</span>
+            <div>
+              <DialogTitle className="text-lg font-extrabold text-foreground">Billing & Checkout (बिलिंग)</DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                Patient: <span className="font-bold text-foreground uppercase">{caseRow.full_name}</span> | Doctor: {caseRow.assigned_doctor_name || "Doctor"}
+              </DialogDescription>
+            </div>
           </div>
-          <Button onClick={saveBill} className="w-full rounded-xl h-11 mt-2">Save & Mark as Billed</Button>
+        </DialogHeader>
+
+        {/* Fees and Billing Card style matching screenshot */}
+        <div className="bg-white dark:bg-black/25 p-5 rounded-2xl border border-slate-200/80 dark:border-white/10 space-y-4 my-2 shadow-sm">
+          <div className="flex items-center gap-2 border-b border-slate-200/50 dark:border-white/5 pb-2.5">
+            <AlertCircle className="h-4.5 w-4.5 text-teal-600 dark:text-teal-400" />
+            <span className="font-bold text-xs uppercase tracking-wider text-foreground">Billing Charges Breakdown</span>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Consultation (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={bill.consultation_charge} 
+                onChange={(e) => setBill({ ...bill, consultation_charge: Number(e.target.value) || 0 })} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+            
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Medicines (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={bill.medicine_charge} 
+                onChange={(e) => setBill({ ...bill, medicine_charge: Number(e.target.value) || 0 })} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Tests (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={bill.test_charge} 
+                onChange={(e) => setBill({ ...bill, test_charge: Number(e.target.value) || 0 })} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] font-semibold text-muted-foreground">Other (₹)</Label>
+              <Input 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={bill.other_charge} 
+                onChange={(e) => setBill({ ...bill, other_charge: Number(e.target.value) || 0 })} 
+                className="rounded-xl text-xs h-9 focus-visible:ring-teal-500 bg-background border-slate-200 dark:border-white/10"
+              />
+            </div>
+          </div>
+
+          {/* Total Calculation Preview */}
+          <div className="flex items-center justify-between bg-slate-100/80 dark:bg-slate-800/60 p-3.5 rounded-xl border border-slate-200/60 dark:border-white/10">
+            <span className="font-extrabold text-foreground tracking-wide uppercase text-[11px]">Estimated Consultation Total</span>
+            <span className="font-black text-base sm:text-lg text-teal-600 dark:text-teal-400">₹ {total.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-2">
+          <Button variant="outline" onClick={() => setOpen(false)} className="rounded-xl h-10 text-xs font-semibold">
+            Cancel
+          </Button>
+          <Button onClick={saveBill} disabled={saving} className="rounded-xl h-10 px-5 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+            {saving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="mr-1.5 h-4 w-4" />}
+            Save & Mark as Billed
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

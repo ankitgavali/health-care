@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { db } from "@/firebase";
-import { collection, query as fsQuery, where, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, query as fsQuery, where, onSnapshot, doc, updateDoc, deleteDoc, getDocs } from "firebase/firestore";
 import { useAuth } from "@/hooks/use-auth";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,7 +23,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes } from "@/lib/case-utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import { 
   Search, 
   FileText, 
@@ -54,71 +55,220 @@ export const Route = createFileRoute("/doctor")({
   ),
 });
 
-// Advanced clinical doctor metadata mapping for high-end aesthetics
-const doctorMeta = {
-  doctor1: {
-    specialty: "Chief Cardiologist & MD",
-    initials: "KJ",
+// Clinical doctor metadata themes for rich aesthetics
+const DOCTOR_THEMES = [
+  {
     bgClass: "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border-teal-500/20",
     colorClass: "text-teal-600 dark:text-teal-400",
     glowClass: "shadow-teal-500/10 dark:shadow-teal-500/5",
   },
-  doctor2: {
-    specialty: "Senior Consultant & MD",
-    initials: "OJ",
+  {
     bgClass: "bg-indigo-500/10 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400 border-indigo-500/20",
     colorClass: "text-indigo-600 dark:text-indigo-400",
     glowClass: "shadow-indigo-500/10 dark:shadow-indigo-500/5",
   },
+  {
+    bgClass: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 border-emerald-500/20",
+    colorClass: "text-emerald-600 dark:text-emerald-400",
+    glowClass: "shadow-emerald-500/10 dark:shadow-emerald-500/5",
+  },
+  {
+    bgClass: "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400 border-purple-500/20",
+    colorClass: "text-purple-600 dark:text-purple-400",
+    glowClass: "shadow-purple-500/10 dark:shadow-purple-500/5",
+  },
+];
+
+export type DoctorItem = {
+  id: string;
+  name: string;
+  specialty: string;
+  initials: string;
+  bgClass: string;
+  colorClass: string;
+  glowClass: string;
 };
 
 function DoctorPage() {
   const { role, profileName, user } = useAuth();
-  const docKey = role as "doctor1" | "doctor2";
-  const currentDoctorName = profileName || (docKey && doctorName[docKey]) || "Doctor Console";
-  const meta = {
-    ...(doctorMeta[docKey] || doctorMeta.doctor1),
-    initials: currentDoctorName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
-  };
+  
+  // Doctors list state containing strictly database doctors
+  const [doctorsList, setDoctorsList] = useState<DoctorItem[]>([]);
 
-  const [cases, setCases] = useState<any[]>([]);
+  // Active doctor dashboard state
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
+
+  const [allCases, setAllCases] = useState<any[]>([]);
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "reviewing" | "completed">("all");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name">("newest");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Fetch all doctors strictly from Firestore
   useEffect(() => {
-    // Note: No orderBy here to avoid requiring a composite Firestore index.
-    // Sorting is handled client-side in filteredAndSorted below.
-    const email = user?.email || "";
-    const isLegacyDoctor = email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12");
-    const assignedIds = isLegacyDoctor
-      ? (user?.uid ? [user.uid, docKey] : [docKey])
-      : (user?.uid ? [user.uid] : ["non-existent-id"]);
+    const fetchDoctors = async () => {
+      try {
+        const rolesSnap = await getDocs(collection(db, "user_roles"));
+        const profilesSnap = await getDocs(collection(db, "profiles"));
+        
+        const rolesMap = new Map();
+        rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
+        
+        const dynamicList: DoctorItem[] = [];
 
-    const q = fsQuery(collection(db, "case_papers"), where("assigned_doctor", "in", assignedIds));
+        profilesSnap.forEach(d => {
+          const r = rolesMap.get(d.id) || d.data().role;
+          const fullName = d.data().full_name;
+          if ((r === "doctor1" || r === "doctor2" || r === "doctor") && fullName) {
+            const docKey = getDoctorDeduplicationKey(fullName);
+            const exists = dynamicList.some(m => m.id === d.id || (docKey && getDoctorDeduplicationKey(m.name) === docKey));
+            if (!exists) {
+              const themeIndex = dynamicList.length % DOCTOR_THEMES.length;
+              const theme = DOCTOR_THEMES[themeIndex];
+              const initials = fullName
+                .replace(/^Dr\.?\s*/i, "")
+                .split(" ")
+                .filter(Boolean)
+                .map((n: string) => n[0])
+                .join("")
+                .substring(0, 2)
+                .toUpperCase() || "DR";
+
+              dynamicList.push({
+                id: d.id,
+                name: fullName,
+                specialty: d.data().specialty || "Ayurvedic Physician",
+                initials: initials,
+                ...theme,
+              });
+            }
+          }
+        });
+
+        rolesSnap.forEach(d => {
+          const r = d.data().role;
+          if (r === "doctor1" || r === "doctor2" || r === "doctor") {
+            const name = d.data().full_name || d.data().name;
+            const docKey = getDoctorDeduplicationKey(name || "");
+            const exists = dynamicList.some(m => m.id === d.id || (docKey && getDoctorDeduplicationKey(m.name) === docKey));
+            if (!exists && name) {
+              const themeIndex = dynamicList.length % DOCTOR_THEMES.length;
+              const theme = DOCTOR_THEMES[themeIndex];
+              dynamicList.push({
+                id: d.id,
+                name: name,
+                specialty: "Ayurvedic Physician",
+                initials: "DR",
+                ...theme,
+              });
+            }
+          }
+        });
+        
+        setDoctorsList(dynamicList);
+
+        // Auto-select doctor matching logged-in user or first doctor
+        if (dynamicList.length > 0) {
+          setSelectedDoctorId(prev => {
+            if (prev && (prev === "all" || dynamicList.some(d => d.id === prev))) {
+              return prev;
+            }
+            const emailLower = user?.email?.toLowerCase() || "";
+            const matched = dynamicList.find(d => 
+              d.id === user?.uid || 
+              (emailLower && d.name.toLowerCase().includes(emailLower.split("@")[0])) ||
+              (profileName && d.name.toLowerCase().includes(profileName.toLowerCase()))
+            );
+            return matched ? matched.id : dynamicList[0].id;
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching doctors for doctor dashboard", err);
+      }
+    };
+    fetchDoctors();
+  }, [user, profileName]);
+
+  // Subscribe to case papers in real-time
+  useEffect(() => {
+    const q = fsQuery(collection(db, "case_papers"));
     const unsubscribe = onSnapshot(q, (snapshot: any) => {
-      setCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
+      setAllCases(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).map(parseCaseNotes));
     }, (err: any) => {
       console.error("Doctor cases fetch error:", err);
       toast.error("Failed to load cases: " + err.message);
     });
     return () => unsubscribe();
-  }, [docKey, user?.uid, user?.email]);
+  }, []);
 
-  // Sidebar Counts
+  // Resolve current active doctor profile
+  const activeDoctor = useMemo(() => {
+    if (selectedDoctorId === "all") {
+      return {
+        id: "all",
+        name: "All Doctors Queue",
+        specialty: "Combined Consultation View",
+        initials: "ALL",
+        bgClass: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 border-blue-500/20",
+        colorClass: "text-blue-600 dark:text-blue-400",
+        glowClass: "shadow-blue-500/10 dark:shadow-blue-500/5",
+      };
+    }
+    return doctorsList.find(d => d.id === selectedDoctorId) || doctorsList[0] || {
+      id: "",
+      name: "Doctor",
+      specialty: "Ayurvedic Physician",
+      initials: "DR",
+      bgClass: "bg-teal-500/10 text-teal-600 dark:bg-teal-500/20 dark:text-teal-400 border-teal-500/20",
+      colorClass: "text-teal-600 dark:text-teal-400",
+      glowClass: "shadow-teal-500/10 dark:shadow-teal-500/5",
+    };
+  }, [doctorsList, selectedDoctorId]);
+
+  // Filter cases specific to the active doctor dashboard
+  const doctorCases = useMemo(() => {
+    if (selectedDoctorId === "all") return allCases;
+    if (!activeDoctor.name && !activeDoctor.id) return allCases;
+
+    const docNameLower = activeDoctor.name.toLowerCase().replace(/^dr\.?\s*/i, "").trim();
+    
+    return allCases.filter(c => {
+      const assigned = (c.assigned_doctor || "").toLowerCase().trim();
+      const assignedName = (c.assigned_doctor_name || "").toLowerCase().replace(/^dr\.?\s*/i, "").trim();
+      
+      // Match ID directly
+      if (activeDoctor.id && assigned === activeDoctor.id.toLowerCase()) return true;
+
+      // Match legacy or role IDs
+      if (activeDoctor.name.toLowerCase().includes("kadambari") && (assigned === "doctor1" || assignedName.includes("kadambari"))) {
+        return true;
+      }
+      if (activeDoctor.name.toLowerCase().includes("omprasad") && (assigned === "doctor2" || assignedName.includes("omprasad"))) {
+        return true;
+      }
+      
+      // Match by doctor name
+      if (docNameLower && (assignedName.includes(docNameLower) || docNameLower.includes(assignedName))) {
+        return true;
+      }
+      
+      return false;
+    });
+  }, [allCases, selectedDoctorId, activeDoctor]);
+
+  // Sidebar Counts for the active doctor
   const counts = useMemo(() => {
     return {
-      all: cases.length,
-      pending: cases.filter(c => c.status === "sent_to_doctor").length,
-      reviewing: cases.filter(c => c.status === "under_review").length,
-      completed: cases.filter(c => ["completed", "returned_to_nurse", "billed"].includes(c.status)).length,
+      all: doctorCases.length,
+      pending: doctorCases.filter(c => c.status === "sent_to_doctor").length,
+      reviewing: doctorCases.filter(c => c.status === "under_review").length,
+      completed: doctorCases.filter(c => ["completed", "returned_to_nurse", "billed"].includes(c.status)).length,
     };
-  }, [cases]);
+  }, [doctorCases]);
 
   // Filter & Sort
   const filteredAndSorted = useMemo(() => {
-    let result = cases;
+    let result = doctorCases;
 
     // Sidebar Category Filter
     if (activeTab === "pending") {
@@ -151,7 +301,7 @@ function DoctorPage() {
       }
       return 0;
     });
-  }, [cases, activeTab, query, sortBy]);
+  }, [doctorCases, activeTab, query, sortBy]);
 
   // Group case papers by day (date only)
   const casesGroupedByDay = useMemo(() => {
@@ -230,15 +380,40 @@ function DoctorPage() {
           </Button>
         </div>
 
-        {/* Integrated Doctor Profile Details (Directly styled in the sidebar without card-in-card) */}
+        {/* Integrated Doctor Profile Details & Switcher */}
         <div className="flex flex-col gap-3">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest px-1">Active Doctor Console</label>
+            <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+              <SelectTrigger className="w-full rounded-2xl border-teal-500/30 bg-teal-500/10 dark:bg-teal-950/40 text-xs font-bold h-10 px-3">
+                <div className="flex items-center gap-2 truncate">
+                  <Stethoscope className="h-3.5 w-3.5 text-teal-600 shrink-0" />
+                  <SelectValue />
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-2xl">
+                {doctorsList.map((doc) => (
+                  <SelectItem key={doc.id} value={doc.id} className="font-semibold text-xs py-2">
+                    <div className="flex flex-col">
+                      <span className="font-bold">{doc.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{doc.specialty}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                <SelectItem value="all" className="font-bold text-xs text-blue-600 dark:text-blue-400">
+                  🌐 All Doctors (Combined Queue)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-3 bg-muted/40 dark:bg-slate-900/40 border border-slate-100 dark:border-white/5 p-3 rounded-2xl">
-            <div className={`w-10 h-10 rounded-xl grid place-items-center font-bold text-sm border shrink-0 ${meta.bgClass}`}>
-              {meta.initials}
+            <div className={`w-10 h-10 rounded-xl grid place-items-center font-bold text-sm border shrink-0 ${activeDoctor.bgClass || 'bg-teal-500/10 text-teal-600 border-teal-500/20'}`}>
+              {activeDoctor.initials || "DR"}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-xs truncate leading-snug text-foreground">{currentDoctorName}</h2>
-              <p className="text-[10px] text-muted-foreground truncate font-medium">{meta.specialty}</p>
+              <h2 className="font-bold text-xs truncate leading-snug text-foreground">{activeDoctor.name}</h2>
+              <p className="text-[10px] text-muted-foreground truncate font-medium">{activeDoctor.specialty}</p>
             </div>
           </div>
           
@@ -324,12 +499,12 @@ function DoctorPage() {
           {/* Mobile Sidebar Trigger / Top stats display helper */}
           <div className="md:hidden flex items-center justify-between p-3 glass rounded-2xl mb-4">
             <div className="flex items-center gap-2">
-              <div className={`w-8 h-8 rounded-xl grid place-items-center font-bold text-xs ${meta.bgClass}`}>
-                {meta.initials}
+              <div className={`w-8 h-8 rounded-xl grid place-items-center font-bold text-xs ${activeDoctor.bgClass || 'bg-teal-500/10 text-teal-600'}`}>
+                {activeDoctor.initials || "DR"}
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Logged in as</div>
-                <div className="font-semibold text-sm leading-none">{currentDoctorName}</div>
+                <div className="text-xs text-muted-foreground">Doctor Console</div>
+                <div className="font-semibold text-sm leading-none">{activeDoctor.name}</div>
               </div>
             </div>
             <Button 
@@ -345,9 +520,16 @@ function DoctorPage() {
           {/* Welcome Dashboard Banner Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dashboard:</span>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                  {activeDoctor.name}
+                </span>
+                <span className="text-[11px] text-muted-foreground">({activeDoctor.specialty})</span>
+              </div>
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight flex items-center gap-2">
                 <span className="bg-gradient-to-r from-primary via-teal-500 to-emerald-600 bg-clip-text text-transparent drop-shadow-sm">
-                  Hello, <span className={meta.colorClass}>{currentDoctorName.split(" ")[0] === "Dr." ? currentDoctorName.split(" ")[1] : currentDoctorName.split(" ")[0]}</span>!
+                  Hello, <span className={activeDoctor.colorClass || "text-teal-600 dark:text-teal-400"}>{activeDoctor.name}</span>!
                 </span>
               </h1>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -357,10 +539,32 @@ function DoctorPage() {
               </p>
             </div>
             
-            {/* Quick Metrics mini card */}
-            <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm max-w-fit">
-              <TrendingUp className="h-4 w-4" />
-              <span>Today's Progress: {counts.completed} / {counts.all} Cases Done</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Doctor Switcher in Top Bar */}
+              <div className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-white/10 p-1.5 rounded-2xl shadow-sm">
+                <Stethoscope className="h-4 w-4 text-teal-600 ml-1" />
+                <Select value={selectedDoctorId} onValueChange={setSelectedDoctorId}>
+                  <SelectTrigger className="h-8 border-0 bg-transparent font-bold text-xs focus:ring-0 gap-1.5">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-2xl">
+                    {doctorsList.map((doc) => (
+                      <SelectItem key={doc.id} value={doc.id} className="font-semibold text-xs">
+                        {doc.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="all" className="font-bold text-xs text-blue-600 dark:text-blue-400">
+                      🌐 All Doctors
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Quick Metrics mini card */}
+              <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm max-w-fit">
+                <TrendingUp className="h-4 w-4" />
+                <span>Progress: {counts.completed} / {counts.all}</span>
+              </div>
             </div>
           </div>
 
@@ -497,7 +701,7 @@ function DoctorPage() {
                                 c={c} 
                                 onAccept={() => accept(c)} 
                                 onSaved={() => {}} 
-                                meta={meta}
+                                meta={activeDoctor}
                                 onDelete={deleteCase}
                               />
                             </AnimatedWrapper>

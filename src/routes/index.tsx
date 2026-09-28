@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
-import { roleHome } from "@/lib/case-utils";
+import { roleHome, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import { Stethoscope, HeartPulse, ShieldCheck, Activity, FileText, Loader2, Users, ClipboardList, Mail, Phone, MapPin, Send, ArrowRight, CheckCircle2 } from "lucide-react";
 import * as Lucide from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -161,25 +161,30 @@ function Landing() {
         const rolesMap = new Map();
         rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
         
-        const dynamicDocs: {id: string, name: string}[] = [];
+        const dynamicDocs: {id: string; name: string}[] = [];
         profilesSnap.forEach(d => {
-          const role = rolesMap.get(d.id);
-          const email = d.data().email || "";
+          const role = rolesMap.get(d.id) || d.data().role;
           if (role === "doctor" || role === "doctor1" || role === "doctor2") {
-            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
-            dynamicDocs.push({ id: d.id, name: d.data().full_name || "Doctor" });
+            const name = d.data().full_name || "Doctor";
+            const docKey = getDoctorDeduplicationKey(name);
+            if (!dynamicDocs.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey))) {
+              dynamicDocs.push({ id: d.id, name });
+            }
           }
         });
 
-        setDoctorsList((prev) => {
-          const combined = [...prev];
-          dynamicDocs.forEach(d => {
-            if (!combined.some(c => c.name.toLowerCase() === d.name.toLowerCase())) {
-              combined.push(d);
+        rolesSnap.forEach(d => {
+          const role = d.data().role;
+          if (role === "doctor" || role === "doctor1" || role === "doctor2") {
+            const name = d.data().full_name || d.data().name;
+            const docKey = getDoctorDeduplicationKey(name || "");
+            if (!dynamicDocs.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey)) && name) {
+              dynamicDocs.push({ id: d.id, name });
             }
-          });
-          return combined;
+          }
         });
+
+        setDoctorsList(dynamicDocs);
       } catch (err) {
         console.error("Error fetching doctors for homepage enquiry form", err);
       }

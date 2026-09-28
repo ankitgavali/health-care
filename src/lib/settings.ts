@@ -28,6 +28,8 @@ export interface DoctorItem {
 export interface HomepageSettings {
   hospitalName: string;
   heroSubtitle: string;
+  headerTagline?: string;
+  heroBadgeText?: string;
   aboutTitle: string;
   aboutText1: string;
   aboutText2: string;
@@ -35,21 +37,29 @@ export interface HomepageSettings {
   contactPhone: string;
   contactEmergency: string;
   contactAddress: string;
+  socialInstagram?: string;
+  socialWhatsApp?: string;
+  socialFacebook?: string;
   services: ServiceItem[];
   stats: StatItem[];
   doctors: DoctorItem[];
 }
 
 export const defaultSettings: HomepageSettings = {
-  hospitalName: "MediCare",
-  heroSubtitle: "Personalized medical care for the whole family",
-  aboutTitle: "About MediCare",
-  aboutText1: "Welcome to MediCare General Hospital. We are a state-of-the-art facility dedicated to providing comprehensive and compassionate healthcare to all our patients.",
-  aboutText2: "Our mission is to bridge the gap between advanced medical technology and human empathy. Our digital platform seamlessly connects patients, nurses, and doctors to ensure a fast, efficient, and transparent medical experience from diagnosis to billing.",
-  contactEmail: "support@medicare.local",
+  hospitalName: "Moolatvam Ayurved",
+  heroSubtitle: "Personalized Ayurvedic & Clinical Healthcare for Complete Wellness",
+  headerTagline: "स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं...",
+  heroBadgeText: "Authentic Ayurveda & Clinical Excellence",
+  aboutTitle: "About Moolatvam Ayurved",
+  aboutText1: "Welcome to Moolatvam Ayurved Hospital & Vaidyatvam Pharmacy. We are a state-of-the-art Ayurvedic healthcare facility dedicated to holistic healing, authentic Panchakarma, and specialized clinical care.",
+  aboutText2: "Our mission is to bridge traditional Ayurvedic wisdom with advanced patient care workflows. Under the expert guidance of Dr. Kadambari Jagtap and Dr. Omprasad Jagtap, we provide personalized treatment plans from diagnosis to recovery.",
+  contactEmail: "contact@moolatvam.com",
   contactPhone: "+91 98765 43210",
-  contactEmergency: "108",
-  contactAddress: "123 Health Avenue, Wellness City, MH 400001",
+  contactEmergency: "+91 98765 43210",
+  contactAddress: "Moolatvam Ayurved Hospital, Sangli, Maharashtra",
+  socialInstagram: "https://www.instagram.com/moolatvam",
+  socialWhatsApp: "+919876543210",
+  socialFacebook: "https://facebook.com",
   services: [
     { id: "s1", iconName: "FileText", label: "Digital Case Papers", desc: "Submit and track case papers digitally with real-time updates across the care team.", image: "/hero_bg_write.png" },
     { id: "s2", iconName: "ShieldCheck", label: "Role-Based Access", desc: "Secure, role-based access ensures the right people see the right information.", image: "/hospital_bg_2.png" },

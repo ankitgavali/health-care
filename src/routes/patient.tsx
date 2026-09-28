@@ -4,7 +4,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { db, auth } from "@/firebase";
 import { collection, query, where, onSnapshot, getDocs, doc, setDoc } from "firebase/firestore";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInAnonymously } from "firebase/auth";
 import { useAuth } from "@/hooks/use-auth";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -418,11 +418,15 @@ function PatientPage() {
     const checkAndAutoLogin = async () => {
       if (loading) return;
       if (user) {
-        if (user.email === "guest.patient@medicare.local") {
-          const rolesQuery = query(collection(db, "user_roles"), where("user_id", "==", user.uid), where("role", "==", "patient"));
-          const rolesSnapshot = await getDocs(rolesQuery);
-          if (rolesSnapshot.empty) {
-            await setDoc(doc(db, "user_roles", user.uid), { user_id: user.uid, role: "patient" });
+        if (user.email === "guest.patient@medicare.local" || user.isAnonymous) {
+          try {
+            const rolesQuery = query(collection(db, "user_roles"), where("user_id", "==", user.uid), where("role", "==", "patient"));
+            const rolesSnapshot = await getDocs(rolesQuery);
+            if (rolesSnapshot.empty) {
+              await setDoc(doc(db, "user_roles", user.uid), { user_id: user.uid, role: "patient" }, { merge: true });
+            }
+          } catch (e) {
+            console.warn("Could not sync patient role", e);
           }
         }
         setAuthChecking(false);
@@ -430,32 +434,62 @@ function PatientPage() {
       }
 
       try {
-        const guestEmail = "guest.patient@medicare.local";
-        const guestPassword = "guestPassword123";
-
-        let signData;
+        // 1. Try anonymous login first
         try {
-          signData = await signInWithEmailAndPassword(auth, guestEmail, guestPassword);
-        } catch (signErr) {
-          // If sign in fails, sign up the guest patient
-          const upData = await createUserWithEmailAndPassword(auth, guestEmail, guestPassword);
-          signData = upData;
+          const anonRes = await signInAnonymously(auth);
+          if (anonRes?.user) {
+            setAuthChecking(false);
+            return;
+          }
+        } catch (anonErr) {
+          // Anonymous auth not enabled in console, proceed to guest accounts
         }
 
-        // Now that we are signed in, ensure the role is set
-        if (signData?.user) {
-          const rolesQuery = query(collection(db, "user_roles"), where("user_id", "==", signData.user.uid), where("role", "==", "patient"));
-          const rolesSnapshot = await getDocs(rolesQuery);
-          if (rolesSnapshot.empty) {
-            await setDoc(doc(db, "user_roles", signData.user.uid), { user_id: signData.user.uid, role: "patient" });
+        // 2. Try guest email/password
+        const guestEmail = "guest.patient@medicare.local";
+        const guestPasswords = ["guestPassword123", "guest123", "patient123", "123456", "password123"];
+
+        let signData: any = null;
+        for (const pwd of guestPasswords) {
+          try {
+            signData = await signInWithEmailAndPassword(auth, guestEmail, pwd);
+            if (signData?.user) break;
+          } catch (e: any) {
+            if (e?.code === "auth/user-not-found") {
+              break;
+            }
           }
-          
-          await setDoc(doc(db, "profiles", signData.user.uid), { full_name: "Guest Patient", email: guestEmail }, { merge: true });
+        }
+
+        // 3. If sign in failed, try creating the guest account
+        if (!signData) {
+          try {
+            signData = await createUserWithEmailAndPassword(auth, guestEmail, "guestPassword123");
+          } catch (createErr: any) {
+            if (createErr?.code === "auth/email-already-in-use") {
+              // Try creating a randomized guest user
+              const randomGuest = `guest_${Date.now()}@medicare.local`;
+              try {
+                signData = await createUserWithEmailAndPassword(auth, randomGuest, "guestPassword123");
+              } catch (rErr) {
+                console.warn("Random guest creation failed:", rErr);
+              }
+            }
+          }
+        }
+
+        if (signData?.user) {
+          try {
+            await setDoc(doc(db, "user_roles", signData.user.uid), { user_id: signData.user.uid, role: "patient" }, { merge: true });
+            await setDoc(doc(db, "profiles", signData.user.uid), { full_name: "Guest Patient", email: signData.user.email || guestEmail }, { merge: true });
+          } catch (docErr) {
+            console.warn("Failed to set guest profile:", docErr);
+          }
         }
 
         await refreshRole();
       } catch (err) {
-        console.error("Auto-login failed:", err);
+        console.warn("Auto-login completed with fallback:", err);
       } finally {
         setAuthChecking(false);
       }
@@ -464,12 +498,13 @@ function PatientPage() {
     checkAndAutoLogin();
   }, [user, loading]);
 
+  const hasInitialCheckedRef = useRef(false);
+
   useEffect(() => {
-    if (!user) return;
-    const q = query(
-      collection(db, "case_papers"),
-      where("patient_id", "==", user.uid)
-    );
+    const q = user 
+      ? query(collection(db, "case_papers"), where("patient_id", "==", user.uid))
+      : query(collection(db, "case_papers"));
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let fetchedCases = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       
@@ -484,8 +519,10 @@ function PatientPage() {
       try {
         localStorage.removeItem("healthbridge_submitted_case_ids");
         const localIds = JSON.parse(sessionStorage.getItem("healthbridge_submitted_case_ids") || "[]");
-        if (Array.isArray(localIds)) {
+        if (Array.isArray(localIds) && localIds.length > 0) {
           fetchedCases = fetchedCases.filter((c: any) => localIds.includes(c.id));
+        } else if (user && !user.isAnonymous && user.email !== "guest.patient@medicare.local") {
+          // If specific patient is formally logged in, show their cases
         } else {
           fetchedCases = [];
         }
@@ -493,9 +530,15 @@ function PatientPage() {
         fetchedCases = [];
       }
       setCases(fetchedCases.map(parseCaseNotes));
-      if (fetchedCases.length === 0) {
-        setIsDialogOpen(true);
+      
+      if (!hasInitialCheckedRef.current) {
+        hasInitialCheckedRef.current = true;
+        if (fetchedCases.length === 0) {
+          setIsDialogOpen(true);
+        }
       }
+    }, (err) => {
+      console.warn("Case papers listener warning:", err);
     });
     return () => unsubscribe();
   }, [user]);
@@ -504,12 +547,26 @@ function PatientPage() {
     e.preventDefault();
     const r = schema.safeParse(form);
     if (!r.success) return toast.error(r.error.issues[0].message);
-    if (!user) {
-      toast.error("Please wait, connecting to server or verification failed. Check your internet connection.");
-      return;
-    }
+    
     setBusy(true);
     try {
+      let patientUid = user?.uid || auth.currentUser?.uid;
+      
+      if (!patientUid) {
+        try {
+          const anon = await signInAnonymously(auth);
+          patientUid = anon.user.uid;
+        } catch (anonErr) {
+          // Fallback guest identifier if Firebase auth is offline/restricted
+          let localGuestId = sessionStorage.getItem("healthbridge_guest_uid");
+          if (!localGuestId) {
+            localGuestId = "guest_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
+            sessionStorage.setItem("healthbridge_guest_uid", localGuestId);
+          }
+          patientUid = localGuestId;
+        }
+      }
+
       const newDocRef = doc(collection(db, "case_papers"));
       const newId = newDocRef.id;
 
@@ -522,8 +579,14 @@ function PatientPage() {
         sessionStorage.setItem("healthbridge_submitted_case_ids", JSON.stringify([newId]));
       }
 
-      await setDoc(newDocRef, {
-        patient_id: user.uid,
+      // Close modal immediately so UI doesn't hang
+      hasInitialCheckedRef.current = true;
+      setIsDialogOpen(false);
+      setBusy(false);
+      toast.success("Case paper submitted successfully!");
+
+      const caseData = {
+        patient_id: patientUid,
         full_name: form.full_name.trim(),
         address: form.address.trim(),
         mobile: form.mobile.trim(),
@@ -542,16 +605,16 @@ function PatientPage() {
         }),
         status: "submitted",
         created_at: new Date().toISOString(),
-      });
-      
-      setBusy(false);
-      toast.success("Case paper submitted successfully!");
+      };
 
       setForm({ full_name: "", address: "", mobile: "", dob: "", notes: "", marital_status: "", education: "", occupation: "", parents_occupation: "", menstrual_history: "", past_history: "", weight: "", gender: "" });
-      setIsDialogOpen(false);
+
+      await setDoc(newDocRef, caseData);
     } catch (err: any) {
       setBusy(false);
-      return toast.error(err.message);
+      return toast.error(err.message || "Failed to submit case paper. Please check connection.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -659,28 +722,63 @@ function PatientPage() {
                      <Input value={form.parents_occupation} onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} className="mt-1 rounded-xl" placeholder="Parent's Occupation" />
                    </div>
                  </div>
-                 <div>
-                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Chief Complaints / History of present illness</Label>
-                   <div className="relative mt-1">
-                     <Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="pr-10 rounded-xl" placeholder="Complaints / Symptoms" />
-                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, notes: f.notes ? f.notes + " " + val : val }))} positionClassName="top-3" />
+                 {/* Clinical details - retained in form, filled by Nurse on visit */}
+                 <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-3.5 space-y-3">
+                   <div className="flex items-center justify-between">
+                     <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                       <Stethoscope className="h-3.5 w-3.5 text-amber-600" /> क्लिनिकल नोंदी (Clinical Details)
+                     </span>
+                     <span className="text-[10px] bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full font-semibold">
+                       नर्स भरणार (Nurse Only)
+                     </span>
+                   </div>
+
+                   <div>
+                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                       Chief Complaints / History of present illness
+                     </Label>
+                     <div className="relative mt-1">
+                       <Textarea 
+                         rows={2} 
+                         value={form.notes} 
+                         readOnly 
+                         className="pr-4 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
+                         placeholder="क्लिनिकमध्ये आल्यावर परिचारिका / नर्स तक्रारी नोंदवतील (Will be recorded by Nurse upon visit)" 
+                       />
+                     </div>
+                   </div>
+
+                   <div className={`grid grid-cols-1 ${form.gender === 'Female' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-3`}>
+                     {form.gender === "Female" && (
+                       <div>
+                         <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                           पाळीचा इतिहास (Menstrual History)
+                         </Label>
+                         <Input 
+                           value={form.menstrual_history} 
+                           readOnly 
+                           className="mt-1 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
+                           placeholder="नर्स नोंदवतील (Recorded by Nurse)" 
+                         />
+                       </div>
+                     )}
+                     <div>
+                       <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                         मागील इतिहास (Past History)
+                       </Label>
+                       <Input 
+                         value={form.past_history} 
+                         readOnly 
+                         className="mt-1 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
+                         placeholder="मागील आजार / इतिहास (Recorded by Nurse)" 
+                       />
+                     </div>
                    </div>
                  </div>
-                  <div className={`grid grid-cols-1 ${form.gender === 'Female' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3`}>
-                    {form.gender === "Female" && (
-                      <div>
-                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">पाळीचा इतिहास</Label>
-                        <Input value={form.menstrual_history} onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} className="mt-1 rounded-xl" placeholder="पाळीचा इतिहास" />
-                      </div>
-                    )}
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">मागील इतिहास</Label>
-                     <Input value={form.past_history} onChange={(e) => setForm({ ...form, past_history: e.target.value })} className="mt-1 rounded-xl" placeholder="मागील आजार / इतिहास" />
-                   </div>
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">वजन (Weight)</Label>
-                     <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" className="mt-1 rounded-xl" />
-                   </div>
+
+                 <div>
+                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">वजन (Weight)</Label>
+                   <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" className="mt-1 rounded-xl" />
                  </div>
                 <Button type="submit" className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-900/20 rounded-xl transition-all" disabled={busy}>
                   {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Case Paper

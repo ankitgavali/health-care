@@ -19,7 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getHomepageSettings, saveHomepageSettingsToFirestore, subscribeHomepageSettings, HomepageSettings, ServiceItem, DoctorItem, StatItem } from "@/lib/settings";
 import { generateInvoicePDF } from "@/lib/pdf";
 import { InvoicePreviewDialog } from "@/components/InvoicePreviewDialog";
-import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient } from "@/lib/case-utils";
+import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, convertLeadToPatient, getDoctorDeduplicationKey } from "@/lib/case-utils";
 import * as Lucide from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -172,22 +172,23 @@ function AdminPage() {
       ],
     },
     {
-      title: "Website & Clinic Config",
+      title: "Website & Content",
       items: [
-        { value: "branding", label: "Hospital & Branding", icon: Globe },
-        { value: "services", label: "Services", icon: Settings },
-        { value: "doctors", label: "Consulting Doctors", icon: Stethoscope },
-        { value: "stats", label: "Key Statistics", icon: TrendingUp },
-        { value: "contact", label: "Contact Details", icon: Mail },
-        { value: "staff", label: "Manage Staff", icon: Users },
+        { value: "website", label: "Website", icon: Globe },
       ],
     },
     {
-      title: "Finance & Operations",
+      title: "Clinic Operations",
+      items: [
+        { value: "staff", label: "Manage Staff", icon: Users },
+        { value: "leads", label: "Lead Management", icon: Layers },
+      ],
+    },
+    {
+      title: "Finance & Check-In",
       items: [
         { value: "invoice", label: "Invoices & Billing", icon: Receipt },
         { value: "qrcode", label: "QR Check-In", icon: QrCode },
-        { value: "leads", label: "Lead Management", icon: Layers },
       ],
     },
   ];
@@ -251,17 +252,6 @@ function AdminPage() {
               </div>
             ))}
           </nav>
-        </div>
-
-        {/* Bottom Logout */}
-        <div className="p-4 border-t border-slate-100 dark:border-slate-900 shrink-0">
-          <button
-            onClick={handleLogout}
-            className="group/logout w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100 dark:hover:border-red-900/10 transition-all duration-200 cursor-pointer hover:translate-x-1"
-          >
-            <LogOut className="h-4.5 w-4.5 text-red-500 group-hover/logout:-translate-x-0.5 transition-transform" />
-            <span>Log Out</span>
-          </button>
         </div>
       </aside>
 
@@ -331,16 +321,6 @@ function AdminPage() {
                 ))}
               </nav>
             </div>
-
-            <div className="p-3 border-t border-slate-100 dark:border-slate-900 shrink-0">
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 border border-transparent hover:border-red-100 dark:hover:border-red-900/10 transition-all duration-200"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Log Out</span>
-              </button>
-            </div>
           </aside>
         </div>
       )}
@@ -400,20 +380,23 @@ function AdminPage() {
             <TabsContent value="dashboard" className="outline-none mt-0">
               <DashboardSection cases={cases} loading={loading} />
             </TabsContent>
+            <TabsContent value="website" className="outline-none mt-0">
+              <WebsiteSection />
+            </TabsContent>
             <TabsContent value="branding" className="outline-none mt-0">
-              <BrandingSection />
+              <WebsiteSection defaultSubTab="branding" />
             </TabsContent>
             <TabsContent value="services" className="outline-none mt-0">
-              <ServicesSection />
+              <WebsiteSection defaultSubTab="services" />
             </TabsContent>
             <TabsContent value="doctors" className="outline-none mt-0">
-              <DoctorsSection />
+              <WebsiteSection defaultSubTab="doctors" />
             </TabsContent>
             <TabsContent value="stats" className="outline-none mt-0">
-              <StatsSection />
+              <WebsiteSection defaultSubTab="stats" />
             </TabsContent>
             <TabsContent value="contact" className="outline-none mt-0">
-              <ContactSection />
+              <WebsiteSection defaultSubTab="contact" />
             </TabsContent>
             <TabsContent value="invoice" className="outline-none mt-0">
               <InvoiceSection />
@@ -675,7 +658,86 @@ function DashboardSection({ cases, loading }: { cases: any[]; loading: boolean }
 }
 
 /* ========================================================
-   2. BRANDING & HERO CONFIGURATION SECTION
+   2. WEBSITE MANAGEMENT MASTER SECTION WITH SUB-NAVBAR
+   ======================================================== */
+function WebsiteSection({ defaultSubTab = "branding" }: { defaultSubTab?: string }) {
+  const [activeSubTab, setActiveSubTab] = useState<string>(defaultSubTab);
+
+  useEffect(() => {
+    if (defaultSubTab) {
+      setActiveSubTab(defaultSubTab);
+    }
+  }, [defaultSubTab]);
+
+  const websiteNavItems = [
+    { id: "branding", label: "Hospital & Branding", icon: Globe, desc: "Hospital Name, Taglines & About Story" },
+    { id: "services", label: "Services", icon: Settings, desc: "Clinical & Panchakarma Services" },
+    { id: "doctors", label: "Consulting Doctors", icon: Stethoscope, desc: "Doctors, Specialties & Profiles" },
+    { id: "stats", label: "Key Statistics", icon: TrendingUp, desc: "Counters & Milestone Metrics" },
+    { id: "contact", label: "Contact & Socials", icon: Mail, desc: "Helpline, Location, Instagram & WhatsApp" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header Banner */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-900 text-white p-6 rounded-3xl shadow-md relative overflow-hidden">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 text-teal-300 font-bold text-xs uppercase tracking-wider mb-1">
+            <Globe className="h-4 w-4" /> Live Website CMS
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Website Management</h1>
+          <p className="text-xs sm:text-sm text-teal-100/80 mt-1 max-w-xl">
+            Dynamically customize all sections of your public hospital website, services, doctor directories, contact lines, and social links in real-time.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 relative z-10 shrink-0">
+          <Link
+            to="/"
+            target="_blank"
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/20 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:scale-105"
+          >
+            <ExternalLink className="h-4 w-4 text-teal-300" />
+            <span>View Live Website</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Dynamic Sub-Navbar / Sections Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar border-b border-slate-200 dark:border-slate-800">
+        {websiteNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeSubTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveSubTab(item.id)}
+              className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 cursor-pointer ${
+                isActive
+                  ? "bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-600/20 scale-[1.02]"
+                  : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-850 border border-slate-200/80 dark:border-slate-800"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${isActive ? "text-white" : "text-teal-600 dark:text-teal-400"}`} />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Render Selected Website Section */}
+      <div className="mt-4">
+        {activeSubTab === "branding" && <BrandingSection />}
+        {activeSubTab === "services" && <ServicesSection />}
+        {activeSubTab === "doctors" && <DoctorsSection />}
+        {activeSubTab === "stats" && <StatsSection />}
+        {activeSubTab === "contact" && <ContactSection />}
+      </div>
+    </div>
+  );
+}
+
+/* ========================================================
+   2.1 BRANDING & HERO CONFIGURATION SECTION
    ======================================================== */
 function BrandingSection() {
   const [settings, setSettings] = useState<HomepageSettings | null>(null);
@@ -714,7 +776,7 @@ function BrandingSection() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <CardTitle className="text-lg font-bold text-slate-800 dark:text-white">Hospital Branding & Story</CardTitle>
-            <CardDescription className="text-xs">Customize the hospital name, hero section tagline, and about story displayed across the website.</CardDescription>
+            <CardDescription className="text-xs">Customize the hospital name, hero section tagline, mantra, and about story displayed across the website.</CardDescription>
           </div>
           <Button onClick={handleSave} disabled={saving} className="bg-[#0D7A70] hover:bg-[#0c6b62] text-white rounded-xl font-semibold px-5 shadow-sm self-start text-xs">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -726,14 +788,23 @@ function BrandingSection() {
         <div className="grid gap-6 md:grid-cols-2">
           {/* Main Hospital Identity */}
           <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
-            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Hospital Identity</h3>
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Hospital Identity & Header</h3>
             <div>
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hospital / Clinic Name</Label>
               <Input
                 value={settings.hospitalName}
                 onChange={(e) => handleFieldChange("hospitalName", e.target.value)}
-                placeholder="e.g. MediCare General Hospital"
+                placeholder="e.g. Moolatvam Ayurved"
                 className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Header Shloka / Mantra</Label>
+              <Input
+                value={settings.headerTagline || ""}
+                onChange={(e) => handleFieldChange("headerTagline", e.target.value)}
+                placeholder="e.g. स्वास्थ्यरक्षणार्थं...व्याधिमोक्षणार्थं..."
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-serif font-bold text-amber-700 dark:text-amber-400"
               />
             </div>
             <div>
@@ -741,27 +812,36 @@ function BrandingSection() {
               <Textarea
                 value={settings.heroSubtitle}
                 onChange={(e) => handleFieldChange("heroSubtitle", e.target.value)}
-                rows={3}
-                placeholder="e.g. Personalized medical care for the whole family"
+                rows={2}
+                placeholder="e.g. Personalized Ayurvedic & Clinical Healthcare for Complete Wellness"
                 className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Hero Highlight Badge</Label>
+              <Input
+                value={settings.heroBadgeText || ""}
+                onChange={(e) => handleFieldChange("heroBadgeText", e.target.value)}
+                placeholder="e.g. Authentic Ayurveda & Clinical Excellence"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-9 text-xs font-semibold"
               />
             </div>
           </div>
 
           {/* About Section Heading & Story */}
           <div className="space-y-4 border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10">
-            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">About Us Header</h3>
+            <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">About Us Section</h3>
             <div>
               <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Section Title</Label>
               <Input
                 value={settings.aboutTitle}
                 onChange={(e) => handleFieldChange("aboutTitle", e.target.value)}
-                placeholder="e.g. About MediCare"
+                placeholder="e.g. About Moolatvam Ayurved"
                 className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 1 (Overview)</Label>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">About Paragraph 1 (Welcome & Overview)</Label>
               <Textarea
                 value={settings.aboutText1}
                 onChange={(e) => handleFieldChange("aboutText1", e.target.value)}
@@ -779,7 +859,7 @@ function BrandingSection() {
             value={settings.aboutText2}
             onChange={(e) => handleFieldChange("aboutText2", e.target.value)}
             rows={3}
-            placeholder="Mission statement and technology integrations..."
+            placeholder="Mission statement and clinical excellence..."
             className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl text-sm"
           />
         </div>
@@ -1344,7 +1424,7 @@ function ContactSection() {
                 type="email"
                 value={settings.contactEmail}
                 onChange={(e) => handleFieldChange("contactEmail", e.target.value)}
-                placeholder="support@medicare.local"
+                placeholder="contact@moolatvam.com"
                 className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
@@ -1353,7 +1433,41 @@ function ContactSection() {
               <Input
                 value={settings.contactAddress}
                 onChange={(e) => handleFieldChange("contactAddress", e.target.value)}
-                placeholder="123 Health Avenue, City..."
+                placeholder="Moolatvam Ayurved Hospital, Sangli..."
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Social Media & Direct Connect Channels */}
+        <div className="border border-slate-100 dark:border-slate-800 rounded-2xl p-5 bg-slate-50/50 dark:bg-slate-900/10 space-y-4">
+          <h3 className="text-[11px] font-bold text-[#0D7A70] dark:text-teal-400 uppercase tracking-wider pb-2 border-b border-slate-100 dark:border-slate-800">Social Media & Direct Channels</h3>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Instagram Profile URL</Label>
+              <Input
+                value={settings.socialInstagram || ""}
+                onChange={(e) => handleFieldChange("socialInstagram", e.target.value)}
+                placeholder="https://www.instagram.com/moolatvam"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">WhatsApp Number</Label>
+              <Input
+                value={settings.socialWhatsApp || ""}
+                onChange={(e) => handleFieldChange("socialWhatsApp", e.target.value)}
+                placeholder="+919876543210"
+                className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold text-emerald-600 dark:text-emerald-400 font-mono"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Facebook / Pharmacy Link</Label>
+              <Input
+                value={settings.socialFacebook || ""}
+                onChange={(e) => handleFieldChange("socialFacebook", e.target.value)}
+                placeholder="https://www.vaidyatvam.com"
                 className="mt-1.5 bg-white dark:bg-black/20 border-slate-200 dark:border-slate-800 rounded-xl h-10 text-sm font-semibold"
               />
             </div>
@@ -1775,7 +1889,8 @@ function StaffSection() {
   const [docName, setDocName] = useState("");
   const [docEmail, setDocEmail] = useState("");
   const [docPassword, setDocPassword] = useState("");
-  const [docSpecialty, setDocSpecialty] = useState("General Medicine");
+  const [docSpecialty, setDocSpecialty] = useState("Ayurvedic Physician");
+  const [customSpecialty, setCustomSpecialty] = useState("");
   const [docRegNumber, setDocRegNumber] = useState("");
 
   // Nurse form state
@@ -1798,6 +1913,8 @@ function StaffSection() {
       return toast.error("Password must be at least 6 characters");
     }
 
+    const resolvedSpecialty = docSpecialty === "Other" ? (customSpecialty.trim() || "Ayurvedic Physician") : docSpecialty;
+
     setBusy(true);
     try {
       // Use a secondary Firebase app instance to avoid logging out the current admin user
@@ -1807,17 +1924,20 @@ function StaffSection() {
       // Create the user in Auth
       const userCred = await createUserWithEmailAndPassword(secondaryAuth, docEmail.trim().toLowerCase(), docPassword);
 
-      // Save role mapping (using doctor1 for consistency with system routing)
+      // Assign doctor1 or doctor2 based on name for system dashboard routing
+      const assignedRole = docName.toLowerCase().includes("omprasad") ? "doctor2" : "doctor1";
+
+      // Save role mapping
       await setDoc(doc(db, "user_roles", userCred.user.uid), {
-        role: "doctor1"
+        role: assignedRole
       });
 
       // Save user profile info with doctor-specific fields
       await setDoc(doc(db, "profiles", userCred.user.uid), {
         full_name: docName.trim(),
         email: docEmail.trim().toLowerCase(),
-        role: "doctor1",
-        specialty: docSpecialty,
+        role: assignedRole,
+        specialty: resolvedSpecialty,
         reg_number: docRegNumber.trim(),
         created_at: new Date().toISOString()
       });
@@ -1829,6 +1949,8 @@ function StaffSection() {
       setDocName("");
       setDocEmail("");
       setDocPassword("");
+      setDocSpecialty("Ayurvedic Physician");
+      setCustomSpecialty("");
       setDocRegNumber("");
     } catch (err: any) {
       toast.error(err.message || "Failed to create Doctor account");
@@ -1962,18 +2084,35 @@ function StaffSection() {
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Specialty</Label>
                   <Select value={docSpecialty} onValueChange={setDocSpecialty}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm font-medium">
                       <SelectValue placeholder="Select specialty" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Ayurvedic Physician" className="font-semibold text-teal-700 dark:text-teal-400">🌿 Ayurvedic Physician</SelectItem>
+                      <SelectItem value="Panchakarma Specialist">Panchakarma Specialist</SelectItem>
+                      <SelectItem value="Gynaecology & Infertility">Gynaecology & Infertility</SelectItem>
+                      <SelectItem value="Dermatology & Cosmetology">Dermatology & Cosmetology</SelectItem>
                       <SelectItem value="General Medicine">General Medicine</SelectItem>
                       <SelectItem value="Pediatrics">Pediatrics</SelectItem>
                       <SelectItem value="Cardiology">Cardiology</SelectItem>
-                      <SelectItem value="Dermatology">Dermatology</SelectItem>
                       <SelectItem value="Orthopedics">Orthopedics</SelectItem>
-                      <SelectItem value="Gynaecology">Gynaecology</SelectItem>
+                      <SelectItem value="Other" className="font-semibold text-amber-600 dark:text-amber-400">✏️ Other (Type Custom Manually)</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {docSpecialty === "Other" && (
+                    <div className="mt-2 animate-in fade-in-50 duration-200">
+                      <Label className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Type Custom Specialty</Label>
+                      <Input
+                        placeholder="e.g. Ayurvedic Hair & Skin Consultant, Nadi Pariksha"
+                        value={customSpecialty}
+                        onChange={(e) => setCustomSpecialty(e.target.value)}
+                        className="mt-1 h-10 rounded-xl border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 text-sm font-semibold focus-visible:ring-amber-500"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -2174,32 +2313,42 @@ export function LeadsSection() {
         rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
         
         const nursesList: { id: string; name: string }[] = [];
-        const doctorsList: { id: string; name: string }[] = [
-          { id: "doctor1", name: "Dr. Kadambari Jagtap" },
-          { id: "doctor2", name: "Dr. Omprasad Jagtap" }
-        ];
+        const doctorsList: { id: string; name: string }[] = [];
         
         profilesSnap.forEach(d => {
-          const roleVal = rolesMap.get(d.id);
-          const email = d.data().email || "";
+          const roleVal = rolesMap.get(d.id) || d.data().role;
+          const fullName = d.data().full_name;
           
-          if (roleVal === "nurse") {
-            nursesList.push({ id: d.id, name: d.data().full_name });
-          } else if (roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") {
-            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
-            doctorsList.push({ id: d.id, name: d.data().full_name });
+          if (roleVal === "nurse" && fullName) {
+            if (!nursesList.some(x => x.id === d.id)) {
+              nursesList.push({ id: d.id, name: fullName });
+            }
+          } else if ((roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") && fullName) {
+            const docKey = getDoctorDeduplicationKey(fullName);
+            if (!doctorsList.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey))) {
+              doctorsList.push({ id: d.id, name: fullName });
+            }
           }
         });
-        
-        const uniqueDocs: { id: string; name: string }[] = [];
-        doctorsList.forEach(item => {
-          if (!uniqueDocs.find(x => x.id === item.id)) {
-            uniqueDocs.push(item);
+
+        rolesSnap.forEach(d => {
+          const roleVal = d.data().role;
+          if (roleVal === "nurse") {
+            if (!nursesList.some(x => x.id === d.id)) {
+              const name = d.data().full_name || d.data().name;
+              if (name) nursesList.push({ id: d.id, name });
+            }
+          } else if (roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") {
+            const name = d.data().full_name || d.data().name;
+            const docKey = getDoctorDeduplicationKey(name || "");
+            if (!doctorsList.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey)) && name) {
+              doctorsList.push({ id: d.id, name });
+            }
           }
         });
         
         setNurses(nursesList);
-        setDoctors(uniqueDocs);
+        setDoctors(doctorsList);
       } catch (err) {
         console.error("Error loading staff", err);
       }

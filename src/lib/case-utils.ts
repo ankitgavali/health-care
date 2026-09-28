@@ -76,6 +76,23 @@ export const doctorName: Record<"doctor1" | "doctor2", string> = {
   doctor2: "Dr. Omprasad Jagtap",
 };
 
+export function getDoctorDeduplicationKey(name: string): string {
+  if (!name) return "";
+  const clean = name.toLowerCase().replace(/^(dr\.?|doctor)\s+/i, "").trim();
+  if (clean.includes("kadambari")) return "kadambari";
+  if (clean.includes("omprasad")) return "omprasad";
+  
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  
+  const normalizedWords = parts.map(word => {
+    if (word.length <= 2) return word;
+    return word[0] + word.slice(1).replace(/[aeiou]/gi, "");
+  });
+  
+  return normalizedWords.join("_");
+}
+
 export const roleHome: Record<AppRole, string> = {
   patient: "/patient",
   nurse: "/nurse",

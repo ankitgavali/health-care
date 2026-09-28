@@ -51,44 +51,24 @@ export function GlobalNavbar({ isFixed = false }: { isFixed?: boolean }) {
           >
             <Stethoscope className="h-5 w-5 text-[#0033a0] dark:text-blue-400" />
             <span className="font-serif text-lg font-medium text-[#0033a0] dark:text-blue-300">
-              {settings.hospitalName}
+              {settings.hospitalName || "Moolatvam Ayurved"}
             </span>
             <span className="text-sm font-sans font-medium text-gray-800 dark:text-gray-200 hidden sm:inline">
               Family Doctor
             </span>
           </Link>
 
-          {/* Right Side - Links & Auth */}
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={toggleDark} 
-                aria-label="Toggle theme" 
-                className="rounded-full text-gray-800 hover:text-[#0033a0] hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300 transition-colors"
-              >
-                {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
-
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <Button 
-                    onClick={handleLogout} 
-                    className="bg-[#0033a0] hover:bg-[#002277] text-white font-medium rounded-full shadow-md hover:shadow-lg transition-all px-6 text-sm h-10"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span className="hidden sm:inline">Logout</span>
-                  </Button>
-                </div>
-              ) : (
-                <Link to="/auth">
-                  <Button className="bg-[#0033a0] hover:bg-[#002277] text-white font-medium rounded-full shadow-md hover:shadow-lg transition-all px-8 text-sm h-10">
-                    Log In
-                  </Button>
-                </Link>
-              )}
-            </div>
+          {/* Right Side - Theme Toggle */}
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleDark} 
+              aria-label="Toggle theme" 
+              className="rounded-full text-gray-800 hover:text-[#0033a0] hover:bg-black/5 dark:hover:bg-white/10 dark:text-gray-300 transition-colors"
+            >
+              {dark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
           </div>
         </div>
       </nav>

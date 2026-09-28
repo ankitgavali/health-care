@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Stethoscope, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
-import { roleHome } from "@/lib/case-utils";
+import { roleHome, getDoctorDeduplicationKey } from "@/lib/case-utils";
 
 export const Route = createFileRoute("/auth")({ component: AuthPage });
 
@@ -50,14 +50,27 @@ function AuthPage() {
         
         const list: { id: string; name: string }[] = [];
         profilesSnap.forEach((d) => {
-          const roleVal = rolesMap.get(d.id);
-          const email = d.data().email || "";
-          
+          const roleVal = rolesMap.get(d.id) || d.data().role;
           if (roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") {
-            if (email.includes("doctor1") || email.includes("doctor2") || email.includes("doctor12")) return;
-            list.push({ id: d.id, name: d.data().full_name || "Doctor" });
+            const name = d.data().full_name || "Doctor";
+            const docKey = getDoctorDeduplicationKey(name);
+            if (!list.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey))) {
+              list.push({ id: d.id, name });
+            }
           }
         });
+
+        rolesSnap.forEach((d) => {
+          const roleVal = d.data().role;
+          if (roleVal === "doctor" || roleVal === "doctor1" || roleVal === "doctor2") {
+            const name = d.data().full_name || d.data().name;
+            const docKey = getDoctorDeduplicationKey(name || "");
+            if (!list.some(x => x.id === d.id || (docKey && getDoctorDeduplicationKey(x.name) === docKey)) && name) {
+              list.push({ id: d.id, name });
+            }
+          }
+        });
+
         setDoctorsList(list);
       } catch (err) {
         console.error("Error fetching doctors", err);

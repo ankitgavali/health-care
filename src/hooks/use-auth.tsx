@@ -45,17 +45,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfileName(null);
     }
 
+    if (currentUser.isAnonymous) {
+      setRole("patient");
+      setProfileName("Guest Patient");
+      return;
+    }
+
     if (roleDoc.exists()) {
       setRole(roleDoc.data().role as AppRole);
       return;
     }
 
     // If role is missing for predefined accounts, auto-insert it
-    if (email && ["nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com", "guest.patient@medicare.local"].includes(email)) {
+    if (email && (["nurse1@gmail.com", "doctor12@gmail.com", "doctor12@gmail", "doctor1@gmail.com", "doctor2@gmail.com", "guest.patient@medicare.local"].includes(email) || email.endsWith("@medicare.local") || email.startsWith("guest_"))) {
       let roleKey: AppRole = "nurse";
       if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") roleKey = "doctor1";
       if (email === "doctor2@gmail.com") roleKey = "doctor2";
-      if (email === "guest.patient@medicare.local") roleKey = "patient";
+      if (email === "guest.patient@medicare.local" || email.endsWith("@medicare.local") || email.startsWith("guest_")) roleKey = "patient";
 
       try {
         await setDoc(roleDocRef, { role: roleKey });
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         let name = "payal";
         if (email === "doctor12@gmail.com" || email === "doctor12@gmail" || email === "doctor1@gmail.com") name = "Dr. Kadambari Jagtap";
         if (email === "doctor2@gmail.com") name = "Dr. Omprasad Jagtap";
-        if (email === "guest.patient@medicare.local") name = "Guest Patient";
+        if (email === "guest.patient@medicare.local" || email.endsWith("@medicare.local") || email.startsWith("guest_")) name = "Guest Patient";
 
         await setDoc(doc(db, "profiles", currentUser.uid), {
           full_name: name,
@@ -74,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileName(name);
       } catch (err) {
         console.error("Failed to auto-insert role in Firestore", err);
-        setRole(null);
+        setRole(roleKey);
         setProfileName(null);
       }
       return;
