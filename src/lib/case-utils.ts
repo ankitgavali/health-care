@@ -2,6 +2,95 @@ import type { AppRole } from "@/hooks/use-auth";
 import { db } from "@/firebase";
 import { collection, query, where, getDocs, setDoc, doc, addDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 
+export type DoseMedicine = {
+  id: string;
+  name: string;
+  strength?: string;
+  dose_code: string; // "000" | "100" | "010" | "001" | "110" | "101" | "011" | "111"
+  morning_dose: string;
+  afternoon_dose: string;
+  evening_dose: string;
+  duration: string;
+  instructions?: string;
+};
+
+export const DOSE_CODES: Record<string, { label: string; morning: string; afternoon: string; evening: string; summary: string }> = {
+  "000": { label: "000 — No Tablet (0-0-0)", morning: "0 Tablet", afternoon: "0 Tablet", evening: "0 Tablet", summary: "No tablet scheduled" },
+  "100": { label: "100 — Morning Only (1-0-0)", morning: "1 Tablet", afternoon: "0 Tablet", evening: "0 Tablet", summary: "Morning only" },
+  "010": { label: "010 — Afternoon Only (0-1-0)", morning: "0 Tablet", afternoon: "1 Tablet", evening: "0 Tablet", summary: "Afternoon only" },
+  "001": { label: "001 — Evening Only (0-0-1)", morning: "0 Tablet", afternoon: "0 Tablet", evening: "1 Tablet", summary: "Evening only" },
+  "110": { label: "110 — Morning & Afternoon (1-1-0)", morning: "1 Tablet", afternoon: "1 Tablet", evening: "0 Tablet", summary: "Morning and Afternoon" },
+  "101": { label: "101 — Morning & Evening (1-0-1)", morning: "1 Tablet", afternoon: "0 Tablet", evening: "1 Tablet", summary: "Morning and Evening" },
+  "011": { label: "011 — Afternoon & Evening (0-1-1)", morning: "0 Tablet", afternoon: "1 Tablet", evening: "1 Tablet", summary: "Afternoon and Evening" },
+  "111": { label: "111 — Morning, Afternoon & Evening (1-1-1)", morning: "1 Tablet", afternoon: "1 Tablet", evening: "1 Tablet", summary: "Morning, Afternoon, Evening" },
+};
+
+export const COMMON_MEDICINES = [
+  // Vati / Ras / Gutika (Tablets)
+  { name: "Tab. Tribhuvan Kirti Ras", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Mahasudarshan Ghanvati", strength: "500mg", category: "Vati / Ras" },
+  { name: "Tab. Arogyavardhini Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Chandraprabha Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Sanjivani Vati", strength: "125mg", category: "Vati / Ras" },
+  { name: "Tab. Sutshekhar Ras", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Kamdudha Ras", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Gandhak Rasayan", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Shankh Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Punarnavadi Mandur", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Laxmivilas Ras", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Brahmi Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Agnitundi Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Chitrakadi Vati", strength: "250mg", category: "Vati / Ras" },
+  { name: "Tab. Kutajghan Vati", strength: "250mg", category: "Vati / Ras" },
+
+  // Guggulu
+  { name: "Tab. Yograj Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Kaishore Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Triphala Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Gokshuradi Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Kanchnar Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Singhnad Guggulu", strength: "500mg", category: "Guggulu" },
+  { name: "Tab. Trayodashang Guggulu", strength: "500mg", category: "Guggulu" },
+
+  // Churna & Kalpa (Powders)
+  { name: "Sitopaladi Churna", strength: "3g", category: "Churna / Kalpa" },
+  { name: "Triphala Churna", strength: "5g", category: "Churna / Kalpa" },
+  { name: "Avipattikar Churna", strength: "3g", category: "Churna / Kalpa" },
+  { name: "Hingwashtak Churna", strength: "2g", category: "Churna / Kalpa" },
+  { name: "Trikatu Churna", strength: "2g", category: "Churna / Kalpa" },
+  { name: "Talishadi Churna", strength: "3g", category: "Churna / Kalpa" },
+  { name: "Yashtimadhu Churna", strength: "3g", category: "Churna / Kalpa" },
+  { name: "Shatavari Kalpa", strength: "5g", category: "Churna / Kalpa" },
+  { name: "Ashwagandha Churna", strength: "3g", category: "Churna / Kalpa" },
+
+  // Asava / Arishta / Syrups
+  { name: "Syp. Ashwagandhadishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Dashmoolarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Amritarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Punarnavarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Drakshasava", strength: "20ml", category: "Asava / Arishta" },
+  { name: "Syp. Saraswatarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Arjunarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Khadirarishta", strength: "15ml", category: "Asava / Arishta" },
+  { name: "Syp. Vasavaleha", strength: "10ml", category: "Asava / Arishta" },
+
+  // Taila & Ghrita (Oils & Medicated Ghee)
+  { name: "Mahanarayan Taila", strength: "Ext. App.", category: "Taila / Ghrita" },
+  { name: "Dhanwantaram Taila", strength: "Ext. App.", category: "Taila / Ghrita" },
+  { name: "Kshirabala Taila", strength: "Ext. App.", category: "Taila / Ghrita" },
+  { name: "Brahmi Ghrita", strength: "5g", category: "Taila / Ghrita" },
+  { name: "Panchatikta Ghrita", strength: "5g", category: "Taila / Ghrita" },
+
+  // General & Allopathic Formulations
+  { name: "Tab. Liv-52", strength: "1 Tab", category: "General / Modern" },
+  { name: "Tab. Paracetamol", strength: "500mg", category: "General / Modern" },
+  { name: "Tab. Pantoprazole", strength: "40mg", category: "General / Modern" },
+  { name: "Tab. Cetirizine", strength: "10mg", category: "General / Modern" },
+  { name: "Tab. Azithromycin", strength: "500mg", category: "General / Modern" },
+  { name: "Tab. Multivitamin", strength: "1 Tab", category: "General / Modern" },
+  { name: "Tab. Calcium + D3", strength: "500mg", category: "General / Modern" },
+];
+
 export type CaseRow = {
   id: string;
   patient_id: string;
@@ -25,6 +114,7 @@ export type CaseRow = {
   prescription: string | null;
   medical_notes: string | null;
   medicines: string | null;
+  dose_medicines?: DoseMedicine[] | null;
   tests: string | null;
   consultation_charge: number | null;
   medicine_charge: number | null;

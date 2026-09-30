@@ -11,7 +11,7 @@ export const firebaseConfig = {
   projectId: "hospital-care-981d5",
   storageBucket: "hospital-care-981d5.firebasestorage.app",
   messagingSenderId: "388271453191",
-  appId: "1:388271453191:web:c5a54bd6618f5390b566a2"
+  appId: "1:388271453191:web:c5a54bd6618f5390b566a2",
 };
 
 // Initialize Firebase

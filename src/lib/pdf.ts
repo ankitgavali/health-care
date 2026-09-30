@@ -213,19 +213,19 @@ export async function generateCasePaperPDF(c: CaseRow) {
   y += 15;
   
   // Observations
-  if (c.prescription || c.medical_notes) {
+  if (c.prescription || c.medical_notes || c.medicines || c.tests) {
     doc.setDrawColor(200);
     doc.line(14, y, w - 14, y);
     y += 8;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(180, 83, 9); // #b45309
-    doc.text("Doctor's Observations & Prescription", 14, y);
+    doc.text("Doctor's Observations & Treatment Plan", 14, y);
     doc.setTextColor(0, 0, 0);
     y += 8;
     
     if (c.medical_notes) {
       doc.setFont("helvetica", "bold");
-      doc.text("Diagnosis:", 14, y);
+      doc.text("Diagnosis & Clinical Notes:", 14, y);
       doc.setFont("helvetica", "normal");
       const diagLines = doc.splitTextToSize(c.medical_notes, w - 28);
       y += 6;
@@ -235,16 +235,56 @@ export async function generateCasePaperPDF(c: CaseRow) {
     
     if (c.prescription) {
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
+      doc.setFontSize(14);
       doc.setTextColor(180, 83, 9);
-      doc.text("Rx", 14, y);
+      doc.text("Rx (Prescription):", 14, y);
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
       y += 6;
       const rxLines = doc.splitTextToSize(c.prescription, w - 28);
       doc.text(rxLines, 14, y);
       y += rxLines.length * 6 + 4;
+    }
+
+    if (c.dose_medicines && c.dose_medicines.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Prescribed Medicines & Dose Schedule:", 14, y);
+      y += 5;
+      
+      doc.setFontSize(9);
+      for (const m of c.dose_medicines) {
+        doc.setFont("helvetica", "bold");
+        const medTitle = `• ${m.name}${m.strength ? ` (${m.strength})` : ''} — Dose Code: [${m.dose_code}] (${m.duration})`;
+        doc.text(medTitle, 16, y);
+        y += 4.5;
+        
+        doc.setFont("helvetica", "normal");
+        const scheduleText = `   Schedule: Morning: ${m.morning_dose} | Afternoon: ${m.afternoon_dose} | Evening: ${m.evening_dose}${m.instructions ? ` | Instructions: ${m.instructions}` : ''}`;
+        const schedLines = doc.splitTextToSize(scheduleText, w - 32);
+        doc.text(schedLines, 16, y);
+        y += schedLines.length * 4.5 + 2;
+      }
+      y += 2;
+      doc.setFontSize(10);
+    } else if (c.medicines) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Medicines List:", 14, y);
+      doc.setFont("helvetica", "normal");
+      const medLines = doc.splitTextToSize(c.medicines, w - 28);
+      y += 6;
+      doc.text(medLines, 14, y);
+      y += medLines.length * 6 + 4;
+    }
+
+    if (c.tests) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Clinical Tests:", 14, y);
+      doc.setFont("helvetica", "normal");
+      const testLines = doc.splitTextToSize(c.tests, w - 28);
+      y += 6;
+      doc.text(testLines, 14, y);
+      y += testLines.length * 6 + 4;
     }
   }
   

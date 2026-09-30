@@ -28,7 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogTrigger, DialogContent, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { calculateAge, statusColor, statusLabel, doctorName, CaseStatus, parseCaseNotes } from "@/lib/case-utils";
 import { generateCasePaperPDF, generatePDFFromElementId, shareCasePaperPDF } from "@/lib/pdf";
-import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn } from "lucide-react";
+import { FileText, Download, Share2, Loader2, Plus, Stethoscope, Smartphone, ZoomIn, Calendar, Phone, MapPin, User, ClipboardList, Pill } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
 export const Route = createFileRoute("/patient")({
@@ -282,21 +282,116 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
                 <div className="font-semibold min-h-[40px]">{c.weight}</div>
               </div>
 
-              {/* Doctor's Notes & Prescription (If available) */}
-              {(c.prescription || c.medical_notes) && (
-                <div className="mt-8 pt-4 border-t border-slate-200">
-                  {c.medical_notes && (
-                    <div className="mb-4">
-                      <div className="font-bold mb-1 underline">Diagnosis:</div>
-                      <div className="whitespace-pre-wrap font-medium">{c.medical_notes}</div>
+              {/* Doctor's Observations & Treatment Section matching Image 3 */}
+              {(c.medical_notes || c.prescription || c.medicines || c.tests) && (
+                <div className="mt-6 pt-4 border-t border-slate-300">
+                  <div className="grid grid-cols-[1fr_1.1fr] gap-4 items-start">
+                    
+                    {/* LEFT COLUMN: Diagnosis & Clinical Notes */}
+                    <div className="flex flex-col h-full">
+                      <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
+                        <span>Diagnosis & Clinical Notes :</span>
+                        <span className="text-[10px] text-slate-500 font-normal">निदान व तपासणी</span>
+                      </div>
+                      <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-3 rounded-lg border border-slate-200 min-h-[140px] text-black">
+                        {c.medical_notes || "—"}
+                      </div>
                     </div>
-                  )}
-                  {c.prescription && (
-                    <div>
-                      <div className="font-serif font-bold text-2xl mb-1 text-[#b45309]">Rx</div>
-                      <div className="whitespace-pre-wrap font-medium">{c.prescription}</div>
+
+                    {/* RIGHT COLUMN: 2 Clean Sections (Unified Rx & Clinical Tests) */}
+                    <div className="flex flex-col gap-3">
+                      
+                      {/* Section 1: Unified Rx Prescription & Medicines */}
+                      {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines ) && (
+                        <div>
+                          <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
+                              <span>Prescription & Medicines (औषधोपचार) :</span>
+                            </span>
+                            {c.dose_medicines && c.dose_medicines.length > 0 && (
+                              <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                                <Pill className="h-3 w-3 text-amber-700" />
+                                <span>{c.dose_medicines.length} Medicines</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {c.dose_medicines && c.dose_medicines.length > 0 ? (
+                            <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                              {/* Clean, authentic medical prescription table */}
+                              <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                                <thead>
+                                  <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                                    <th className="py-1 px-2 w-6 text-center">#</th>
+                                    <th className="py-1 px-2">औषध (Medicine)</th>
+                                    <th className="py-1 px-1.5 text-center w-28">डोस (स-दु-रा)</th>
+                                    <th className="py-1 px-2 text-center w-16">कालावधी</th>
+                                    <th className="py-1 px-2">सूचना</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-amber-100/80">
+                                  {c.dose_medicines.map((m: any, idx: number) => (
+                                    <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                                      <td className="py-1.5 px-2 text-center font-bold text-amber-800 text-[11px] align-top">
+                                        {idx + 1}
+                                      </td>
+                                      <td className="py-1.5 px-2 font-serif font-bold text-black align-top">
+                                        <div>{m.name}</div>
+                                        {m.strength && (
+                                          <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1 rounded border border-slate-200 mt-0.5">
+                                            {m.strength}
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className="py-1.5 px-1.5 text-center align-top whitespace-nowrap">
+                                        <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-1.5 py-0.5 rounded border border-amber-300">
+                                          {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
+                                        </span>
+                                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">[{m.dose_code}]</div>
+                                      </td>
+                                      <td className="py-1.5 px-2 text-center font-semibold text-slate-800 align-top whitespace-nowrap">
+                                        {m.duration}
+                                      </td>
+                                      <td className="py-1.5 px-2 text-slate-700 italic text-[10.5px] font-serif align-top">
+                                        {m.instructions || "—"}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+
+                              {/* Freeform prescription / dietary advice if provided */}
+                              {c.prescription && (
+                                <div className="p-2 bg-amber-50/50 border-t border-amber-200 text-xs font-serif text-black">
+                                  <span className="font-bold mr-1 text-[#b45309]">विशेष सूचना / पथ्य (Advice):</span>
+                                  <span className="whitespace-pre-wrap">{c.prescription}</span>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/40 p-2.5 rounded-lg border border-amber-200 text-black">
+                              {c.prescription || c.medicines}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Section 2: Clinical Tests */}
+                      {c.tests && (
+                        <div>
+                          <div className="font-bold text-[13px] text-black mb-1">
+                            Clinical Tests (तपासण्या / लॅब टेस्ट) :
+                          </div>
+                          <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-black">
+                            {c.tests}
+                          </div>
+                        </div>
+                      )}
+
                     </div>
-                  )}
+
+                  </div>
                 </div>
               )}
             </div>
@@ -592,6 +687,14 @@ function PatientPage() {
         mobile: form.mobile.trim(),
         dob: form.dob,
         age,
+        gender: form.gender || "Male",
+        marital_status: form.marital_status || "Unmarried",
+        education: form.education?.trim() || "",
+        occupation: form.occupation?.trim() || "",
+        parents_occupation: form.parents_occupation?.trim() || "",
+        menstrual_history: form.menstrual_history?.trim() || "",
+        past_history: form.past_history?.trim() || "",
+        weight: form.weight?.trim() || "",
         notes: JSON.stringify({
           notes: form.notes?.trim() || "",
           marital_status: form.marital_status?.trim() || "",
@@ -644,145 +747,306 @@ function PatientPage() {
             </Button>
           </DialogTrigger>
 
-          <DialogContent className="sm:max-w-[550px] w-[95vw] max-h-[90vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
-             <DialogHeader>
-                <DialogTitle className="text-xl font-bold flex items-center gap-2 text-teal-700 dark:text-teal-400">
-                  <FileText className="h-5 w-5" /> New Case Paper
-                </DialogTitle>
-                <DialogDescription>Fill in your details to register a visit</DialogDescription>
+          <DialogContent className="max-w-3xl w-[95vw] max-h-[92vh] overflow-y-auto rounded-3xl p-5 sm:p-7 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 shadow-2xl">
+             <DialogHeader className="border-b dark:border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-teal-500/15 text-teal-600 dark:text-teal-400 grid place-items-center">
+                    <FileText className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                      नवीन केस पेपर (New Case Paper)
+                    </DialogTitle>
+                    <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                      Moolatvam Ayurved — Case Paper Registration & Consultation Request
+                    </DialogDescription>
+                  </div>
+                </div>
              </DialogHeader>
-             <form onSubmit={submit} className="space-y-4 mt-2">
-                 <div>
-                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Full name</Label>
-                   <div className="relative mt-1">
-                     <Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="pr-10 rounded-xl" placeholder="Patient's Full Name" required />
-                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, full_name: f.full_name ? f.full_name + " " + val : val }))} />
+
+             {/* Live Patient Profile Header Banner */}
+             <div className="mt-4 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-slate-500/10 rounded-2xl p-4 border border-teal-500/20 shadow-xs">
+               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                 <div className="flex items-center gap-3">
+                   <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-teal-500 to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center shadow-md shadow-teal-500/20">
+                     {(form.full_name?.trim() ? form.full_name.trim().substring(0, 2) : "??").toUpperCase()}
+                   </div>
+                   <div>
+                     <span className="text-[10px] text-teal-600 dark:text-teal-400 uppercase font-extrabold tracking-wider">
+                       Patient Profile
+                     </span>
+                     <h3 className="font-extrabold text-base text-foreground tracking-tight uppercase leading-none mt-0.5">
+                       {form.full_name?.trim() || "नवीन रुग्ण (Patient Name)"}
+                     </h3>
                    </div>
                  </div>
-                 <div>
-                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Address</Label>
-                   <div className="relative mt-1">
-                     <Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className="pr-10 rounded-xl" placeholder="Full address" required />
-                     <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, address: f.address ? f.address + " " + val : val }))} positionClassName="top-3" />
+                 <div className="flex flex-wrap gap-2 text-xs">
+                   <div className="flex items-center gap-1.5 bg-white/70 dark:bg-black/30 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-white/5 shadow-2xs">
+                     <Calendar className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+                     <div>
+                       <div className="text-[8px] text-muted-foreground uppercase leading-none font-semibold">Age / DOB</div>
+                       <div className="font-bold text-foreground text-[11px] mt-0.5">
+                         {age} Years {form.dob ? `(${form.dob})` : ""}
+                       </div>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-1.5 bg-white/70 dark:bg-black/30 px-2.5 py-1 rounded-xl border border-slate-200/60 dark:border-white/5 shadow-2xs">
+                     <Phone className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+                     <div>
+                       <div className="text-[8px] text-muted-foreground uppercase leading-none font-semibold">Contact</div>
+                       <div className="font-bold text-foreground text-[11px] mt-0.5">{form.mobile || "—"}</div>
+                     </div>
                    </div>
                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Mobile</Label>
-                      <Input value={form.mobile} onChange={(e) => setForm({ ...form, mobile: e.target.value })} className="mt-1 rounded-xl" placeholder="Mobile number" required />
+               </div>
+             </div>
+
+             <form onSubmit={submit} className="space-y-6 mt-4">
+                {/* Section 1: Personal Details */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/10 pb-1.5">
+                    <User className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      रुग्णाची माहिती (Personal Details)
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Full Name (रुग्णाचे नाव) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.full_name} 
+                          onChange={(e) => setForm({ ...form, full_name: e.target.value })} 
+                          placeholder="Patient's Full Name" 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                          required 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, full_name: f.full_name ? f.full_name + " " + val : val }))} />
+                      </div>
                     </div>
+
                     <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Date of Birth</Label>
-                      <Input type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} className="mt-1 rounded-xl" required />
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Date of Birth (जन्मतारीख) <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        type="date" 
+                        value={form.dob} 
+                        onChange={(e) => setForm({ ...form, dob: e.target.value })} 
+                        className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                        required 
+                      />
+                      {form.dob && (
+                        <div className="text-[11px] font-semibold text-teal-600 dark:text-teal-400 mt-1">
+                          Age: {age} Years
+                        </div>
+                      )}
                     </div>
+
                     <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Gender</Label>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Gender (लिंग)
+                      </Label>
                       <Select value={form.gender} onValueChange={(val) => setForm({ ...form, gender: val })}>
-                        <SelectTrigger className="mt-1 rounded-xl">
-                          <SelectValue placeholder="Select" />
+                        <SelectTrigger className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10">
+                          <SelectValue placeholder="Select Gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Male">Male (पुरुष)</SelectItem>
+                          <SelectItem value="Female">Female (स्त्री)</SelectItem>
                           <SelectItem value="Other">Other</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                 {form.dob && (
-                   <div className="rounded-xl border bg-teal-50/80 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800/40 px-3.5 py-2 text-sm text-teal-900 dark:text-teal-200">
-                     Age: <span className="font-bold">{age}</span> years
-                   </div>
-                 )}
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
                     <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Marital Status</Label>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Mobile Number (मोबाईल नं.) <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        value={form.mobile} 
+                        onChange={(e) => setForm({ ...form, mobile: e.target.value })} 
+                        placeholder="10 digit mobile number" 
+                        className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                        required 
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Marital Status (वैवाहिक स्थिती)
+                      </Label>
                       <Select value={form.marital_status} onValueChange={(val) => setForm({ ...form, marital_status: val })}>
-                        <SelectTrigger className="mt-1 rounded-xl">
+                        <SelectTrigger className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10">
                           <SelectValue placeholder="Select Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Married">Married</SelectItem>
-                          <SelectItem value="Unmarried">Unmarried</SelectItem>
+                          <SelectItem value="Married">Married (विवाहित)</SelectItem>
+                          <SelectItem value="Unmarried">Unmarried (अविवाहित)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Education</Label>
-                     <Input value={form.education} onChange={(e) => setForm({ ...form, education: e.target.value })} className="mt-1 rounded-xl" placeholder="Education" />
-                   </div>
-                 </div>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Occupation</Label>
-                     <Input value={form.occupation} onChange={(e) => setForm({ ...form, occupation: e.target.value })} className="mt-1 rounded-xl" placeholder="Occupation" />
-                   </div>
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Parent's Occu.</Label>
-                     <Input value={form.parents_occupation} onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} className="mt-1 rounded-xl" placeholder="Parent's Occupation" />
-                   </div>
-                 </div>
-                 {/* Clinical details - retained in form, filled by Nurse on visit */}
-                 <div className="rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 p-3.5 space-y-3">
-                   <div className="flex items-center justify-between">
-                     <span className="text-[11px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
-                       <Stethoscope className="h-3.5 w-3.5 text-amber-600" /> क्लिनिकल नोंदी (Clinical Details)
-                     </span>
-                     <span className="text-[10px] bg-amber-200/80 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 px-2 py-0.5 rounded-full font-semibold">
-                       नर्स भरणार (Nurse Only)
-                     </span>
-                   </div>
 
-                   <div>
-                     <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                       Chief Complaints / History of present illness
-                     </Label>
-                     <div className="relative mt-1">
-                       <Textarea 
-                         rows={2} 
-                         value={form.notes} 
-                         readOnly 
-                         className="pr-4 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
-                         placeholder="क्लिनिकमध्ये आल्यावर परिचारिका / नर्स तक्रारी नोंदवतील (Will be recorded by Nurse upon visit)" 
-                       />
-                     </div>
-                   </div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Address (पत्ता) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <Textarea 
+                          rows={2} 
+                          value={form.address} 
+                          onChange={(e) => setForm({ ...form, address: e.target.value })} 
+                          placeholder="Complete address with city/village..." 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 resize-none text-xs" 
+                          required 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, address: f.address ? f.address + " " + val : val }))} positionClassName="top-2.5" />
+                      </div>
+                    </div>
 
-                   <div className={`grid grid-cols-1 ${form.gender === 'Female' ? 'sm:grid-cols-2' : 'sm:grid-cols-1'} gap-3`}>
-                     {form.gender === "Female" && (
-                       <div>
-                         <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                           पाळीचा इतिहास (Menstrual History)
-                         </Label>
-                         <Input 
-                           value={form.menstrual_history} 
-                           readOnly 
-                           className="mt-1 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
-                           placeholder="नर्स नोंदवतील (Recorded by Nurse)" 
-                         />
-                       </div>
-                     )}
-                     <div>
-                       <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                         मागील इतिहास (Past History)
-                       </Label>
-                       <Input 
-                         value={form.past_history} 
-                         readOnly 
-                         className="mt-1 rounded-xl bg-slate-100/90 dark:bg-slate-900/70 text-slate-600 dark:text-slate-400 cursor-not-allowed text-xs border-dashed" 
-                         placeholder="मागील आजार / इतिहास (Recorded by Nurse)" 
-                       />
-                     </div>
-                   </div>
-                 </div>
+                    <div>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Education (शिक्षण)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.education} 
+                          onChange={(e) => setForm({ ...form, education: e.target.value })} 
+                          placeholder="e.g. B.Sc, 12th..." 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, education: f.education ? f.education + " " + val : val }))} />
+                      </div>
+                    </div>
 
-                 <div>
-                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">वजन (Weight)</Label>
-                   <Input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} placeholder="e.g. 60 kg" className="mt-1 rounded-xl" />
-                 </div>
-                <Button type="submit" className="w-full h-11 bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-900/20 rounded-xl transition-all" disabled={busy}>
-                  {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Case Paper
-                </Button>
+                    <div>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Occupation (व्यवसाय)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.occupation} 
+                          onChange={(e) => setForm({ ...form, occupation: e.target.value })} 
+                          placeholder="e.g. Student, Service..." 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, occupation: f.occupation ? f.occupation + " " + val : val }))} />
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Parent's Occu. (पालकांचा व्यवसाय)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.parents_occupation} 
+                          onChange={(e) => setForm({ ...form, parents_occupation: e.target.value })} 
+                          placeholder="e.g. Farmer, Business..." 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10" 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, parents_occupation: f.parents_occupation ? f.parents_occupation + " " + val : val }))} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Symptoms & Medical History */}
+                <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-white/10">
+                  <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/10 pb-1.5">
+                    <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                      तक्रारी आणि इतिहास (Symptoms & History)
+                    </span>
+                  </div>
+
+                  {/* Chief Complaints */}
+                  <div className="bg-amber-500/10 dark:bg-amber-500/15 p-4 rounded-2xl border border-amber-500/20 space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <ClipboardList className="h-3.5 w-3.5 text-amber-600" /> Chief Complaints (तुमच्या तक्रारी / लक्षणे)
+                    </Label>
+                    <div className="relative mt-1">
+                      <Textarea 
+                        rows={3} 
+                        value={form.notes} 
+                        onChange={(e) => setForm({ ...form, notes: e.target.value })} 
+                        placeholder="तुम्हाला काय त्रास होत आहे ते येथे सांगा किंवा बोला..." 
+                        className="pr-10 rounded-xl bg-white/90 dark:bg-black/30 border-amber-300 dark:border-amber-900/50 resize-none text-xs" 
+                      />
+                      <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, notes: f.notes ? f.notes + " " + val : val }))} positionClassName="top-2.5" />
+                    </div>
+                  </div>
+
+                  {/* Menstrual History (Female or optional) */}
+                  {(form.gender === "Female" || form.gender === "Other") && (
+                    <div className="bg-pink-500/10 dark:bg-pink-500/15 p-4 rounded-2xl border border-pink-500/20 space-y-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-pink-900 dark:text-pink-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
+                        पाळीचा इतिहास (Menstrual History)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.menstrual_history} 
+                          onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} 
+                          placeholder="पाळी नियमित आहे का, काही त्रास..." 
+                          className="pr-10 rounded-xl bg-white/90 dark:bg-black/30 border-pink-300 dark:border-pink-900/50 text-xs" 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, menstrual_history: f.menstrual_history ? f.menstrual_history + " " + val : val }))} />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        मागील इतिहास (Past History)
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input 
+                          value={form.past_history} 
+                          onChange={(e) => setForm({ ...form, past_history: e.target.value })} 
+                          placeholder="मागील आजार किंवा शस्त्रक्रिया..." 
+                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-xs" 
+                        />
+                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, past_history: f.past_history ? f.past_history + " " + val : val }))} />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        वजन (Weight in kg)
+                      </Label>
+                      <Input 
+                        value={form.weight} 
+                        onChange={(e) => setForm({ ...form, weight: e.target.value })} 
+                        placeholder="e.g. 60 kg" 
+                        className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-xs" 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-200/60 dark:border-white/10 flex justify-end gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsDialogOpen(false)} 
+                    className="rounded-xl text-xs h-10 px-4 font-semibold"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    className="rounded-xl text-xs h-10 px-6 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold shadow-md" 
+                    disabled={busy}
+                  >
+                    {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Submit Case Paper (केस पेपर पाठवा)
+                  </Button>
+                </div>
              </form>
           </DialogContent>
         </Dialog>
