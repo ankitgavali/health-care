@@ -282,116 +282,102 @@ function CasePaperCard({ c, setBusy }: { c: any; setBusy: (b: boolean) => void }
                 <div className="font-semibold min-h-[40px]">{c.weight}</div>
               </div>
 
-              {/* Doctor's Observations & Treatment Section matching Image 3 */}
-              {(c.medical_notes || c.prescription || c.medicines || c.tests) && (
-                <div className="mt-6 pt-4 border-t border-slate-300">
-                  <div className="grid grid-cols-[1fr_1.1fr] gap-4 items-start">
-                    
-                    {/* LEFT COLUMN: Diagnosis & Clinical Notes */}
-                    <div className="flex flex-col h-full">
-                      <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                        <span>Diagnosis & Clinical Notes :</span>
-                        <span className="text-[10px] text-slate-500 font-normal">निदान व तपासणी</span>
+              {/* Doctor's Treatment & Prescription Section */}
+              {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines || c.tests ) && (
+                <div className="mt-6 pt-4 border-t border-slate-300 flex flex-col gap-4">
+                  
+                  {/* 1. Prescription & Medicines */}
+                  {( (c.dose_medicines && c.dose_medicines.length > 0) || c.medicines ) && (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
+                          <span>Prescription & Medicines (औषधोपचार) :</span>
+                        </span>
+                        {c.dose_medicines && c.dose_medicines.length > 0 && (
+                          <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
+                            <Pill className="h-3 w-3 text-amber-700" />
+                            <span>{c.dose_medicines.length} Medicines</span>
+                          </span>
+                        )}
                       </div>
-                      <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-3 rounded-lg border border-slate-200 min-h-[140px] text-black">
-                        {c.medical_notes || "—"}
-                      </div>
-                    </div>
 
-                    {/* RIGHT COLUMN: 2 Clean Sections (Unified Rx & Clinical Tests) */}
-                    <div className="flex flex-col gap-3">
-                      
-                      {/* Section 1: Unified Rx Prescription & Medicines */}
-                      {( (c.dose_medicines && c.dose_medicines.length > 0) || c.prescription || c.medicines ) && (
-                        <div>
-                          <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
-                              <span>Prescription & Medicines (औषधोपचार) :</span>
-                            </span>
-                            {c.dose_medicines && c.dose_medicines.length > 0 && (
-                              <span className="text-[10.5px] bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 flex items-center gap-1">
-                                <Pill className="h-3 w-3 text-amber-700" />
-                                <span>{c.dose_medicines.length} Medicines</span>
-                              </span>
-                            )}
-                          </div>
-
-                          {c.dose_medicines && c.dose_medicines.length > 0 ? (
-                            <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
-                              {/* Clean, authentic medical prescription table */}
-                              <table className="w-full text-[11.5px] text-left border-collapse font-sans">
-                                <thead>
-                                  <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
-                                    <th className="py-1 px-2 w-6 text-center">#</th>
-                                    <th className="py-1 px-2">औषध (Medicine)</th>
-                                    <th className="py-1 px-1.5 text-center w-28">डोस (स-दु-रा)</th>
-                                    <th className="py-1 px-2 text-center w-16">कालावधी</th>
-                                    <th className="py-1 px-2">सूचना</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-amber-100/80">
-                                  {c.dose_medicines.map((m: any, idx: number) => (
-                                    <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
-                                      <td className="py-1.5 px-2 text-center font-bold text-amber-800 text-[11px] align-top">
-                                        {idx + 1}
-                                      </td>
-                                      <td className="py-1.5 px-2 font-serif font-bold text-black align-top">
-                                        <div>{m.name}</div>
-                                        {m.strength && (
-                                          <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1 rounded border border-slate-200 mt-0.5">
-                                            {m.strength}
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="py-1.5 px-1.5 text-center align-top whitespace-nowrap">
-                                        <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-1.5 py-0.5 rounded border border-amber-300">
-                                          {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
-                                        </span>
-                                        <div className="text-[9px] text-slate-500 font-mono mt-0.5">[{m.dose_code}]</div>
-                                      </td>
-                                      <td className="py-1.5 px-2 text-center font-semibold text-slate-800 align-top whitespace-nowrap">
-                                        {m.duration}
-                                      </td>
-                                      <td className="py-1.5 px-2 text-slate-700 italic text-[10.5px] font-serif align-top">
-                                        {m.instructions || "—"}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-
-                              {/* Freeform prescription / dietary advice if provided */}
-                              {c.prescription && (
-                                <div className="p-2 bg-amber-50/50 border-t border-amber-200 text-xs font-serif text-black">
-                                  <span className="font-bold mr-1 text-[#b45309]">विशेष सूचना / पथ्य (Advice):</span>
-                                  <span className="whitespace-pre-wrap">{c.prescription}</span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/40 p-2.5 rounded-lg border border-amber-200 text-black">
-                              {c.prescription || c.medicines}
-                            </div>
-                          )}
+                      {c.dose_medicines && c.dose_medicines.length > 0 ? (
+                        <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                          {/* Clean, authentic medical prescription table spanning full width */}
+                          <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                            <thead>
+                              <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                                <th className="py-1.5 px-3 w-8 text-center">#</th>
+                                <th className="py-1.5 px-3">औषध (Medicine)</th>
+                                <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
+                                <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
+                                <th className="py-1.5 px-3">सूचना</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-amber-100/80">
+                              {c.dose_medicines.map((m: any, idx: number) => (
+                                <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                                  <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
+                                    {idx + 1}
+                                  </td>
+                                  <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
+                                    <div className="text-[12.5px]">{m.name}</div>
+                                    {m.strength && (
+                                      <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
+                                        {m.strength}
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
+                                    <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                      {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
+                                    </span>
+                                    <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
+                                  </td>
+                                  <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
+                                    {m.duration}
+                                  </td>
+                                  <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
+                                    {m.instructions || "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/40 p-2.5 rounded-lg border border-amber-200 text-black">
+                          {c.medicines}
                         </div>
                       )}
-
-                      {/* Section 2: Clinical Tests */}
-                      {c.tests && (
-                        <div>
-                          <div className="font-bold text-[13px] text-black mb-1">
-                            Clinical Tests (तपासण्या / लॅब टेस्ट) :
-                          </div>
-                          <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-black">
-                            {c.tests}
-                          </div>
-                        </div>
-                      )}
-
                     </div>
+                  )}
 
-                  </div>
+                  {/* 2. Clinical Tests */}
+                  {c.tests && (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1">
+                        Clinical Tests (तपासण्या / लॅब टेस्ट) :
+                      </div>
+                      <div className="whitespace-pre-wrap font-medium text-xs bg-slate-50/70 p-2.5 rounded-lg border border-slate-200 text-black">
+                        {c.tests}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Advice */}
+                  {c.prescription && (
+                    <div>
+                      <div className="font-bold text-[13px] text-black mb-1">
+                        Advice (विशेष सूचना / पथ्य) :
+                      </div>
+                      <div className="whitespace-pre-wrap font-medium text-xs bg-amber-50/50 p-2.5 rounded-lg border border-amber-200 text-black">
+                        {c.prescription}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
             </div>
@@ -954,77 +940,24 @@ function PatientPage() {
                   </div>
                 </div>
 
-                {/* Section 2: Symptoms & Medical History */}
-                <div className="space-y-4 pt-2 border-t border-slate-200/60 dark:border-white/10">
-                  <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-white/10 pb-1.5">
-                    <ClipboardList className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                      तक्रारी आणि इतिहास (Symptoms & History)
-                    </span>
-                  </div>
-
-                  {/* Chief Complaints */}
-                  <div className="bg-amber-500/10 dark:bg-amber-500/15 p-4 rounded-2xl border border-amber-500/20 space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                      <ClipboardList className="h-3.5 w-3.5 text-amber-600" /> Chief Complaints (तुमच्या तक्रारी / लक्षणे)
-                    </Label>
-                    <div className="relative mt-1">
-                      <Textarea 
-                        rows={3} 
-                        value={form.notes} 
-                        onChange={(e) => setForm({ ...form, notes: e.target.value })} 
-                        placeholder="तुम्हाला काय त्रास होत आहे ते येथे सांगा किंवा बोला..." 
-                        className="pr-10 rounded-xl bg-white/90 dark:bg-black/30 border-amber-300 dark:border-amber-900/50 resize-none text-xs" 
-                      />
-                      <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, notes: f.notes ? f.notes + " " + val : val }))} positionClassName="top-2.5" />
+                {/* Section 2: Clinical Details Notice (Mandatory for Nurse) */}
+                <div className="space-y-3 pt-2 border-t border-slate-200/60 dark:border-white/10">
+                  <div className="bg-amber-500/10 dark:bg-amber-500/15 p-4 rounded-2xl border border-amber-500/25 flex items-start gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 grid place-items-center shrink-0 mt-0.5">
+                      <ClipboardList className="h-5 w-5" />
                     </div>
-                  </div>
-
-                  {/* Menstrual History (Female or optional) */}
-                  {(form.gender === "Female" || form.gender === "Other") && (
-                    <div className="bg-pink-500/10 dark:bg-pink-500/15 p-4 rounded-2xl border border-pink-500/20 space-y-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-pink-900 dark:text-pink-200 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
-                        पाळीचा इतिहास (Menstrual History)
-                      </Label>
-                      <div className="relative mt-1">
-                        <Input 
-                          value={form.menstrual_history} 
-                          onChange={(e) => setForm({ ...form, menstrual_history: e.target.value })} 
-                          placeholder="पाळी नियमित आहे का, काही त्रास..." 
-                          className="pr-10 rounded-xl bg-white/90 dark:bg-black/30 border-pink-300 dark:border-pink-900/50 text-xs" 
-                        />
-                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, menstrual_history: f.menstrual_history ? f.menstrual_history + " " + val : val }))} />
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-950 dark:text-amber-200 text-xs">
+                          तक्रारी आणि वैद्यकीय इतिहास (Symptoms & History)
+                        </span>
+                        <Badge variant="outline" className="bg-amber-500/20 text-amber-900 dark:text-amber-200 border-amber-500/40 text-[9px] font-bold">
+                          नर्सद्वारे भरण्यात येईल (Filled by Nurse Only)
+                        </Badge>
                       </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        मागील इतिहास (Past History)
-                      </Label>
-                      <div className="relative mt-1">
-                        <Input 
-                          value={form.past_history} 
-                          onChange={(e) => setForm({ ...form, past_history: e.target.value })} 
-                          placeholder="मागील आजार किंवा शस्त्रक्रिया..." 
-                          className="pr-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-xs" 
-                        />
-                        <VoiceButton onTranscript={(val) => setForm((f) => ({ ...f, past_history: f.past_history ? f.past_history + " " + val : val }))} />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        वजन (Weight in kg)
-                      </Label>
-                      <Input 
-                        value={form.weight} 
-                        onChange={(e) => setForm({ ...form, weight: e.target.value })} 
-                        placeholder="e.g. 60 kg" 
-                        className="mt-1 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-slate-200 dark:border-white/10 text-xs" 
-                      />
+                      <p className="text-muted-foreground text-[11px] leading-relaxed">
+                        हा विभाग (लक्षणे, मागील इतिहास, पाळीचा इतिहास व वजन) क्लिनिकमधील <strong>स्टाफ / नर्स (Nurse)</strong> द्वारे तपासणी करून केस पेपरमध्ये भरला जाईल.
+                      </p>
                     </div>
                   </div>
                 </div>

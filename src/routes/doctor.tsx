@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { statusColor, statusLabel, doctorName, CaseStatus, calculateAge, parseCaseNotes, getDoctorDeduplicationKey, DOSE_CODES, COMMON_MEDICINES } from "@/lib/case-utils";
 import type { DoseMedicine } from "@/lib/case-utils";
 import { generatePDFFromElementId } from "@/lib/pdf";
@@ -57,7 +58,9 @@ import {
   Edit2,
   Info,
   Check,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  ChevronDown
 } from "lucide-react";
 import { VoiceButton } from "@/components/VoiceButton";
 
@@ -92,7 +95,7 @@ const LogoSVG = ({ idPrefix = "doc-logo" }: { idPrefix?: string }) => {
 
 export const Route = createFileRoute("/doctor")({
   component: () => (
-    <RequireRole allow={["doctor1", "doctor2"]}>
+    <RequireRole allow={["doctor", "doctor1", "doctor2"]}>
       <AppShell title="Doctor Dashboard" fullWidth={true}><DoctorPage /></AppShell>
     </RequireRole>
   ),
@@ -1484,140 +1487,132 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
                   </div>
                 </div>
 
-                {/* Doctor's Observations & Treatment Section matching Image 3 */}
-                <div className="mt-4 pt-3 border-t border-slate-300">
-                  <div className="grid grid-cols-[1fr_1.1fr] gap-4 items-start">
-                    
-                    {/* LEFT COLUMN: Observations & Diagnosis */}
-                    <div className="flex flex-col">
-                      <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                        <span>Diagnosis & Clinical Notes :</span>
-                        <span className="text-[10px] text-slate-500 font-normal">निदान व तपासणी</span>
+                {/* Doctor's Treatment & Prescription Section */}
+                <div className="mt-4 pt-3 border-t border-slate-300 flex flex-col gap-3.5">
+                  
+                  {/* 1. Prescription & Medicines (औषधोपचार) */}
+                  <div>
+                    <div className="font-bold text-[13px] text-black mb-1.5 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
+                        <span>Prescription & Medicines (औषधोपचार) :</span>
+                      </span>
+                      {doseMedicines.length > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => setActiveCaseTab("dose_code")}
+                          className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Pill className="h-3 w-3 text-amber-700" />
+                          <span>{doseMedicines.length} Medicines</span>
+                          <Edit2 className="h-2.5 w-2.5 ml-0.5 text-amber-700" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setActiveCaseTab("dose_code")}
+                          className="text-[10px] bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold px-2 py-0.5 rounded border border-teal-300 transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus className="h-2.5 w-2.5" />
+                          <span>Add Medicines (+ औषध जोडा)</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {doseMedicines.length > 0 ? (
+                      <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
+                        {/* Clean, authentic medical prescription table spanning full width */}
+                        <table className="w-full text-[11.5px] text-left border-collapse font-sans">
+                          <thead>
+                            <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
+                              <th className="py-1.5 px-3 w-8 text-center">#</th>
+                              <th className="py-1.5 px-3">औषध (Medicine)</th>
+                              <th className="py-1.5 px-2 text-center w-36">डोस (स-दु-रा)</th>
+                              <th className="py-1.5 px-3 text-center w-24">कालावधी</th>
+                              <th className="py-1.5 px-3">सूचना</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-amber-100/80">
+                            {doseMedicines.map((m, idx) => (
+                              <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
+                                <td className="py-1.5 px-3 text-center font-bold text-amber-800 text-[11px] align-middle">
+                                  {idx + 1}
+                                </td>
+                                <td className="py-1.5 px-3 font-serif font-bold text-black align-middle">
+                                  <div className="text-[12.5px]">{m.name}</div>
+                                  {m.strength && (
+                                    <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200 mt-0.5">
+                                      {m.strength}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-1.5 px-2 text-center align-middle whitespace-nowrap">
+                                  <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-2 py-0.5 rounded border border-amber-300">
+                                    {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
+                                  </span>
+                                  <span className="text-[9.5px] text-slate-500 font-mono ml-1.5">[{m.dose_code}]</span>
+                                </td>
+                                <td className="py-1.5 px-3 text-center font-semibold text-slate-800 align-middle whitespace-nowrap">
+                                  {m.duration}
+                                </td>
+                                <td className="py-1.5 px-3 text-slate-700 italic text-[11px] font-serif align-middle">
+                                  {m.instructions || "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
+                    ) : (
                       <div className="relative">
                         <Textarea
-                          rows={4}
-                          value={medicalNotes}
-                          onChange={(e) => setMedicalNotes(e.target.value)}
-                          placeholder="Enter diagnosis findings, clinical checks, observations..."
-                          className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[130px] min-h-[110px] sm:min-h-[125px] leading-relaxed"
+                          rows={3}
+                          value={medicines}
+                          onChange={(e) => setMedicines(e.target.value)}
+                          placeholder="Type medicines or click 'Medicine Dose Code' tab above..."
+                          className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none min-h-[70px]"
                         />
-                        <VoiceButton onTranscript={(val) => setMedicalNotes((prev: string) => prev ? prev + " " + val : val)} positionClassName="top-2.5 right-2" />
+                        <VoiceButton onTranscript={(val) => setMedicines((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2.5 right-2" />
                       </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: 2 Clean Sections (Unified Rx & Clinical Tests) */}
-                    <div className="flex flex-col gap-3">
-                      
-                      {/* Section 1: Unified Rx Prescription & Medicines */}
-                      <div>
-                        <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                          <span className="flex items-center gap-1.5">
-                            <span className="font-serif font-bold text-base text-[#b45309]">Rx</span>
-                            <span>Prescription & Medicines (औषधोपचार) :</span>
-                          </span>
-                          {doseMedicines.length > 0 ? (
-                            <button
-                              type="button"
-                              onClick={() => setActiveCaseTab("dose_code")}
-                              className="text-[10px] bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded border border-amber-300 transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <Pill className="h-3 w-3 text-amber-700" />
-                              <span>{doseMedicines.length} Medicines</span>
-                              <Edit2 className="h-2.5 w-2.5 ml-0.5 text-amber-700" />
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-500 font-normal">Dosage / Timings</span>
-                          )}
-                        </div>
-
-                        {doseMedicines.length > 0 ? (
-                          <div className="rounded-lg border border-amber-300 bg-white overflow-hidden shadow-xs">
-                            {/* Clean, authentic medical prescription table */}
-                            <table className="w-full text-[11.5px] text-left border-collapse font-sans">
-                              <thead>
-                                <tr className="bg-amber-100/70 border-b border-amber-200 text-black font-bold text-[11px]">
-                                  <th className="py-1 px-2 w-6 text-center">#</th>
-                                  <th className="py-1 px-2">औषध (Medicine)</th>
-                                  <th className="py-1 px-1.5 text-center w-28">डोस (स-दु-रा)</th>
-                                  <th className="py-1 px-2 text-center w-16">कालावधी</th>
-                                  <th className="py-1 px-2">सूचना</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-amber-100/80">
-                                {doseMedicines.map((m, idx) => (
-                                  <tr key={m.id || idx} className={idx % 2 === 1 ? "bg-amber-50/30" : "bg-white"}>
-                                    <td className="py-1.5 px-2 text-center font-bold text-amber-800 text-[11px] align-top">
-                                      {idx + 1}
-                                    </td>
-                                    <td className="py-1.5 px-2 font-serif font-bold text-black align-top">
-                                      <div>{m.name}</div>
-                                      {m.strength && (
-                                        <span className="inline-block text-[9.5px] font-sans font-normal text-slate-600 bg-slate-100 px-1 rounded border border-slate-200 mt-0.5">
-                                          {m.strength}
-                                        </span>
-                                      )}
-                                    </td>
-                                    <td className="py-1.5 px-1.5 text-center align-top whitespace-nowrap">
-                                      <span className="inline-block font-mono font-bold text-xs bg-amber-50 text-amber-950 px-1.5 py-0.5 rounded border border-amber-300">
-                                        {m.morning_dose.replace(' Tablet', '')} - {m.afternoon_dose.replace(' Tablet', '')} - {m.evening_dose.replace(' Tablet', '')}
-                                      </span>
-                                      <div className="text-[9px] text-slate-500 font-mono mt-0.5">[{m.dose_code}]</div>
-                                    </td>
-                                    <td className="py-1.5 px-2 text-center font-semibold text-slate-800 align-top whitespace-nowrap">
-                                      {m.duration}
-                                    </td>
-                                    <td className="py-1.5 px-2 text-slate-700 italic text-[10.5px] font-serif align-top">
-                                      {m.instructions || "—"}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-
-                            {/* Freeform prescription / dietary advice if provided */}
-                            {prescription && (
-                              <div className="p-2 bg-amber-50/50 border-t border-amber-200 text-xs font-serif text-black">
-                                <span className="font-bold mr-1 text-[#b45309]">विशेष सूचना / पथ्य (Advice):</span>
-                                <span className="whitespace-pre-wrap">{prescription}</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="relative">
-                            <Textarea
-                              rows={5}
-                              value={prescription}
-                              onChange={(e) => setPrescription(e.target.value)}
-                              placeholder="Enter patient Rx dosage & instructions (किंवा वरील Medicine Dose Code टॅब वापरा)..."
-                              className="w-full text-xs font-serif p-2.5 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none min-h-[120px]"
-                            />
-                            <VoiceButton onTranscript={(val) => setPrescription((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2.5 right-2" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Section 2: Clinical Tests */}
-                      <div>
-                        <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
-                          <span>Clinical Tests (तपासण्या / लॅब टेस्ट) :</span>
-                          <span className="text-[10px] text-slate-500 font-normal">Lab / radiology</span>
-                        </div>
-                        <div className="relative">
-                          <Textarea
-                            rows={3}
-                            value={tests}
-                            onChange={(e) => setTests(e.target.value)}
-                            placeholder="Enter required lab test names..."
-                            className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[60px]"
-                          />
-                          <VoiceButton onTranscript={(val) => setTests((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2 right-2" />
-                        </div>
-                      </div>
-
-                    </div>
-
+                    )}
                   </div>
+
+                  {/* 2. Clinical Tests */}
+                  <div>
+                    <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
+                      <span>Clinical Tests (तपासण्या / लॅब टेस्ट) :</span>
+                      <span className="text-[10px] text-slate-500 font-normal">Lab / radiology</span>
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        rows={2}
+                        value={tests}
+                        onChange={(e) => setTests(e.target.value)}
+                        placeholder="Enter required lab test names..."
+                        className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[48px]"
+                      />
+                      <VoiceButton onTranscript={(val) => setTests((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2 right-2" />
+                    </div>
+                  </div>
+
+                  {/* 3. Advice */}
+                  <div>
+                    <div className="font-bold text-[13px] text-black mb-1 flex items-center justify-between">
+                      <span>Advice (विशेष सूचना / पथ्य) :</span>
+                      <span className="text-[10px] text-slate-500 font-normal">Dietary & lifestyle advice</span>
+                    </div>
+                    <div className="relative">
+                      <Textarea
+                        rows={2}
+                        value={prescription}
+                        onChange={(e) => setPrescription(e.target.value)}
+                        placeholder="Enter dietary advice, precautions, follow-up advice (उदा. पथ्य, विश्रांती, आहार)..."
+                        className="w-full text-xs font-serif p-2 rounded-lg border border-amber-300/80 bg-white text-black pr-8 resize-none h-[52px]"
+                      />
+                      <VoiceButton onTranscript={(val) => setPrescription((prev: string) => prev ? prev + "\n" + val : val)} positionClassName="top-2 right-2" />
+                    </div>
+                  </div>
+
                 </div>
               </div>
 
@@ -1685,464 +1680,408 @@ function CaseEditor({ caseRow, onSaved }: { caseRow: any; onSaved: () => void })
               </div>
             </div>
 
-            {/* Medicine Prescription Form & Live Preview Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Single-Row Prescription Pad & Live Table */}
+            <div className="bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-sm overflow-hidden">
               
-              {/* Left Form: Medicine Details (7 cols on lg) */}
-              <div className="lg:col-span-7 bg-white dark:bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-white/10 shadow-sm space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
-                  <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                    <Stethoscope className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                    {editingMedId ? "Edit Medicine Dose" : "Add Medicine Prescription"}
-                  </h3>
-                  {editingMedId && (
-                    <Badge variant="secondary" className="bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]">
-                      Editing Mode
-                    </Badge>
-                  )}
-                </div>
-
-                <form onSubmit={handleAddOrUpdateMedicine} className="space-y-4">
-                  
-                  {/* Row 1: Medicine Selection Dropdown & Strength */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <Label className="text-xs font-semibold text-foreground mb-1 flex items-center justify-between">
-                        <span className="flex items-center gap-1.5">
-                          <Pill className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                          Medicine Dropdown (औषध यादीतून निवडा) <span className="text-red-500">*</span>
-                        </span>
-                      </Label>
-                      <Select
-                        value={medName || undefined}
-                        onValueChange={(val) => {
-                          const found = COMMON_MEDICINES.find(m => m.name === val);
-                          if (found) {
-                            setMedName(found.name);
-                            setMedStrength(found.strength || "");
-                          } else {
-                            setMedName(val);
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="rounded-xl text-xs h-9 bg-slate-50 dark:bg-slate-800/50 border-teal-500/30 font-medium text-foreground">
-                          <SelectValue placeholder="📋 Select Medicine (येथून औषध निवडा)..." />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl max-h-[320px]">
-                          {Array.from(new Set(COMMON_MEDICINES.map(m => m.category))).map(category => (
-                            <div key={category} className="py-1">
-                              <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-slate-100 dark:bg-slate-800/80 rounded-md my-1">
-                                {category}
-                              </div>
-                              {COMMON_MEDICINES.filter(m => m.category === category).map(med => (
-                                <SelectItem key={med.name} value={med.name} className="text-xs py-1.5 cursor-pointer font-medium">
-                                  <div className="flex items-center justify-between w-full gap-2">
-                                    <span className="font-semibold">{med.name}</span>
-                                    <span className="text-[10px] text-muted-foreground font-mono">({med.strength})</span>
-                                  </div>
-                                </SelectItem>
-                              ))}
-                            </div>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label className="text-xs font-semibold text-foreground mb-1 block">
-                        Strength <span className="text-muted-foreground text-[10px]">(Optional)</span>
-                      </Label>
-                      <Input
-                        value={medStrength}
-                        onChange={(e) => setMedStrength(e.target.value)}
-                        placeholder="e.g. 500mg, 250mg"
-                        className="rounded-xl text-xs h-9 bg-slate-50 dark:bg-slate-800/50"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Row 2: Dose Code Select */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs font-semibold text-foreground">
-                        Dose Code (3-Digit String) <span className="text-red-500">*</span>
-                      </Label>
-                      <span className="text-[11px] font-mono font-bold text-teal-600 dark:text-teal-400">
-                        Selected: [{doseCode}] — {DOSE_CODES[doseCode]?.summary || ""}
-                      </span>
-                    </div>
-
-                    <Select value={doseCode} onValueChange={(val) => setDoseCode(val)}>
-                      <SelectTrigger className="rounded-xl text-xs h-9 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-white/10 font-mono font-medium">
-                        <SelectValue placeholder="Select Dose Code" />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl max-h-[300px]">
-                        {Object.entries(DOSE_CODES).map(([code, details]) => (
-                          <SelectItem key={code} value={code} className="text-xs font-mono py-2 cursor-pointer">
-                            <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.label.split('—')[1]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Row 3: Auto-computed Schedule Breakdown (Read-Only fields as requested) */}
-                  <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/60 dark:border-white/5">
-                    <div className="text-center">
-                      <div className="text-[10px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
-                        <Sunrise className="h-3 w-3 text-amber-500" /> Morning
-                      </div>
-                      <div className="text-xs font-bold text-foreground mt-0.5">
-                        {currentMorningDose}
-                      </div>
-                    </div>
-                    <div className="text-center border-x border-slate-200 dark:border-white/10">
-                      <div className="text-[10px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
-                        <Sun className="h-3 w-3 text-orange-500" /> Afternoon
-                      </div>
-                      <div className="text-xs font-bold text-foreground mt-0.5">
-                        {currentAfternoonDose}
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[10px] text-muted-foreground font-semibold flex items-center justify-center gap-1">
-                        <Moon className="h-3 w-3 text-indigo-500" /> Evening
-                      </div>
-                      <div className="text-xs font-bold text-foreground mt-0.5">
-                        {currentEveningDose}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Row 4: Duration & Instructions */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-semibold text-foreground mb-1 block">
-                        Duration (Days) <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        value={duration}
-                        onChange={(e) => setDuration(e.target.value)}
-                        placeholder="e.g. 5 Days, 7 Days, 15 Days"
-                        className="rounded-xl text-xs h-9 bg-slate-50 dark:bg-slate-800/50"
-                        required
-                      />
-                      <div className="flex gap-1 mt-1.5 flex-wrap">
-                        {["3 Days", "5 Days", "7 Days", "15 Days", "30 Days"].map((d) => (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => setDuration(d)}
-                            className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-950/60 transition-colors border border-slate-200 dark:border-white/5 font-medium"
-                          >
-                            {d}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <Label className="text-xs font-semibold text-foreground mb-1 block">
-                        Additional Instructions
-                      </Label>
-                      <Input
-                        value={instructions}
-                        onChange={(e) => setInstructions(e.target.value)}
-                        placeholder="e.g. After food, with warm water..."
-                        className="rounded-xl text-xs h-9 pr-8 bg-slate-50 dark:bg-slate-800/50"
-                      />
-                      <VoiceButton 
-                        onTranscript={(val) => setInstructions(prev => prev ? prev + " " + val : val)} 
-                        positionClassName="top-6 right-1.5" 
-                      />
-                      <div className="flex gap-1 mt-1.5 flex-wrap">
-                        {["After food", "Before food", "With warm water", "At bedtime"].map((inst) => (
-                          <button
-                            key={inst}
-                            type="button"
-                            onClick={() => setInstructions(inst)}
-                            className="text-[10px] px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-950/60 transition-colors border border-slate-200 dark:border-white/5 font-medium"
-                          >
-                            {inst}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Form Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button
-                      type="submit"
-                      disabled={isSubmittingMed}
-                      className="rounded-xl text-xs h-9 bg-teal-600 hover:bg-teal-700 text-white font-bold flex-1 flex items-center justify-center gap-1.5 shadow-sm"
-                    >
-                      {editingMedId ? (
-                        <>
-                          <Check className="h-4 w-4" /> Update Medicine (बदल जतन करा)
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="h-4 w-4" /> Add Medicine (औषध जोडा)
-                        </>
-                      )}
-                    </Button>
-
-                    {editingMedId && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancelEdit}
-                        className="rounded-xl text-xs h-9 font-semibold"
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </div>
-
-                </form>
-              </div>
-
-              {/* Right: Live 3-Card Dose Schedule Preview (5 cols on lg) */}
-              <div className="lg:col-span-5 flex flex-col gap-3">
-                <div className="bg-slate-50 dark:bg-slate-900/60 rounded-2xl p-4 border border-slate-200/80 dark:border-white/10 shadow-sm flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-2.5 mb-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-teal-600 dark:text-teal-400" />
-                        Live Dose Schedule Preview
-                      </h4>
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                        Code: {doseCode}
-                      </span>
-                    </div>
-
-                    {/* 3 Live Dose Preview Cards */}
-                    <div className="space-y-2.5">
-                      
-                      {/* Card 1: Morning */}
-                      <div className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
-                        doseCode[0] === "1"
-                          ? "bg-amber-500/10 border-amber-500/40 text-amber-950 dark:text-amber-100 shadow-sm"
-                          : "bg-slate-100/60 dark:bg-slate-800/30 border-slate-200 dark:border-white/5 text-muted-foreground opacity-60"
-                      }`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className={`p-2 rounded-lg ${doseCode[0] === "1" ? "bg-amber-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
-                            <Sunrise className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold flex items-center gap-1.5">
-                              Morning (सकाळ)
-                            </div>
-                            <div className="text-[11px] font-medium opacity-80">
-                              Time: 08:00 AM – 09:00 AM
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`text-xs font-bold ${
-                            doseCode[0] === "1" 
-                              ? "bg-amber-500 hover:bg-amber-600 text-white" 
-                              : "bg-slate-200 dark:bg-slate-800 text-muted-foreground hover:bg-slate-200"
-                          }`}>
-                            {currentMorningDose}
-                          </Badge>
-                          <div className="text-[10px] mt-0.5 font-semibold">
-                            {doseCode[0] === "1" ? "✓ Scheduled" : "— None"}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card 2: Afternoon */}
-                      <div className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
-                        doseCode[1] === "1"
-                          ? "bg-orange-500/10 border-orange-500/40 text-orange-950 dark:text-orange-100 shadow-sm"
-                          : "bg-slate-100/60 dark:bg-slate-800/30 border-slate-200 dark:border-white/5 text-muted-foreground opacity-60"
-                      }`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className={`p-2 rounded-lg ${doseCode[1] === "1" ? "bg-orange-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
-                            <Sun className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold flex items-center gap-1.5">
-                              Afternoon (दुपार)
-                            </div>
-                            <div className="text-[11px] font-medium opacity-80">
-                              Time: 01:00 PM – 02:00 PM
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`text-xs font-bold ${
-                            doseCode[1] === "1" 
-                              ? "bg-orange-500 hover:bg-orange-600 text-white" 
-                              : "bg-slate-200 dark:bg-slate-800 text-muted-foreground hover:bg-slate-200"
-                          }`}>
-                            {currentAfternoonDose}
-                          </Badge>
-                          <div className="text-[10px] mt-0.5 font-semibold">
-                            {doseCode[1] === "1" ? "✓ Scheduled" : "— None"}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Card 3: Evening */}
-                      <div className={`p-3 rounded-xl border transition-all flex items-center justify-between ${
-                        doseCode[2] === "1"
-                          ? "bg-indigo-500/10 border-indigo-500/40 text-indigo-950 dark:text-indigo-100 shadow-sm"
-                          : "bg-slate-100/60 dark:bg-slate-800/30 border-slate-200 dark:border-white/5 text-muted-foreground opacity-60"
-                      }`}>
-                        <div className="flex items-center gap-2.5">
-                          <div className={`p-2 rounded-lg ${doseCode[2] === "1" ? "bg-indigo-600 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
-                            <Moon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <div className="text-xs font-bold flex items-center gap-1.5">
-                              Evening (रात्र / संध्याकाळ)
-                            </div>
-                            <div className="text-[11px] font-medium opacity-80">
-                              Time: 08:00 PM – 09:00 PM
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Badge className={`text-xs font-bold ${
-                            doseCode[2] === "1" 
-                              ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
-                              : "bg-slate-200 dark:bg-slate-800 text-muted-foreground hover:bg-slate-200"
-                          }`}>
-                            {currentEveningDose}
-                          </Badge>
-                          <div className="text-[10px] mt-0.5 font-semibold">
-                            {doseCode[2] === "1" ? "✓ Scheduled" : "— None"}
-                          </div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  {/* Summary Footer */}
-                  <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-white/5 text-[11px] text-muted-foreground flex items-center justify-between">
-                    <span>{medName ? `Selected for "${medName}"` : "Live preview"}</span>
-                    <span className="font-bold text-foreground">
-                      {(Number(doseCode[0]) + Number(doseCode[1]) + Number(doseCode[2]))} Tablet(s) / Day
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Prescribed Medicines List for this Case Paper */}
-            <div className="bg-white dark:bg-slate-900/90 rounded-2xl p-4 sm:p-5 border border-slate-200/80 dark:border-white/10 shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+              {/* Header */}
+              <div className="p-4 sm:p-5 border-b border-slate-200/70 dark:border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-teal-500/5 via-transparent to-transparent">
                 <div>
-                  <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
-                    <ClipboardList className="h-4 w-4 text-teal-600 dark:text-teal-400" />
-                    Prescribed Medicines in this Case Paper
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <Pill className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    Prescription & Dose Pad (औषधोपचार तक्ता)
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Total {doseMedicines.length} medicine(s) configured with binary dose codes
+                    प्रत्येक औषध एकाच रांगेत भरा. <strong className="text-teal-600 dark:text-teal-400">+ Add Medicine</strong> वर क्लिक केल्यावर लगेच खाली पुढील औषधाची रांग (Dose सह) सुरू होईल.
                   </p>
                 </div>
-
-                {doseMedicines.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActiveCaseTab("case_paper")}
-                    className="rounded-xl h-8 text-xs font-semibold gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300"
-                  >
-                    <FileText className="h-3.5 w-3.5" /> View on A4 Case Paper
-                  </Button>
-                )}
+                
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs font-semibold px-2.5 py-1 bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-500/30">
+                    एकूण औषधे: {doseMedicines.length}
+                  </Badge>
+                  {doseMedicines.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveCaseTab("case_paper")}
+                      className="rounded-xl h-8 text-xs font-semibold gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-50"
+                    >
+                      <FileText className="h-3.5 w-3.5" /> View on A4 Sheet
+                    </Button>
+                  )}
+                </div>
               </div>
 
-              {doseMedicines.length === 0 ? (
-                <div className="py-8 text-center flex flex-col items-center justify-center text-muted-foreground">
-                  <Pill className="h-8 w-8 text-slate-300 dark:text-slate-700 mb-2" />
-                  <p className="text-xs font-medium">No medicines added to this prescription yet.</p>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Fill the form above, select a dose code (000 - 111), and click "Add Medicine".
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {doseMedicines.map((med, index) => (
-                    <div
-                      key={med.id}
-                      className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-400 font-black text-xs flex items-center justify-center shrink-0 mt-0.5">
-                          {index + 1}
+              {/* Prescription Pad Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-white/10 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <th className="py-2.5 px-3 w-12 text-center">#</th>
+                      <th className="py-2.5 px-3 w-[26%]">औषधाचे नाव (Medicine Name) *</th>
+                      <th className="py-2.5 px-3 w-[14%]">प्रमाण (Strength)</th>
+                      <th className="py-2.5 px-3 w-[22%]">डोस कोड (Dose & Timing) *</th>
+                      <th className="py-2.5 px-3 w-[13%]">कालावधी (Duration) *</th>
+                      <th className="py-2.5 px-3 w-[16%]">सूचना (Instructions)</th>
+                      <th className="py-2.5 px-3 text-right w-24">कृती (Action)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-white/5 text-xs">
+                    
+                    {/* Render all confirmed medicines so far */}
+                    {doseMedicines.map((med, index) => (
+                      <tr 
+                        key={med.id} 
+                        className={`transition-colors ${
+                          editingMedId === med.id 
+                            ? "bg-amber-500/10 dark:bg-amber-500/15" 
+                            : index % 2 === 0 
+                              ? "bg-white dark:bg-slate-900/60 hover:bg-slate-50/80 dark:hover:bg-slate-800/50" 
+                              : "bg-slate-50/40 dark:bg-slate-800/20 hover:bg-slate-50/80 dark:hover:bg-slate-800/50"
+                        }`}
+                      >
+                        {/* Sr. No */}
+                        <td className="py-3 px-3 text-center align-middle">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-600/10 text-teal-700 dark:text-teal-400 font-bold text-xs">
+                            {index + 1}
+                          </span>
+                        </td>
+
+                        {/* Medicine Name */}
+                        <td className="py-3 px-3 align-middle">
+                          <div className="font-bold text-sm text-foreground">{med.name}</div>
+                        </td>
+
+                        {/* Strength */}
+                        <td className="py-3 px-3 align-middle">
+                          {med.strength ? (
+                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-[11px]">
+                              {med.strength}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </td>
+
+                        {/* Dose Code & Timing */}
+                        <td className="py-3 px-3 align-middle">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-1.5 py-0.5 rounded border border-teal-500/20 text-xs">
+                              [{med.dose_code}]
+                            </span>
+                            <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                              {DOSE_CODES[med.dose_code]?.summary || `${med.morning_dose.replace(' Tablet','')}-${med.afternoon_dose.replace(' Tablet','')}-${med.evening_dose.replace(' Tablet','')}`}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                            <span className={med.morning_dose !== "0 Tablet" ? "text-amber-600 font-bold" : "opacity-40"}>
+                              🌅 सकाळ: {med.morning_dose.replace(' Tablet','')}
+                            </span>
+                            •
+                            <span className={med.afternoon_dose !== "0 Tablet" ? "text-orange-600 font-bold" : "opacity-40"}>
+                              ☀️ दुपार: {med.afternoon_dose.replace(' Tablet','')}
+                            </span>
+                            •
+                            <span className={med.evening_dose !== "0 Tablet" ? "text-indigo-600 font-bold" : "opacity-40"}>
+                              🌙 रात्र: {med.evening_dose.replace(' Tablet','')}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Duration */}
+                        <td className="py-3 px-3 align-middle">
+                          <span className="inline-block px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-foreground font-semibold text-[11px]">
+                            {med.duration}
+                          </span>
+                        </td>
+
+                        {/* Instructions */}
+                        <td className="py-3 px-3 align-middle">
+                          {med.instructions ? (
+                            <span className="text-slate-600 dark:text-slate-400 text-[11px]">
+                              {med.instructions}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">—</span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-3 text-right align-middle">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditMedicine(med)}
+                              className="h-7 px-2 text-xs font-semibold text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/50 rounded-lg gap-1"
+                              title="Edit this medicine"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" /> Edit
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteMedicine(med.id)}
+                              className="h-7 px-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg gap-1"
+                              title="Delete this medicine"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* ACTIVE ROW: Always directly below the last medicine */}
+                    <tr className="bg-teal-50/40 dark:bg-teal-950/20 border-t-2 border-teal-500/40">
+                      {/* Sr. No */}
+                      <td className="py-3 px-3 text-center align-top pt-4">
+                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-600 text-white font-bold text-xs shadow-sm">
+                          {editingMedId ? "✎" : doseMedicines.length + 1}
+                        </span>
+                      </td>
+
+                      {/* Medicine Name Input */}
+                      <td className="py-2.5 px-2 align-top">
+                        <div className="space-y-1">
+                          <Input
+                            value={medName}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setMedName(val);
+                              const found = COMMON_MEDICINES.find(m => m.name.toLowerCase() === val.trim().toLowerCase());
+                              if (found && found.strength && !medStrength) {
+                                setMedStrength(found.strength);
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddOrUpdateMedicine();
+                              }
+                            }}
+                            placeholder="औषधाचे नाव टाइप करा (उदा. Sitopaladi Churna)..."
+                            className="rounded-xl text-xs h-9 bg-white dark:bg-slate-900 border-teal-500/40 font-medium shadow-inner"
+                            list="common-medicines-datalist-row"
+                            required
+                          />
+                          <datalist id="common-medicines-datalist-row">
+                            {COMMON_MEDICINES.map((med) => (
+                              <option key={med.name} value={med.name}>
+                                {med.category} • {med.strength}
+                              </option>
+                            ))}
+                          </datalist>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-bold text-sm text-foreground">{med.name}</span>
-                            {med.strength && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-medium">
-                                {med.strength}
-                              </Badge>
+                      </td>
+
+                      {/* Strength Input */}
+                      {/* Strength Input with Dropdown */}
+                      <td className="py-2.5 px-2 align-top">
+                        <div className="relative">
+                          <Input
+                            value={medStrength}
+                            onChange={(e) => setMedStrength(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddOrUpdateMedicine();
+                              }
+                            }}
+                            placeholder="उदा. 500mg, 1 चमचा"
+                            className="rounded-xl text-xs h-9 pr-7 bg-white dark:bg-slate-900"
+                          />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+                                title="प्रमाण निवडा"
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-xs font-medium">
+                              {["500mg", "250mg", "100mg", "650mg", "1 चमचा", "2 चमचे", "1/2 चमचा", "1 गोळी", "2 गोळ्या", "5ml", "10ml", "1 पुडी"].map((s) => (
+                                <DropdownMenuItem
+                                  key={s}
+                                  onClick={() => setMedStrength(s)}
+                                  className="cursor-pointer py-1.5"
+                                >
+                                  {s}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+
+                      {/* Dose Code Select & Visual Indicator */}
+                      <td className="py-2.5 px-2 align-top">
+                        <div className="space-y-1">
+                          <Select value={doseCode} onValueChange={(val) => setDoseCode(val)}>
+                            <SelectTrigger className="rounded-xl text-xs h-9 bg-white dark:bg-slate-900 font-mono font-medium border-teal-500/30">
+                              <SelectValue placeholder="Dose Code" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl max-h-[280px]">
+                              {Object.entries(DOSE_CODES).map(([code, details]) => (
+                                <SelectItem key={code} value={code} className="text-xs font-mono py-1.5 cursor-pointer">
+                                  <span className="font-bold text-teal-700 dark:text-teal-300">[{code}]</span> — {details.summary}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <div className="flex items-center justify-between px-1 text-[10px] font-semibold text-muted-foreground">
+                            <span className={doseCode[0] === "1" ? "text-amber-600 font-bold" : "opacity-40"}>
+                              🌅 {doseCode[0] === "1" ? "सकाळ: 1" : "सकाळ: 0"}
+                            </span>
+                            <span className={doseCode[1] === "1" ? "text-orange-600 font-bold" : "opacity-40"}>
+                              ☀️ {doseCode[1] === "1" ? "दुपार: 1" : "दुपार: 0"}
+                            </span>
+                            <span className={doseCode[2] === "1" ? "text-indigo-600 font-bold" : "opacity-40"}>
+                              🌙 {doseCode[2] === "1" ? "रात्र: 1" : "रात्र: 0"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Duration Input with Dropdown */}
+                      <td className="py-2.5 px-2 align-top">
+                        <div className="relative">
+                          <Input
+                            value={duration}
+                            onChange={(e) => setDuration(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddOrUpdateMedicine();
+                              }
+                            }}
+                            placeholder="e.g. 5 Days"
+                            className="rounded-xl text-xs h-9 pr-7 bg-white dark:bg-slate-900 font-medium"
+                            required
+                          />
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+                                title="कालावधी निवडा"
+                              >
+                                <ChevronDown className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="text-xs font-medium">
+                              {["3 Days", "5 Days", "7 Days", "10 Days", "15 Days", "21 Days", "30 Days", "45 Days", "60 Days"].map((d) => (
+                                <DropdownMenuItem
+                                  key={d}
+                                  onClick={() => setDuration(d)}
+                                  className="cursor-pointer py-1.5"
+                                >
+                                  {d}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+
+                      {/* Instructions Input with Voice & Dropdown */}
+                      <td className="py-2.5 px-2 align-top">
+                        <div className="relative flex items-center">
+                          <Input
+                            value={instructions}
+                            onChange={(e) => setInstructions(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleAddOrUpdateMedicine();
+                              }
+                            }}
+                            placeholder="After food, कोमट पाण्यासोबत..."
+                            className="rounded-xl text-xs h-9 pr-14 bg-white dark:bg-slate-900"
+                          />
+                          <div className="absolute right-1 flex items-center gap-0.5">
+                            <VoiceButton 
+                              onTranscript={(val) => setInstructions(prev => prev ? prev + " " + val : val)} 
+                              positionClassName="static" 
+                            />
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="h-6 w-6 rounded-md flex items-center justify-center text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors"
+                                  title="सूचना निवडा"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="text-xs max-h-[280px] overflow-y-auto">
+                                {[
+                                  "After food (जेवणानंतर)",
+                                  "Before food (जेवणापूर्वी)",
+                                  "With warm water (कोमट पाण्यासोबत)",
+                                  "At bedtime (झोपताना)",
+                                  "Empty stomach (उपाशीपोटी)",
+                                  "With milk (दुधासोबत)",
+                                  "With honey (मधासोबत)",
+                                  "Twice daily (दिवसातून २ वेळा)",
+                                  "Thrice daily (दिवसातून ३ वेळा)",
+                                  "As directed (वैद्यांच्या सल्ल्यानुसार)"
+                                ].map((inst) => (
+                                  <DropdownMenuItem
+                                    key={inst}
+                                    onClick={() => setInstructions(inst)}
+                                    className="cursor-pointer py-1.5"
+                                  >
+                                    {inst}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Action Button: Add or Update */}
+                      <td className="py-2.5 px-2 align-top text-right">
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <Button
+                            type="button"
+                            onClick={() => handleAddOrUpdateMedicine()}
+                            disabled={isSubmittingMed}
+                            className="rounded-xl text-xs h-9 px-3 bg-teal-600 hover:bg-teal-700 text-white font-bold flex items-center justify-center gap-1 shadow-sm whitespace-nowrap w-full"
+                          >
+                            {editingMedId ? (
+                              <>
+                                <Check className="h-3.5 w-3.5" /> Save
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="h-3.5 w-3.5" /> Add
+                              </>
                             )}
-                            <Badge className="bg-teal-600 text-white font-mono text-[10px] px-1.5 py-0">
-                              Code: {med.dose_code}
-                            </Badge>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground border-slate-300 dark:border-slate-700">
-                              {med.duration}
-                            </Badge>
-                          </div>
-
-                          {/* Dose timing breakdown tags */}
-                          <div className="flex items-center gap-2 mt-1.5 text-xs font-medium text-muted-foreground flex-wrap">
-                            <span className={`flex items-center gap-1 ${med.morning_dose !== "0 Tablet" ? "text-amber-700 dark:text-amber-300 font-semibold" : ""}`}>
-                              <Sunrise className="h-3 w-3" /> Morning: {med.morning_dose}
-                            </span>
-                            <span>•</span>
-                            <span className={`flex items-center gap-1 ${med.afternoon_dose !== "0 Tablet" ? "text-orange-700 dark:text-orange-300 font-semibold" : ""}`}>
-                              <Sun className="h-3 w-3" /> Afternoon: {med.afternoon_dose}
-                            </span>
-                            <span>•</span>
-                            <span className={`flex items-center gap-1 ${med.evening_dose !== "0 Tablet" ? "text-indigo-700 dark:text-indigo-300 font-semibold" : ""}`}>
-                              <Moon className="h-3 w-3" /> Evening: {med.evening_dose}
-                            </span>
-                          </div>
-
-                          {med.instructions && (
-                            <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 italic">
-                              Instructions: {med.instructions}
-                            </div>
+                          </Button>
+                          {editingMedId && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelEdit}
+                              className="rounded-xl text-[10px] h-7 px-2 font-medium w-full"
+                            >
+                              Cancel
+                            </Button>
                           )}
                         </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-1 self-end sm:self-center shrink-0">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditMedicine(med)}
-                          className="h-8 px-2 text-xs font-semibold text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 rounded-lg gap-1"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" /> Edit
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteMedicine(med.id)}
-                          className="h-8 px-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg gap-1"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" /> Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
           </div>

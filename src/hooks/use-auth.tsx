@@ -3,7 +3,7 @@ import { User, onAuthStateChanged, signOut as firebaseSignOut } from "firebase/a
 import { auth, db } from "@/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
-export type AppRole = "patient" | "nurse" | "doctor1" | "doctor2" | "admin";
+export type AppRole = "patient" | "nurse" | "doctor" | "doctor1" | "doctor2" | "admin";
 
 type AuthCtx = {
   user: User | null;

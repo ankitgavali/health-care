@@ -186,6 +186,7 @@ export function getDoctorDeduplicationKey(name: string): string {
 export const roleHome: Record<AppRole, string> = {
   patient: "/patient",
   nurse: "/nurse",
+  doctor: "/doctor",
   doctor1: "/doctor",
   doctor2: "/doctor",
   admin: "/admin",

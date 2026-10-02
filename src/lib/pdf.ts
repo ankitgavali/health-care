@@ -219,34 +219,11 @@ export async function generateCasePaperPDF(c: CaseRow) {
     y += 8;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(180, 83, 9); // #b45309
-    doc.text("Doctor's Observations & Treatment Plan", 14, y);
+    doc.text("Doctor's Treatment & Prescription Plan", 14, y);
     doc.setTextColor(0, 0, 0);
     y += 8;
     
-    if (c.medical_notes) {
-      doc.setFont("helvetica", "bold");
-      doc.text("Diagnosis & Clinical Notes:", 14, y);
-      doc.setFont("helvetica", "normal");
-      const diagLines = doc.splitTextToSize(c.medical_notes, w - 28);
-      y += 6;
-      doc.text(diagLines, 14, y);
-      y += diagLines.length * 6 + 4;
-    }
-    
-    if (c.prescription) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
-      doc.setTextColor(180, 83, 9);
-      doc.text("Rx (Prescription):", 14, y);
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      y += 6;
-      const rxLines = doc.splitTextToSize(c.prescription, w - 28);
-      doc.text(rxLines, 14, y);
-      y += rxLines.length * 6 + 4;
-    }
-
+    // 1. Prescription & Medicines
     if (c.dose_medicines && c.dose_medicines.length > 0) {
       doc.setFont("helvetica", "bold");
       doc.text("Prescribed Medicines & Dose Schedule:", 14, y);
@@ -269,7 +246,7 @@ export async function generateCasePaperPDF(c: CaseRow) {
       doc.setFontSize(10);
     } else if (c.medicines) {
       doc.setFont("helvetica", "bold");
-      doc.text("Medicines List:", 14, y);
+      doc.text("Prescription & Medicines:", 14, y);
       doc.setFont("helvetica", "normal");
       const medLines = doc.splitTextToSize(c.medicines, w - 28);
       y += 6;
@@ -277,6 +254,7 @@ export async function generateCasePaperPDF(c: CaseRow) {
       y += medLines.length * 6 + 4;
     }
 
+    // 2. Clinical Tests
     if (c.tests) {
       doc.setFont("helvetica", "bold");
       doc.text("Clinical Tests:", 14, y);
@@ -285,6 +263,19 @@ export async function generateCasePaperPDF(c: CaseRow) {
       y += 6;
       doc.text(testLines, 14, y);
       y += testLines.length * 6 + 4;
+    }
+
+    // 3. Advice
+    if (c.prescription) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 83, 9);
+      doc.text("Advice (विशेष सूचना / पथ्य):", 14, y);
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      y += 6;
+      const adviceLines = doc.splitTextToSize(c.prescription, w - 28);
+      doc.text(adviceLines, 14, y);
+      y += adviceLines.length * 6 + 4;
     }
   }
   

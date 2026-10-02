@@ -1885,73 +1885,254 @@ function QrCodeSection() {
    10. STAFF MANAGEMENT SECTION
    ======================================================== */
 function StaffSection() {
-  // Doctor form state
+  // Navigation between forms and directory
+  const [activeTab, setActiveTab] = useState<"doctor" | "nurse" | "directory">("doctor");
+
+  // Doctor Form State
   const [docName, setDocName] = useState("");
   const [docEmail, setDocEmail] = useState("");
   const [docPassword, setDocPassword] = useState("");
+  const [docPhone, setDocPhone] = useState("");
   const [docSpecialty, setDocSpecialty] = useState("Ayurvedic Physician");
   const [customSpecialty, setCustomSpecialty] = useState("");
   const [docRegNumber, setDocRegNumber] = useState("");
+  const [docExperience, setDocExperience] = useState("8+ Yrs Exp");
+  const [docDegree, setDocDegree] = useState("MD Ayu.");
+  const [docBio, setDocBio] = useState("");
 
-  // Nurse form state
+  // Nurse Form State
   const [nurseName, setNurseName] = useState("");
   const [nurseEmail, setNurseEmail] = useState("");
   const [nursePassword, setNursePassword] = useState("");
-  const [nurseDepartment, setNurseDepartment] = useState("ICU");
-  const [nurseShift, setNurseShift] = useState("Morning");
+  const [nursePhone, setNursePhone] = useState("");
+  const [nurseDepartment, setNurseDepartment] = useState("OPD");
+  const [nurseShift, setNurseShift] = useState("Morning (8 AM - 4 PM)");
+  const [nurseQualification, setNurseQualification] = useState("B.Sc Nursing");
 
   const [busy, setBusy] = useState(false);
   const [showDocPass, setShowDocPass] = useState(false);
   const [showNursePass, setShowNursePass] = useState(false);
 
+  // Staff Directory & Credentials State
+  const [staffList, setStaffList] = useState<any[]>([]);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "doctor" | "nurse">("all");
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+
+  // Real-time listener for Staff Profiles and Roles
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "profiles"), async (profileSnap) => {
+      try {
+        const rolesSnap = await getDocs(collection(db, "user_roles"));
+        const rolesMap = new Map<string, string>();
+        rolesSnap.forEach(d => rolesMap.set(d.id, d.data().role));
+
+        const list: any[] = [];
+        
+        // 1. Add Default System Staff accounts so admin ALWAYS sees initial logins
+        const defaultAccounts = [
+          {
+            id: "sys_doc_1",
+            full_name: "Dr. Kadambari Jagtap",
+            email: "doctor1@gmail.com",
+            password_display: "doctor123",
+            role: "doctor1",
+            specialty: "Ayurvedic Physician & Gynaecology",
+            phone: "9404306548",
+            reg_number: "MC-AYU-8491",
+            experience: "10+ Yrs Exp",
+            qualification: "MD Ayu.",
+            created_at: "2024-01-15T00:00:00.000Z",
+            is_system: true,
+          },
+          {
+            id: "sys_doc_2",
+            full_name: "Dr. Omprasad Jagtap",
+            email: "doctor2@gmail.com",
+            password_display: "doctor123",
+            role: "doctor2",
+            specialty: "MD Ayu. | Holistic Health & Wellness",
+            phone: "9834623909",
+            reg_number: "MC-AYU-9120",
+            experience: "12+ Yrs Exp",
+            qualification: "MD Ayu.",
+            created_at: "2024-01-15T00:00:00.000Z",
+            is_system: true,
+          },
+          {
+            id: "sys_nurse_1",
+            full_name: "Clinic Nurse (Reception & OPD)",
+            email: "nurse1@gmail.com",
+            password_display: "nurse123",
+            role: "nurse",
+            department: "OPD & Emergency",
+            shift: "Morning (8 AM - 4 PM)",
+            phone: "9404306548",
+            qualification: "GNM / B.Sc Nursing",
+            created_at: "2024-01-15T00:00:00.000Z",
+            is_system: true,
+          },
+          {
+            id: "sys_admin_1",
+            full_name: "Super Admin (MediCare Control)",
+            email: "admin12@gmail.com",
+            password_display: "admin123",
+            role: "admin",
+            department: "Hospital Administration",
+            shift: "Full Time",
+            phone: "8867303202",
+            qualification: "Administration",
+            created_at: "2024-01-15T00:00:00.000Z",
+            is_system: true,
+          }
+        ];
+
+        // 2. Map existing Firestore profiles
+        profileSnap.forEach((docSnap) => {
+          const data = docSnap.data();
+          const r = rolesMap.get(docSnap.id) || data.role || "staff";
+          // Only include doctors, nurses, and admins
+          if (["doctor", "doctor1", "doctor2", "nurse", "admin"].includes(r)) {
+            list.push({
+              id: docSnap.id,
+              ...data,
+              role: r,
+              password_display: data.password_display || data.raw_password || "••••••••",
+            });
+          }
+        });
+
+        // 3. Merge: If a default account's email is not in Firestore list, keep it visible
+        defaultAccounts.forEach(defAcc => {
+          if (!list.some(item => item.email?.toLowerCase() === defAcc.email.toLowerCase())) {
+            list.unshift(defAcc);
+          }
+        });
+
+        setStaffList(list);
+      } catch (err) {
+        console.error("Failed to load staff list", err);
+      } finally {
+        setStaffLoading(false);
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
+  // Quick Copy helper
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`Copied ${label} to clipboard!`);
+  };
+
+  // Copy full login template for sending to doctor/nurse
+  const handleCopyFullLogin = (staff: any) => {
+    const roleTitle = staff.role.includes("doctor") ? "Doctor" : staff.role === "nurse" ? "Nurse" : "Admin";
+    const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8080";
+    const text = `🏥 *HealthEase Hospital Staff Login Credentials*\n━━━━━━━━━━━━━━━━━━━━\n👤 Name: ${staff.full_name}\n🏷️ Role: ${roleTitle}\n📧 Login ID (Email): ${staff.email}\n🔑 Password: ${staff.password_display || '••••••••'}\n🌐 Login Portal: ${origin}/auth\n━━━━━━━━━━━━━━━━━━━━\nPlease sign in at the portal to access your ${roleTitle} Dashboard.`;
+    navigator.clipboard.writeText(text);
+    toast.success(`Copied complete login details for ${staff.full_name}!`);
+  };
+
+  // Toggle single password visibility
+  const togglePasswordVisibility = (id: string) => {
+    setRevealedPasswords(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  // Delete staff member from Firestore
+  const handleDeleteStaff = async (staff: any) => {
+    if (staff.is_system) {
+      return toast.error("System default staff accounts cannot be deleted.");
+    }
+    if (!window.confirm(`Are you sure you want to delete ${staff.full_name}'s account and dashboard?`)) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, "profiles", staff.id));
+      await deleteDoc(doc(db, "user_roles", staff.id));
+      toast.success(`${staff.full_name} removed from hospital staff successfully.`);
+    } catch (err: any) {
+      toast.error("Failed to delete staff: " + err.message);
+    }
+  };
+
+  // Submit Handler: Add Doctor
   const handleCreateDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docName.trim() || !docEmail.trim() || !docPassword.trim()) {
-      return toast.error("Please fill all fields for Doctor");
+      return toast.error("Please fill Name, Email, and Password for Doctor");
     }
     if (docPassword.length < 6) {
       return toast.error("Password must be at least 6 characters");
     }
 
-    const resolvedSpecialty = docSpecialty === "Other" ? (customSpecialty.trim() || "Ayurvedic Physician") : docSpecialty;
+    const resolvedSpecialty = docSpecialty === "Other" 
+      ? (customSpecialty.trim() || "Ayurvedic Physician") 
+      : docSpecialty;
 
     setBusy(true);
     try {
-      // Use a secondary Firebase app instance to avoid logging out the current admin user
-      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+      // Secondary Firebase Auth instance so current admin does not get logged out
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_Doc_" + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
 
-      // Create the user in Auth
-      const userCred = await createUserWithEmailAndPassword(secondaryAuth, docEmail.trim().toLowerCase(), docPassword);
+      // Create user in Firebase Auth
+      const userCred = await createUserWithEmailAndPassword(
+        secondaryAuth, 
+        docEmail.trim().toLowerCase(), 
+        docPassword
+      );
 
-      // Assign doctor1 or doctor2 based on name for system dashboard routing
-      const assignedRole = docName.toLowerCase().includes("omprasad") ? "doctor2" : "doctor1";
+      // Determine doctor role
+      let assignedRole: "doctor" | "doctor1" | "doctor2" = "doctor";
+      if (docName.toLowerCase().includes("omprasad")) assignedRole = "doctor2";
+      else if (docName.toLowerCase().includes("kadambari")) assignedRole = "doctor1";
 
-      // Save role mapping
+      // 1. Save user_roles
       await setDoc(doc(db, "user_roles", userCred.user.uid), {
-        role: assignedRole
+        role: assignedRole,
+        full_name: docName.trim(),
+        email: docEmail.trim().toLowerCase(),
       });
 
-      // Save user profile info with doctor-specific fields
+      // 2. Save complete profile with password_display for Admin visibility
       await setDoc(doc(db, "profiles", userCred.user.uid), {
         full_name: docName.trim(),
         email: docEmail.trim().toLowerCase(),
+        password_display: docPassword,
+        phone: docPhone.trim() || "9404306548",
         role: assignedRole,
         specialty: resolvedSpecialty,
-        reg_number: docRegNumber.trim(),
+        reg_number: docRegNumber.trim() || "MC-AYU-" + Math.floor(1000 + Math.random() * 9000),
+        experience: docExperience.trim() || "8+ Yrs Exp",
+        qualification: docDegree.trim() || "MD Ayu.",
+        bio: docBio.trim() || "Consulting Ayurvedic Physician dedicated to holistic care.",
         created_at: new Date().toISOString()
       });
 
-      // Sign out the secondary instance to clean up
+      // Clean up secondary auth
       await secondaryAuth.signOut();
 
-      toast.success("Doctor account created successfully!");
+      toast.success(`Doctor "${docName}" account & dashboard created successfully!`);
+      // Reset form
       setDocName("");
       setDocEmail("");
       setDocPassword("");
+      setDocPhone("");
       setDocSpecialty("Ayurvedic Physician");
       setCustomSpecialty("");
       setDocRegNumber("");
+      setDocExperience("8+ Yrs Exp");
+      setDocDegree("MD Ayu.");
+      setDocBio("");
+      
+      // Automatically switch to directory so admin sees new account
+      setActiveTab("directory");
     } catch (err: any) {
       toast.error(err.message || "Failed to create Doctor account");
     } finally {
@@ -1959,10 +2140,11 @@ function StaffSection() {
     }
   };
 
+  // Submit Handler: Add Nurse
   const handleCreateNurse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nurseName.trim() || !nurseEmail.trim() || !nursePassword.trim()) {
-      return toast.error("Please fill all fields for Nurse");
+      return toast.error("Please fill Name, Email, and Password for Nurse");
     }
     if (nursePassword.length < 6) {
       return toast.error("Password must be at least 6 characters");
@@ -1970,35 +2152,47 @@ function StaffSection() {
 
     setBusy(true);
     try {
-      // Use a secondary Firebase app instance to avoid logging out the current admin user
-      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
+      const secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_Nurse_" + Date.now());
       const secondaryAuth = getAuth(secondaryApp);
 
-      // Create the user in Auth
-      const userCred = await createUserWithEmailAndPassword(secondaryAuth, nurseEmail.trim().toLowerCase(), nursePassword);
+      const userCred = await createUserWithEmailAndPassword(
+        secondaryAuth, 
+        nurseEmail.trim().toLowerCase(), 
+        nursePassword
+      );
 
-      // Save role mapping
+      // 1. Save user_roles
       await setDoc(doc(db, "user_roles", userCred.user.uid), {
-        role: "nurse"
+        role: "nurse",
+        full_name: nurseName.trim(),
+        email: nurseEmail.trim().toLowerCase(),
       });
 
-      // Save user profile info with nurse-specific fields
+      // 2. Save profile with password_display
       await setDoc(doc(db, "profiles", userCred.user.uid), {
         full_name: nurseName.trim(),
         email: nurseEmail.trim().toLowerCase(),
+        password_display: nursePassword,
+        phone: nursePhone.trim() || "9834623909",
         role: "nurse",
         department: nurseDepartment,
         shift: nurseShift,
+        qualification: nurseQualification.trim() || "B.Sc Nursing",
         created_at: new Date().toISOString()
       });
 
-      // Sign out the secondary instance to clean up
       await secondaryAuth.signOut();
 
-      toast.success("Nurse account created successfully!");
+      toast.success(`Nurse "${nurseName}" account & dashboard created successfully!`);
       setNurseName("");
       setNurseEmail("");
       setNursePassword("");
+      setNursePhone("");
+      setNurseDepartment("OPD");
+      setNurseShift("Morning (8 AM - 4 PM)");
+      setNurseQualification("B.Sc Nursing");
+
+      setActiveTab("directory");
     } catch (err: any) {
       toast.error(err.message || "Failed to create Nurse account");
     } finally {
@@ -2006,108 +2200,243 @@ function StaffSection() {
     }
   };
 
+  // Filtered staff list for search and role filter
+  const filteredStaff = useMemo(() => {
+    return staffList.filter(s => {
+      const isDoc = s.role?.includes("doctor");
+      const isNurse = s.role === "nurse";
+      
+      if (roleFilter === "doctor" && !isDoc) return false;
+      if (roleFilter === "nurse" && !isNurse) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const nameMatch = s.full_name?.toLowerCase().includes(q);
+        const emailMatch = s.email?.toLowerCase().includes(q);
+        const specMatch = (s.specialty || s.department || "")?.toLowerCase().includes(q);
+        return nameMatch || emailMatch || specMatch;
+      }
+      return true;
+    });
+  }, [staffList, roleFilter, searchQuery]);
+
+  const docCount = staffList.filter(s => s.role?.includes("doctor")).length;
+  const nurseCount = staffList.filter(s => s.role === "nurse").length;
+
   return (
-    <Card className="border border-slate-200/60 dark:border-slate-850/80 shadow-2xs bg-white dark:bg-slate-950 rounded-2xl p-6 max-w-2xl mx-auto animate-in fade-in-50 duration-300">
-      <CardHeader className="px-0 pt-0 pb-4 border-b border-slate-100 dark:border-slate-850 mb-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-teal-50 dark:bg-teal-900/30 rounded-xl flex items-center justify-center">
-            <Users className="h-5 w-5 text-[#0D7A70] dark:text-teal-400" />
-          </div>
+    <div className="space-y-6">
+      {/* ══════════ TOP HEADER & STATS ══════════ */}
+      <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 text-white p-6 sm:p-7 rounded-3xl shadow-xl border border-teal-500/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-10 -left-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
-            <CardTitle className="text-xl font-extrabold text-slate-850 dark:text-white tracking-tight">Add New Staff</CardTitle>
-            <CardDescription className="text-xs text-slate-400 dark:text-slate-500 font-medium">Create accounts for doctors and nurses to grant them access.</CardDescription>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 border border-teal-400/30 text-teal-300 text-xs font-bold uppercase tracking-wider mb-2">
+              <Users className="h-3.5 w-3.5" /> Staff Management & Credentials
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+              Hospital Doctors & Nurses Directory
+            </h1>
+            <p className="text-xs sm:text-sm text-teal-100/70 mt-1.5 max-w-2xl leading-relaxed">
+              नवीन डॉक्टर किंवा नर्स ॲड करा, त्यांचे स्वतंत्र डॅशबोर्ड तयार करा आणि सर्व ऍक्टिव्ह स्टाफचे लॉगिन <strong>ID आणि Password</strong> येथून थेट पहा व शेअर करा.
+            </p>
+          </div>
+
+          {/* Quick Metrics Badges */}
+          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-inner">
+              <div className="h-10 w-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center font-bold">
+                <Stethoscope className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xl font-black">{docCount}</div>
+                <div className="text-[10px] text-teal-200/80 font-bold uppercase tracking-wider">Active Doctors</div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-md border border-white/15 px-4 py-2.5 rounded-2xl flex items-center gap-3 shadow-inner">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xl font-black">{nurseCount}</div>
+                <div className="text-[10px] text-emerald-200/80 font-bold uppercase tracking-wider">Active Nurses</div>
+              </div>
+            </div>
           </div>
         </div>
-      </CardHeader>
-      
-      <CardContent className="px-0 pb-0">
-        <Tabs defaultValue="doctor" className="w-full">
-          <TabsList className="grid grid-cols-2 w-full max-w-md mx-auto mb-6 bg-slate-100/85 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1 rounded-xl shadow-3xs">
-            <TabsTrigger value="doctor" className="flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-805 data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 data-[state=active]:shadow-2xs text-slate-400 dark:text-slate-550 cursor-pointer">
-              <Stethoscope className="h-4 w-4" />
-              <span>Add Doctor</span>
-            </TabsTrigger>
-            <TabsTrigger value="nurse" className="flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all duration-200 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-805 data-[state=active]:text-teal-700 dark:data-[state=active]:text-teal-400 data-[state=active]:shadow-2xs text-slate-400 dark:text-slate-550 cursor-pointer">
-              <Users className="h-4 w-4" />
-              <span>Add Nurse</span>
-            </TabsTrigger>
-          </TabsList>
 
-          <TabsContent value="doctor" className="outline-none animate-in fade-in-40 duration-200">
-            <form onSubmit={handleCreateDoctor} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Full Name</Label>
-                <Input 
-                  placeholder="e.g. Dr. Kadambari Jagtap" 
-                  value={docName}
-                  onChange={(e) => setDocName(e.target.value)}
-                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
-                  required
-                />
+        {/* ══════════ TOP ACTION BUTTONS ══════════ */}
+        <div className="relative z-10 flex items-center gap-3 pt-6 mt-6 border-t border-white/10 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setActiveTab("doctor")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-sm ${
+              activeTab === "doctor"
+                ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-teal-500/30 scale-105"
+                : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+            }`}
+          >
+            <Stethoscope className="h-4 w-4" />
+            <span>+ Add Doctor (डॉक्टर जोडा)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("nurse")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-sm ${
+              activeTab === "nurse"
+                ? "bg-gradient-to-r from-teal-500 to-emerald-500 text-white shadow-teal-500/30 scale-105"
+                : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+            }`}
+          >
+            <Users className="h-4 w-4" />
+            <span>+ Add Nurse (नर्स जोडा)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("directory")}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 cursor-pointer shadow-sm ml-auto ${
+              activeTab === "directory"
+                ? "bg-white text-teal-900 shadow-md scale-105"
+                : "bg-white/10 text-white hover:bg-white/20 border border-white/10"
+            }`}
+          >
+            <Lucide.Key className="h-4 w-4 text-amber-300" />
+            <span>Staff Directory & Passwords ({staffList.length})</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ══════════ TAB 1: ADD DOCTOR FORM ══════════ */}
+      {activeTab === "doctor" && (
+        <Card className="border border-teal-500/20 shadow-md bg-white dark:bg-slate-950 rounded-3xl p-6 sm:p-8 max-w-3xl mx-auto animate-in fade-in-50 duration-300">
+          <CardHeader className="px-0 pt-0 pb-5 border-b border-slate-100 dark:border-slate-800 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 rounded-2xl flex items-center justify-center shadow-xs">
+                  <Stethoscope className="h-6 w-6" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Add Doctor & Setup Clinical Dashboard
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    नवीन डॉक्टरचे प्रोफाईल, स्पेशालिटी व लॉगिन तपशील भरा. सबमिट केल्यावर डॉक्टर डॅशबोर्ड तयार होईल.
+                  </CardDescription>
+                </div>
               </div>
+              <Badge className="bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-500/30 text-xs font-bold px-3 py-1">
+                Doctor Account
+              </Badge>
+            </div>
+          </CardHeader>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Email Address</Label>
-                <Input 
-                  type="email"
-                  placeholder="doctor@hospital.com" 
-                  value={docEmail}
-                  onChange={(e) => setDocEmail(e.target.value)}
-                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Password</Label>
-                <div className="relative">
-                  <Input 
-                    type={showDocPass ? "text" : "password"} 
-                    placeholder="Min 6 characters" 
-                    value={docPassword}
-                    onChange={(e) => setDocPassword(e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500 pr-10"
+          <CardContent className="px-0 pb-0">
+            <form onSubmit={handleCreateDoctor} className="space-y-5">
+              {/* Row 1: Doctor Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-teal-600" /> Doctor's Full Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="e.g. Dr. Kadambari Jagtap"
+                    value={docName}
+                    onChange={(e) => setDocName(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium focus-visible:ring-teal-500"
                     required
-                    minLength={6}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowDocPass(!showDocPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 cursor-pointer"
-                  >
-                    {showDocPass ? <Lucide.EyeOff className="h-4.5 w-4.5" /> : <Lucide.Eye className="h-4.5 w-4.5" />}
-                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-teal-600" /> Contact Number
+                  </Label>
+                  <Input
+                    placeholder="e.g. 9404306548 / 9834623909"
+                    value={docPhone}
+                    onChange={(e) => setDocPhone(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium focus-visible:ring-teal-500"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row 2: Login Email & Password */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-teal-50/40 dark:bg-teal-950/20 p-4 rounded-2xl border border-teal-500/20">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Specialty</Label>
+                  <Label className="text-xs font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-teal-600" /> Login Email (ID) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="doctor@hospital.com"
+                    value={docEmail}
+                    onChange={(e) => setDocEmail(e.target.value)}
+                    className="h-11 rounded-xl bg-white dark:bg-slate-900 border-teal-500/30 text-sm font-medium focus-visible:ring-teal-500"
+                    required
+                  />
+                  <p className="text-[10px] text-teal-700 dark:text-teal-300 font-medium">हे ईमेल डॉक्टरचे लॉगिन ID असेल.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-teal-900 dark:text-teal-200 flex items-center gap-1.5">
+                    <Lucide.Key className="h-3.5 w-3.5 text-teal-600" /> Login Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={showDocPass ? "text" : "password"}
+                      placeholder="Min 6 characters (e.g. doc12345)"
+                      value={docPassword}
+                      onChange={(e) => setDocPassword(e.target.value)}
+                      className="h-11 rounded-xl bg-white dark:bg-slate-900 border-teal-500/30 text-sm font-medium pr-10 focus-visible:ring-teal-500"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDocPass(!showDocPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showDocPass ? <Lucide.EyeOff className="h-4 w-4" /> : <Lucide.Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-teal-700 dark:text-teal-300 font-medium">हा पासवर्ड ॲडमिनला खालील यादीत नेहमी दिसेल.</p>
+                </div>
+              </div>
+
+              {/* Row 3: Specialty & Degree */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Medical Specialty (विशेषज्ञता) <span className="text-red-500">*</span>
+                  </Label>
                   <Select value={docSpecialty} onValueChange={setDocSpecialty}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm font-medium">
+                    <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium">
                       <SelectValue placeholder="Select specialty" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl">
                       <SelectItem value="Ayurvedic Physician" className="font-semibold text-teal-700 dark:text-teal-400">🌿 Ayurvedic Physician</SelectItem>
                       <SelectItem value="Panchakarma Specialist">Panchakarma Specialist</SelectItem>
                       <SelectItem value="Gynaecology & Infertility">Gynaecology & Infertility</SelectItem>
-                      <SelectItem value="Dermatology & Cosmetology">Dermatology & Cosmetology</SelectItem>
+                      <SelectItem value="Pediatrics & Child Care">Pediatrics & Child Care</SelectItem>
+                      <SelectItem value="Dermatology & Hair Care">Dermatology & Hair Care</SelectItem>
                       <SelectItem value="General Medicine">General Medicine</SelectItem>
-                      <SelectItem value="Pediatrics">Pediatrics</SelectItem>
                       <SelectItem value="Cardiology">Cardiology</SelectItem>
                       <SelectItem value="Orthopedics">Orthopedics</SelectItem>
-                      <SelectItem value="Other" className="font-semibold text-amber-600 dark:text-amber-400">✏️ Other (Type Custom Manually)</SelectItem>
+                      <SelectItem value="Other" className="font-semibold text-amber-600 dark:text-amber-400">✏️ Other (मॅन्युअली टाईप करा)</SelectItem>
                     </SelectContent>
                   </Select>
 
                   {docSpecialty === "Other" && (
-                    <div className="mt-2 animate-in fade-in-50 duration-200">
-                      <Label className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Type Custom Specialty</Label>
+                    <div className="mt-2 animate-in fade-in-50">
                       <Input
-                        placeholder="e.g. Ayurvedic Hair & Skin Consultant, Nadi Pariksha"
+                        placeholder="Type custom specialty (उदा. Nadi Pariksha, Skin Specialist)..."
                         value={customSpecialty}
                         onChange={(e) => setCustomSpecialty(e.target.value)}
-                        className="mt-1 h-10 rounded-xl border-amber-300 dark:border-amber-700/60 bg-amber-50/40 dark:bg-amber-950/20 text-sm font-semibold focus-visible:ring-amber-500"
+                        className="h-10 rounded-xl border-amber-400 bg-amber-50/40 dark:bg-amber-950/20 text-xs font-semibold"
                         required
                         autoFocus
                       />
@@ -2116,129 +2445,453 @@ function StaffSection() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Registration Number</Label>
-                  <Input 
-                    placeholder="e.g. MC-12345" 
-                    value={docRegNumber}
-                    onChange={(e) => setDocRegNumber(e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Degree / Qualification</Label>
+                  <Input
+                    placeholder="e.g. MD Ayu., BAMS, MS"
+                    value={docDegree}
+                    onChange={(e) => setDocDegree(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium"
                   />
                 </div>
               </div>
 
-              <div className="pt-3">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-650 hover:to-emerald-650 text-white font-bold rounded-xl h-11 shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer"
+              {/* Row 4: Experience */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Experience (अनुभव)</Label>
+                <Input
+                  placeholder="e.g. 10+ Yrs Exp"
+                  value={docExperience}
+                  onChange={(e) => setDocExperience(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium"
+                />
+              </div>
+
+              {/* Row 5: Bio */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Doctor's Bio / Special Note</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="Dedicated Ayurvedic practitioner focusing on holistic wellness and root-cause healing..."
+                  value={docBio}
+                  onChange={(e) => setDocBio(e.target.value)}
+                  className="rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
                   disabled={busy}
+                  className="w-full bg-gradient-to-r from-teal-600 via-teal-700 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-2xl h-12 shadow-lg shadow-teal-600/20 text-sm transition-all duration-300 hover:scale-[1.01] cursor-pointer"
                 >
                   {busy ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Doctor Account...</>
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Doctor Account & Dashboard...</>
                   ) : (
-                    <><Plus className="mr-2 h-4 w-4" /> Create Doctor Account</>
+                    <><Plus className="mr-2 h-5 w-5" /> + Create Doctor Account & Dashboard</>
                   )}
                 </Button>
               </div>
             </form>
-          </TabsContent>
+          </CardContent>
+        </Card>
+      )}
 
-          <TabsContent value="nurse" className="outline-none animate-in fade-in-40 duration-200">
-            <form onSubmit={handleCreateNurse} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Full Name</Label>
-                <Input 
-                  placeholder="e.g. Nurse Alice Patil" 
-                  value={nurseName}
-                  onChange={(e) => setNurseName(e.target.value)}
-                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
-                  required
-                />
+      {/* ══════════ TAB 2: ADD NURSE FORM ══════════ */}
+      {activeTab === "nurse" && (
+        <Card className="border border-emerald-500/20 shadow-md bg-white dark:bg-slate-950 rounded-3xl p-6 sm:p-8 max-w-3xl mx-auto animate-in fade-in-50 duration-300">
+          <CardHeader className="px-0 pt-0 pb-5 border-b border-slate-100 dark:border-slate-800 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center shadow-xs">
+                  <Users className="h-6 w-6" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Add Nurse & Setup Nurse Station Dashboard
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    नवीन नर्सची नोंदणी करा, वॉर्ड/डिपार्टमेंट व ड्युटी शिफ्ट निवडा. सबमिट केल्यावर नर्स डॅशबोर्ड तयार होईल.
+                  </CardDescription>
+                </div>
               </div>
+              <Badge className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-xs font-bold px-3 py-1">
+                Nurse Account
+              </Badge>
+            </div>
+          </CardHeader>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Email Address</Label>
-                <Input 
-                  type="email"
-                  placeholder="nurse@hospital.com" 
-                  value={nurseEmail}
-                  onChange={(e) => setNurseEmail(e.target.value)}
-                  className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Password</Label>
-                <div className="relative">
-                  <Input 
-                    type={showNursePass ? "text" : "password"} 
-                    placeholder="Min 6 characters" 
-                    value={nursePassword}
-                    onChange={(e) => setNursePassword(e.target.value)}
-                    className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm focus-visible:ring-teal-500 pr-10"
+          <CardContent className="px-0 pb-0">
+            <form onSubmit={handleCreateNurse} className="space-y-5">
+              {/* Row 1: Name & Phone */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-emerald-600" /> Nurse Full Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    placeholder="e.g. Nurse Priya Sharma"
+                    value={nurseName}
+                    onChange={(e) => setNurseName(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium focus-visible:ring-emerald-500"
                     required
-                    minLength={6}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowNursePass(!showNursePass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-655 cursor-pointer"
-                  >
-                    {showNursePass ? <Lucide.EyeOff className="h-4.5 w-4.5" /> : <Lucide.Eye className="h-4.5 w-4.5" />}
-                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-emerald-600" /> Mobile / Contact Number
+                  </Label>
+                  <Input
+                    placeholder="e.g. 9834623909"
+                    value={nursePhone}
+                    onChange={(e) => setNursePhone(e.target.value)}
+                    className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium focus-visible:ring-emerald-500"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row 2: Login Email & Password */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-emerald-50/40 dark:bg-emerald-950/20 p-4 rounded-2xl border border-emerald-500/20">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Department</Label>
+                  <Label className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-emerald-600" /> Login Email (ID) <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    placeholder="nurse@hospital.com"
+                    value={nurseEmail}
+                    onChange={(e) => setNurseEmail(e.target.value)}
+                    className="h-11 rounded-xl bg-white dark:bg-slate-900 border-emerald-500/30 text-sm font-medium focus-visible:ring-emerald-500"
+                    required
+                  />
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">हे ईमेल नर्सचे लॉगिन ID असेल.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                    <Lucide.Key className="h-3.5 w-3.5 text-emerald-600" /> Login Password <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type={showNursePass ? "text" : "password"}
+                      placeholder="Min 6 characters (e.g. nurse123)"
+                      value={nursePassword}
+                      onChange={(e) => setNursePassword(e.target.value)}
+                      className="h-11 rounded-xl bg-white dark:bg-slate-900 border-emerald-500/30 text-sm font-medium pr-10 focus-visible:ring-emerald-500"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNursePass(!showNursePass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showNursePass ? <Lucide.EyeOff className="h-4 w-4" /> : <Lucide.Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium">हा पासवर्ड ॲडमिनला खालील यादीत नेहमी दिसेल.</p>
+                </div>
+              </div>
+
+              {/* Row 3: Department & Shift */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Department / Unit</Label>
                   <Select value={nurseDepartment} onValueChange={setNurseDepartment}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                    <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium">
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ICU">ICU</SelectItem>
-                      <SelectItem value="OPD">OPD</SelectItem>
-                      <SelectItem value="Emergency">Emergency</SelectItem>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="OPD">OPD (Outpatient Department)</SelectItem>
+                      <SelectItem value="Emergency">Emergency & Triage</SelectItem>
+                      <SelectItem value="ICU">ICU (Intensive Care)</SelectItem>
                       <SelectItem value="General Ward">General Ward</SelectItem>
-                      <SelectItem value="Operation Theatre">Operation Theatre</SelectItem>
+                      <SelectItem value="Operation Theatre">Operation Theatre (OT)</SelectItem>
+                      <SelectItem value="Panchakarma Therapy">Panchakarma Therapy Ward</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Working Shift</Label>
+                  <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Duty Shift</Label>
                   <Select value={nurseShift} onValueChange={setNurseShift}>
-                    <SelectTrigger className="h-10 rounded-xl border-slate-200 dark:border-slate-800 bg-white dark:bg-black/20 text-sm">
+                    <SelectTrigger className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium">
                       <SelectValue placeholder="Select shift" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Morning">Morning (8 AM - 4 PM)</SelectItem>
-                      <SelectItem value="Evening">Evening (4 PM - 12 AM)</SelectItem>
-                      <SelectItem value="Night">Night (12 AM - 8 AM)</SelectItem>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="Morning (8 AM - 4 PM)">Morning (8:00 AM - 4:00 PM)</SelectItem>
+                      <SelectItem value="Evening (4 PM - 12 AM)">Evening (4:00 PM - 12:00 AM)</SelectItem>
+                      <SelectItem value="Night (12 AM - 8 AM)">Night (12:00 AM - 8:00 AM)</SelectItem>
+                      <SelectItem value="Full Day OPD">Full Day OPD (9:00 AM - 7:00 PM)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="pt-3">
-                <Button 
-                  type="submit" 
-                  className="w-full bg-gradient-to-r from-teal-650 to-emerald-650 hover:from-teal-700 hover:to-emerald-700 text-white font-bold rounded-xl h-11 shadow-sm transition-all duration-300 hover:shadow-md cursor-pointer"
+              {/* Row 4: Qualification */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700 dark:text-slate-300">Nursing Qualification / Certificate</Label>
+                <Input
+                  placeholder="e.g. B.Sc Nursing, GNM, ANM"
+                  value={nurseQualification}
+                  onChange={(e) => setNurseQualification(e.target.value)}
+                  className="h-11 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-sm font-medium"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
+                <Button
+                  type="submit"
                   disabled={busy}
+                  className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-2xl h-12 shadow-lg shadow-emerald-600/20 text-sm transition-all duration-300 hover:scale-[1.01] cursor-pointer"
                 >
                   {busy ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Nurse Account...</>
+                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Nurse Account & Dashboard...</>
                   ) : (
-                    <><Plus className="mr-2 h-4 w-4" /> Create Nurse Account</>
+                    <><Plus className="mr-2 h-5 w-5" /> + Create Nurse Account & Dashboard</>
                   )}
                 </Button>
               </div>
             </form>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ══════════ STAFF DIRECTORY & PASSWORDS TABLE ══════════ */}
+      <Card className="border border-slate-200/80 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-950 rounded-3xl p-6 sm:p-7">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Lucide.Key className="h-5 w-5 text-amber-500" />
+              Active Doctors & Nurses Credentials (ID & Password)
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              येथे सर्व कार्यरत डॉक्टर व नर्सेसची लॉगिन माहिती (Email ID व Password) सुरक्षितपणे उपलब्ध आहे.
+            </p>
+          </div>
+
+          {/* Search & Filter Controls */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Filter Pills */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setRoleFilter("all")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  roleFilter === "all" ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs" : "text-slate-500"
+                }`}
+              >
+                All ({staffList.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("doctor")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  roleFilter === "doctor" ? "bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-xs" : "text-slate-500"
+                }`}
+              >
+                Doctors ({docCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setRoleFilter("nurse")}
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  roleFilter === "nurse" ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-xs" : "text-slate-500"
+                }`}
+              >
+                Nurses ({nurseCount})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-full sm:w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                placeholder="Search staff or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Staff Table / Cards List */}
+        <div className="mt-5">
+          {staffLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+              <p className="text-xs text-muted-foreground font-medium">Loading staff accounts & credentials...</p>
+            </div>
+          ) : filteredStaff.length === 0 ? (
+            <div className="text-center py-12 bg-slate-50/50 dark:bg-slate-900/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
+              <Users className="h-10 w-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+              <h3 className="font-bold text-sm text-slate-700 dark:text-slate-300">No staff members found</h3>
+              <p className="text-xs text-slate-400 mt-1">Try adjusting your search or add a new doctor/nurse above.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredStaff.map((staff) => {
+                const isDoc = staff.role?.includes("doctor");
+                const isNurse = staff.role === "nurse";
+                const isAdmin = staff.role === "admin";
+                const isRevealed = revealedPasswords[staff.id];
+                const passwordText = staff.password_display || "••••••••";
+
+                const initials = (staff.full_name || "S")
+                  .replace(/^Dr\.?\s*/i, "")
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((w: string) => w[0])
+                  .join("")
+                  .substring(0, 2)
+                  .toUpperCase() || "ST";
+
+                return (
+                  <div
+                    key={staff.id}
+                    className="p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/50 hover:bg-white dark:hover:bg-slate-900 hover:shadow-md transition-all duration-200 flex flex-col justify-between space-y-4"
+                  >
+                    {/* Top row: Avatar, Name & Role Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`h-11 w-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-xs ${
+                            isDoc
+                              ? "bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30"
+                              : isNurse
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                              : "bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30"
+                          }`}
+                        >
+                          {initials}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                            {staff.full_name}
+                          </h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                            {staff.specialty || staff.department || "Medical Staff"}
+                            {staff.qualification && ` • ${staff.qualification}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-2">
+                        {isDoc && (
+                          <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 border-teal-500/30 font-bold text-[10px] gap-1 px-2.5 py-0.5">
+                            <Stethoscope className="h-3 w-3" /> Doctor
+                          </Badge>
+                        )}
+                        {isNurse && (
+                          <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-500/30 font-bold text-[10px] gap-1 px-2.5 py-0.5">
+                            <Users className="h-3 w-3" /> Nurse
+                          </Badge>
+                        )}
+                        {isAdmin && (
+                          <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-500/30 font-bold text-[10px] gap-1 px-2.5 py-0.5">
+                            <ShieldCheck className="h-3 w-3" /> Admin
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Middle Section: Login ID & Password Box */}
+                    <div className="bg-white dark:bg-slate-950 rounded-xl p-3 border border-slate-200/60 dark:border-slate-800/80 space-y-2.5 shadow-2xs">
+                      {/* Email / ID */}
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                          <Mail className="h-3 w-3 text-teal-600" /> Login ID:
+                        </span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <code className="font-mono font-bold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-2 py-0.5 rounded truncate text-xs">
+                            {staff.email}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(staff.email, "Login Email")}
+                            title="Copy Email ID"
+                            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                          >
+                            <Lucide.Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Password */}
+                      <div className="flex items-center justify-between gap-2 text-xs border-t border-slate-100 dark:border-slate-900 pt-2">
+                        <span className="text-[10.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                          <Lucide.Key className="h-3 w-3 text-amber-500" /> Password:
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <code className="font-mono font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-300/40 px-2.5 py-0.5 rounded text-xs tracking-wider">
+                            {isRevealed ? passwordText : "••••••••"}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility(staff.id)}
+                            title={isRevealed ? "Hide Password" : "Show Password"}
+                            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                          >
+                            {isRevealed ? <Lucide.EyeOff className="h-3.5 w-3.5" /> : <Lucide.Eye className="h-3.5 w-3.5" />}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(passwordText, "Password")}
+                            title="Copy Password"
+                            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer"
+                          >
+                            <Lucide.Copy className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Metadata & Action Buttons */}
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="text-[10.5px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-2">
+                        <span className="flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Active
+                        </span>
+                        {staff.phone && <span>• {staff.phone}</span>}
+                        {staff.shift && <span>• {staff.shift.split('(')[0]}</span>}
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleCopyFullLogin(staff)}
+                          className="h-8 text-[11px] font-bold rounded-xl gap-1 border-teal-500/30 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 cursor-pointer shadow-3xs"
+                        >
+                          <Lucide.Share2 className="h-3 w-3" /> Share Details
+                        </Button>
+
+                        {!staff.is_system && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteStaff(staff)}
+                            className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                            title="Delete staff account"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Card>
+    </div>
   );
 }
 
